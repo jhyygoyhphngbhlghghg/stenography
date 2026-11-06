@@ -18,9 +18,10 @@ object SpeechEnergy {
 
     /**
      * Only treat low-CV as a noise bed when mean RMS is in the hiss band.
-     * On-mic speech (and a test sine) is louder; Silero VAD handles loud noise.
+     * Must sit below StreamPcmGate clean-tone RMS (0.0707 FS, −23 dBFS) so a
+     * platform Pass is not zeroed before ASR.
      */
-    const val STATIONARY_MAX_MEAN = 0.08f
+    const val STATIONARY_MAX_MEAN = 0.04f
 
     fun hasEnoughSpeech(samples: FloatArray, sampleRate: Int): Boolean {
         if (samples.isEmpty()) return false
