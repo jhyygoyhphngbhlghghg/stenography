@@ -13,6 +13,7 @@ if [[ -f artifacts/test-results/golden_path_b_brief.json ]]; then
 fi
 python3 scripts/eval_harness.py
 python3 scripts/test_eval_metrics.py -q
+python3 scripts/test_stream_pcm_gate.py -q
 python3 scripts/eval_harness.py --suite demo-stress
 if [[ -f samples/demo-stress/ref/smoke.json ]]; then
   python3 scripts/verify-transcript-json.py samples/demo-stress/ref/smoke.json

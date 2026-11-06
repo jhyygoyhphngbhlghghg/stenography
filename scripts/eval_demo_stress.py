@@ -191,6 +191,7 @@ def run_one(
                     min_duration_on=float(clip.get("min_duration_on", 0.15)),
                     min_duration_off=float(clip.get("min_duration_off", 0.25)),
                     rel_thresh=float(clip.get("rel_thresh", 0.04)),
+                    pcm_gate=bool(clip.get("pcm_gate", False)),
                 )
             else:
                 doc, meta = host_asr_diar.transcribe_file(
@@ -205,7 +206,18 @@ def run_one(
             hyp_path.write_text(json.dumps(doc, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
             wall_path.write_text(str(meta["wall_ms"]) + "\n", encoding="utf-8")
             meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-            log(f"    segments={meta['n_segments']} wall_ms={meta['wall_ms']}")
+            extra = ""
+            if meta.get("pcm_gate"):
+                extra = (
+                    f" pcm_gate passed={meta.get('streams_passed')} "
+                    f"dropped={meta.get('streams_dropped')} codes={meta.get('pcm_gate_codes')}"
+                )
+                notes.append(
+                    f"pcm_gate passed={meta.get('streams_passed')}/"
+                    f"{int(meta.get('streams_passed') or 0) + int(meta.get('streams_dropped') or 0)} "
+                    f"dropped={meta.get('streams_dropped')} codes={meta.get('pcm_gate_codes')}"
+                )
+            log(f"    segments={meta['n_segments']} wall_ms={meta['wall_ms']}{extra}")
         except host_asr_diar.HostBlocked as e:
             status = "blocked"
             blocked_reason = str(e)
