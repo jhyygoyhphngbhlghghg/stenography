@@ -44,7 +44,31 @@ Same Common Voice 17 RU talkers as demo-stress (CC0). Turn-taking, **no overlap*
 
 JSON: `artifacts/eval/hyp/clip_0{1,2,3}.json` validates. CSV: `artifacts/test-results/results.csv`. Stack: Python `sherpa-onnx==2.0.1` Zipformer-ru + OfflineSpeakerDiarization, `num_clusters` 2/2/3. Morning handoff: `docs/overnight_clips_handoff.md`.
 
-## Demo-stress (20 talkers) — host Linux only
+## DEMO_STAGE6 — PRIMARY demo fixture (one mic, 6 talkers)
+
+H1 / Johann format change: **stop treating 20-stream soft-bound as the presentation target.** This row is the demo. 20-stream Path B / `*_gated_v3` is **secondary regression only**.
+
+Recipe: `samples/demo-stress/stage6/` (CV17 CC0, 6 distinct `client_id`s). One-mic mix, turn-taking with **200 ms** end overlap only (max 2 concurrent; 2.56% of speech frames ≥2 speakers). Distances 3.0–6.0 m. SYNTHETIC large-room IR RT60 1.4 s. Medium HVAC (~14 dB) + quiet babble bed (~18 dB). Nothing-class phone mic on the mix (not EDGE_badmic crush). Gold = corpus `sentence`. **Not retuned after seeing scores.**
+
+Stack: Path A `OfflineSpeakerDiarization` `num_clusters=6` + Zipformer-ru on the mix. Wall **3690 ms** / **39718 ms**, RTF **0.0929**.
+
+| speaker | distance_m | WER | notes |
+|---|---|---|---|
+| speaker_1 | 3.0 | **0.0000** | mapped; Zipformer reads the CV sentence |
+| speaker_2 | 3.6 | **0.5455** | partial |
+| speaker_3 | 4.2 | **1.0000** | |
+| speaker_4 | 4.8 | **1.0000** | empty hyp segment |
+| speaker_5 | 5.4 | **1.0000** | **missing** from hyp (no cluster) |
+| speaker_6 | 6.0 | **1.0000** | |
+| **aggregate** (41 edits / 56 ref words) | — | **0.7321** | micro-average, not mean of WERs |
+
+| test_id | status | DER 250ms | JER | purity | WER_main | WER_agg | RTF | hyp/ref |
+|---|---|---|---|---|---|---|---|---|
+| DEMO_STAGE6 | measured | **0.5174** | **0.6280** | 1.0000 | **0.0000** | **0.7321** | **0.0929** | **5 / 6** |
+
+Honest: closest seat (3 m) is WER 0. IDEAL ≪ 0.1 does **not** hold for the room — aggregate **0.73**, DER **0.52**, diarization **5/6** (speaker_5 missed). Farther 4–6 m + reverb + HVAC + phone mic still fail Zipformer/pyannote. Do not cite speaker_1 WER 0 as the demo-room result. Do not retune gold.
+
+## Demo-stress (20 talkers) — SECONDARY regression, host Linux only
 
 Cloud agents / this VM have **no KVM and no ADB**.
 
@@ -100,9 +124,9 @@ Forcing `num_clusters=20` still yields **one** cluster: pyannote segmentation se
 
 Demo implication: the 20-mic PresentConnect path is the one that can track talkers; a single room mic with 20 overlapping voices is still a measured fail.
 
-### Path B regression gate — FROZEN (H1 accepted WORST_CASE @ 9908353)
+### Path B regression gate — FROZEN, SECONDARY (H1 accepted WORST_CASE @ 9908353)
 
-These six Path B rows are **frozen**. They change only with Lead sign-off. Do **not** retune fixtures, VAD, or refs to make numbers pretty. Re-run host inference only when Implementer/Platform claim a harden fix. Policy: `docs/GATE.md`.
+**Not the presentation target** (see DEMO_STAGE6 above). These six Path B rows are **frozen**. They change only with Lead sign-off. Do **not** retune fixtures, VAD, or refs to make numbers pretty. Re-run host inference only when Implementer/Platform claim a harden fix. Policy: `docs/GATE.md`. EDGE_* / hybrid Path B stay green.
 
 **Lock claim: 20/20 stream tracking holds under edge; do NOT claim clean WER/DER on WORST_CASE.**
 
@@ -177,9 +201,11 @@ Honest: v2 does what v1 could not — phone-crush seats fail `BAND_LIMITED` inst
 
 **Idle (closed @ `a5b7aed`):** gate v2 hard `BAND_LIMITED` was rejected for bound seats. Measured consequence @ `bed868b`: WORST_CASE **0/20** empty `{transcript:[]}`; EDGE_badmic **6/20**; EDGE_noise drops main **s01**. Platform / Implementer then softened bound crush — see `*_gated_v3` below. `*_gated_v2` rows stay as history.
 
-### StreamPcmGate v3 (Implementer `a5b7aed` == Platform `686ac4a`) — headline ingest
+### StreamPcmGate v3 (Implementer `a5b7aed` == Platform `686ac4a`) — SECONDARY regression
 
-Python Path B ingest mirrors StreamPcmGate.kt @ Implementer PR #6 `a5b7aed` (sha256 `e29a34bb…` == Platform `686ac4a`). Bound `s01`–`s20`: `BAND_LIMITED` is a **soft** flag + still ASR (like `SOFT_LOW`). Bound main `s01` is never hard-dropped for energy or band-limit. `CLIPPED` / `BAD_MIC` stay hard. Empty `n==0` still skips. Frozen wavs/refs/VAD **unchanged**. Prior `*_gated_v2` @ `bed868b` kept. Headline rows: `*_gated_v3`.
+Not the DEMO_STAGE6 presentation fixture. Bound-seat soft `BAND_LIMITED` ingest on frozen 20-stream EDGE_noise / EDGE_badmic / WORST_CASE.
+
+Python Path B ingest mirrors StreamPcmGate.kt @ Implementer PR #6 `a5b7aed` (sha256 `e29a34bb…` == Platform `686ac4a`). Bound `s01`–`s20`: `BAND_LIMITED` is a **soft** flag + still ASR (like `SOFT_LOW`). Bound main `s01` is never hard-dropped for energy or band-limit. `CLIPPED` / `BAD_MIC` stay hard. Empty `n==0` still skips. Frozen wavs/refs/VAD **unchanged**. Prior `*_gated_v2` @ `bed868b` kept. Rows: `*_gated_v3` (secondary).
 
 | test_id | gated_v2 DER / JER / WER / RTF / hyp | gated_v3 DER / JER / WER / RTF / hyp | gate soft flags / hard drops |
 |---|---|---|---|

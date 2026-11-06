@@ -1,4 +1,8 @@
-# Demo-stress fixture: 20 talkers, cocktail party (REAL speech)
+# Demo-stress fixtures (REAL speech)
+
+**Primary demo:** `DEMO_STAGE6` — 6 RU talkers, **one mic**, turn-taking. See `samples/demo-stress/stage6/`.
+
+**Secondary regression:** 20-talker Path B PresentConnect + EDGE_*/WORST_CASE / `*_gated_v3`. Frozen; do not retune.
 
 Host-Linux eval for Nuclear IT Hack «Нейро-стенографист». **Not** Gradle assemble, **Not** PresentConnect unit tests.
 

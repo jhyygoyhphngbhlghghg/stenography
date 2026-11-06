@@ -1,0 +1,32 @@
+{
+  "der": 0.5174086757990641,
+  "der_no_collar": 0.578199052132712,
+  "jer": 0.6280403718447842,
+  "speaker_purity": 1.0,
+  "der_miss_s": 18.130000000000035,
+  "der_fa_s": 0.0,
+  "der_speaker_error_s": 0.0,
+  "der_ref_speech_s": 35.0400000000016,
+  "collar_ms": 250,
+  "frame_ms": 10,
+  "n_ref_speakers": 6,
+  "n_hyp_speakers": 5,
+  "metric_impl": "scripts/eval_metrics.py (NIST-style DER, DIHARD-like JER, cluster purity); not pyannote.metrics",
+  "mapping_hyp_to_ref": {
+    "speaker_1": "speaker_1",
+    "speaker_2": "speaker_2",
+    "speaker_3": "speaker_3",
+    "speaker_4": "speaker_4",
+    "speaker_6": "speaker_6"
+  },
+  "wer_main": 0.0,
+  "wer_aggregate": 0.7321428571428571,
+  "wer_per_speaker": {
+    "speaker_1": 0.0,
+    "speaker_2": 0.5454545454545454,
+    "speaker_3": 1.0,
+    "speaker_4": 1.0,
+    "speaker_5": 1.0,
+    "speaker_6": 1.0
+  }
+}
