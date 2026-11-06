@@ -30,6 +30,12 @@ class SpeechEnergyTest {
     }
 
     @Test
+    fun continuousOnMicToneIsSpeech() {
+        val tone = sine(hz / 2, 180.0, 0.3f)
+        assertTrue(SpeechEnergy.hasEnoughSpeech(tone, hz))
+    }
+
+    @Test
     fun toneBurstIsSpeech() {
         val pad = FloatArray(hz / 2)
         val tone = sine(hz, 180.0, 0.3f)

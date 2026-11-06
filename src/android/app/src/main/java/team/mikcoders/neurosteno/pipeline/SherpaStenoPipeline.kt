@@ -17,6 +17,7 @@ import com.k2fsa.sherpa.onnx.Vad
 import com.k2fsa.sherpa.onnx.VadModelConfig
 import team.mikcoders.neurosteno.audio.AudioQualityGate
 import team.mikcoders.neurosteno.audio.Pcm
+import team.mikcoders.neurosteno.audio.SpeechEnergy
 import team.mikcoders.neurosteno.audio.SpeechEndpointing
 import team.mikcoders.neurosteno.export.TranscriptFile
 import team.mikcoders.neurosteno.export.Utterance
@@ -58,15 +59,21 @@ class SherpaStenoPipeline(
             AudioQualityGate.Quality.Ok -> Unit
         }
         val gated = audio.copy(samples = AudioQualityGate.dcBlock(audio.samples))
+        onProgress(PipelineProgress(PipelineStage.Vad, "energy/VAD gate before diar", 0.12f))
+        if (!SpeechEnergy.hasEnoughSpeech(gated.samples, gated.sampleRate)) {
+            onProgress(PipelineProgress(PipelineStage.Done, "energy gate: no speech (skip diar/ASR)", 1f))
+            return TranscriptFile(transcript = emptyList())
+        }
+        val masked = gated.copy(samples = SpeechEnergy.zeroNonSpeech(gated.samples, gated.sampleRate))
 
         val recognizer = createRecognizer()
         try {
             val raw = if (paths.hasDiar) {
                 onProgress(PipelineProgress(PipelineStage.Diarize, "OfflineSpeakerDiarization", 0.2f))
-                diarizeThenAsr(gated, recognizer, onProgress)
+                diarizeThenAsr(masked, recognizer, onProgress)
             } else {
                 onProgress(PipelineProgress(PipelineStage.Vad, "Silero VAD chunks", 0.2f))
-                vadThenAsr(gated, recognizer, onProgress)
+                vadThenAsr(masked, recognizer, onProgress)
             }
             onProgress(
                 PipelineProgress(
@@ -269,7 +276,7 @@ class SherpaStenoPipeline(
                 provider = "cpu",
             ),
             clustering = FastClusteringConfig(numClusters = -1, threshold = 0.5f),
-            minDurationOn = 0.2f,
+            minDurationOn = 0.4f,
             minDurationOff = 0.5f,
         )
         return OfflineSpeakerDiarization(assetManager = null, config = cfg)

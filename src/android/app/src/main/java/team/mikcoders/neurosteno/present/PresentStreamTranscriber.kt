@@ -4,6 +4,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import team.mikcoders.neurosteno.audio.AudioQualityGate
 import team.mikcoders.neurosteno.audio.Pcm
+import team.mikcoders.neurosteno.audio.SpeechEnergy
 import team.mikcoders.neurosteno.export.TranscriptFile
 import team.mikcoders.neurosteno.export.Utterance
 import team.mikcoders.neurosteno.pipeline.PipelineProgress
@@ -42,6 +43,9 @@ class PresentStreamTranscriber(
                 return IsolatedResult.Rejected(streamId, q.code, q.message)
             }
             AudioQualityGate.Quality.Ok -> Unit
+        }
+        if (!SpeechEnergy.hasEnoughSpeech(samples, Pcm.TARGET_HZ)) {
+            return IsolatedResult.Ok(streamId, speakerHint, TranscriptFile(emptyList()))
         }
         val audio = PcmAudio(
             samples = samples,

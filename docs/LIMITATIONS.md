@@ -7,6 +7,7 @@
 - Выход: JSON брифа + просмотр списка реплик.
 - Офлайн-стенография: авиарежим после того, как модели лежат в filesDir/assets.
 - PresentConnect (**Path B**): отдельный сетевой режим, до **20 отдельных** browser/mic потоков в локальный Zipformer-ru + диаризацию. Поток 21 → `OVER_CAPACITY`. PCM потоков **не смешиваются** до ASR/diar. Path A (один mixed room mic / cocktail) для демо **отклонён** (H1: mix DER 0.95, 1/20 FAIL vs Path B 20/20, DER 0.235, main WER 0.087 — цифры цитируются, не пересчитывались).
+- Worst-case Eval bar (cite only, not recomputed): EDGE_overlap WER 0.74 DER 0.99; bad mic WER 1.0; noise false alarms DER 1.70. Gates may drop very quiet true speech rather than decode bleed/hiss. Reverb was fine — not a focus.
 
 ## Известные ограничения
 
