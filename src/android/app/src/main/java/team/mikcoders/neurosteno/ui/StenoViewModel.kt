@@ -229,7 +229,7 @@ class StenoViewModel(app: Application) : AndroidViewModel(app) {
                     it.copy(
                         progress = PipelineProgress(
                             PipelineStage.Decode,
-                            "per-turn far-field +${prep.gain.gainDb} dB",
+                            if (prep.eq.applied) "phone-distance EQ" else "per-turn far-field +${prep.gain.gainDb} dB",
                             0.08f,
                         ),
                     )
