@@ -1,0 +1,1 @@
+# Place sherpa-onnx-*.aar here (gitignored). Gradle task fetchSherpaOnnxAar downloads it.

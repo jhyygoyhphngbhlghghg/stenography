@@ -20,13 +20,13 @@ import team.mikcoders.neurosteno.export.TranscriptFile
 import team.mikcoders.neurosteno.export.Utterance
 import team.mikcoders.neurosteno.llm.IdentityLlmPostPass
 import team.mikcoders.neurosteno.llm.LocalLlmPostPass
-import java.io.File
 
 /**
  * VAD → OfflineSpeakerDiarization → Zipformer-ru (or Whisper tiny) per crop → LLM stub.
  *
- * Requires sherpa-onnx AAR + models on disk. If native load fails, caller should
- * fall back to [StubStenoPipeline].
+ * Wired to the sherpa-onnx **Kotlin** Android AAR (data classes, not Java builders).
+ * Models live on disk (filesDir), so AssetManager is null → newFromFile.
+ * If native load fails, caller should fall back to [StubStenoPipeline].
  */
 class SherpaStenoPipeline(
     private val paths: ModelPaths,
@@ -55,7 +55,13 @@ class SherpaStenoPipeline(
                 onProgress(PipelineProgress(PipelineStage.Vad, "Silero VAD chunks", 0.2f))
                 vadThenAsr(audio, recognizer, onProgress)
             }
-            onProgress(PipelineProgress(PipelineStage.Llm, if (llm.weightsPresent) "LLM cleanup" else "LLM identity stub", 0.92f))
+            onProgress(
+                PipelineProgress(
+                    PipelineStage.Llm,
+                    if (llm.weightsPresent) "LLM cleanup" else "LLM identity stub",
+                    0.92f,
+                ),
+            )
             val cleaned = llm.cleanup(raw)
             onProgress(PipelineProgress(PipelineStage.Done, "${cleaned.size} utterances", 1f))
             return TranscriptFile(transcript = cleaned.sortedBy { it.startMs })
@@ -169,91 +175,89 @@ class SherpaStenoPipeline(
     }
 
     private fun createRecognizer(): OfflineRecognizer {
-        val tokens: String
         val modelConfig: OfflineModelConfig
         if (paths.hasPrimaryAsr) {
             val dir = paths.zipformerDir!!
-            tokens = ModelStore.zipformerFile(dir, "tokens.txt")!!.absolutePath
+            val tokens = ModelStore.zipformerFile(dir, "tokens.txt")!!.absolutePath
             val enc = ModelStore.zipformerFile(dir, "encoder")!!.absolutePath
             val dec = ModelStore.zipformerFile(dir, "decoder")!!.absolutePath
             val join = ModelStore.zipformerFile(dir, "joiner")!!.absolutePath
-            val transducer = OfflineTransducerModelConfig.builder()
-                .setEncoder(enc)
-                .setDecoder(dec)
-                .setJoiner(join)
-                .build()
-            modelConfig = OfflineModelConfig.builder()
-                .setTransducer(transducer)
-                .setTokens(tokens)
-                .setNumThreads(2)
-                .setDebug(false)
-                .build()
+            modelConfig = OfflineModelConfig(
+                transducer = OfflineTransducerModelConfig(
+                    encoder = enc,
+                    decoder = dec,
+                    joiner = join,
+                ),
+                tokens = tokens,
+                numThreads = 2,
+                debug = false,
+                provider = "cpu",
+                modelType = "transducer",
+            )
         } else {
             val dir = paths.whisperTinyDir ?: error("no ASR model")
-            tokens = File(dir, "tiny-tokens.txt").takeIf { it.isFile }?.absolutePath
-                ?: File(dir, "tokens.txt").absolutePath
-            val enc = dir.listFiles()?.first { it.name.contains("encoder") }!!.absolutePath
-            val dec = dir.listFiles()?.first { it.name.contains("decoder") }!!.absolutePath
-            val whisper = OfflineWhisperModelConfig.builder()
-                .setEncoder(enc)
-                .setDecoder(dec)
-                .build()
-            modelConfig = OfflineModelConfig.builder()
-                .setWhisper(whisper)
-                .setTokens(tokens)
-                .setNumThreads(2)
-                .build()
+            val tokens = ModelStore.whisperFile(dir, "tokens")!!.absolutePath
+            val enc = ModelStore.whisperFile(dir, "encoder")!!.absolutePath
+            val dec = ModelStore.whisperFile(dir, "decoder")!!.absolutePath
+            modelConfig = OfflineModelConfig(
+                whisper = OfflineWhisperModelConfig(
+                    encoder = enc,
+                    decoder = dec,
+                    language = "ru",
+                    task = "transcribe",
+                ),
+                tokens = tokens,
+                numThreads = 2,
+                debug = false,
+                provider = "cpu",
+                modelType = "whisper",
+            )
         }
-        val config = OfflineRecognizerConfig.builder()
-            .setFeatConfig(FeatureConfig.builder().setSampleRate(16_000).setFeatureDim(80).build())
-            .setOfflineModelConfig(modelConfig)
-            .setDecodingMethod("greedy_search")
-            .build()
-        return OfflineRecognizer(config)
+        val config = OfflineRecognizerConfig(
+            featConfig = FeatureConfig(sampleRate = 16_000, featureDim = 80),
+            modelConfig = modelConfig,
+            decodingMethod = "greedy_search",
+        )
+        return OfflineRecognizer(assetManager = null, config = config)
     }
 
     private fun createDiarizer(): OfflineSpeakerDiarization {
-        val pyannote = OfflineSpeakerSegmentationPyannoteModelConfig.builder()
-            .setModel(paths.diarSegmentation!!.absolutePath)
-            .build()
-        val seg = OfflineSpeakerSegmentationModelConfig.builder()
-            .setPyannote(pyannote)
-            .setNumThreads(2)
-            .setProvider("cpu")
-            .build()
-        val emb = SpeakerEmbeddingExtractorConfig.builder()
-            .setModel(paths.diarEmbedding!!.absolutePath)
-            .setNumThreads(2)
-            .setProvider("cpu")
-            .build()
-        val clustering = FastClusteringConfig.builder()
-            .setNumClusters(-1)
-            .setThreshold(0.5f)
-            .build()
-        val cfg = OfflineSpeakerDiarizationConfig.builder()
-            .setSegmentation(seg)
-            .setEmbedding(emb)
-            .setClustering(clustering)
-            .setMinDurationOn(0.2f)
-            .setMinDurationOff(0.5f)
-            .build()
-        return OfflineSpeakerDiarization(cfg)
+        val cfg = OfflineSpeakerDiarizationConfig(
+            segmentation = OfflineSpeakerSegmentationModelConfig(
+                pyannote = OfflineSpeakerSegmentationPyannoteModelConfig(
+                    model = paths.diarSegmentation!!.absolutePath,
+                ),
+                numThreads = 2,
+                debug = false,
+                provider = "cpu",
+            ),
+            embedding = SpeakerEmbeddingExtractorConfig(
+                model = paths.diarEmbedding!!.absolutePath,
+                numThreads = 2,
+                debug = false,
+                provider = "cpu",
+            ),
+            clustering = FastClusteringConfig(numClusters = -1, threshold = 0.5f),
+            minDurationOn = 0.2f,
+            minDurationOff = 0.5f,
+        )
+        return OfflineSpeakerDiarization(assetManager = null, config = cfg)
     }
 
     private fun createVad(): Vad {
-        val silero = SileroVadModelConfig.builder()
-            .setModel(paths.sileroVad!!.absolutePath)
-            .setMinSilenceDuration(0.25f)
-            .setMinSpeechDuration(0.25f)
-            .setWindowSize(512)
-            .setMaxSpeechDuration(20f)
-            .build()
-        val cfg = VadModelConfig.builder()
-            .setSileroVadModelConfig(silero)
-            .setSampleRate(16_000)
-            .setNumThreads(1)
-            .setProvider("cpu")
-            .build()
-        return Vad(cfg)
+        val cfg = VadModelConfig(
+            sileroVadModelConfig = SileroVadModelConfig(
+                model = paths.sileroVad!!.absolutePath,
+                minSilenceDuration = 0.25f,
+                minSpeechDuration = 0.25f,
+                windowSize = 512,
+                maxSpeechDuration = 20f,
+            ),
+            sampleRate = 16_000,
+            numThreads = 1,
+            provider = "cpu",
+            debug = false,
+        )
+        return Vad(assetManager = null, config = cfg)
     }
 }

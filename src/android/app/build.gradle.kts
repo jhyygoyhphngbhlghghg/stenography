@@ -11,11 +11,15 @@ android {
 
     defaultConfig {
         applicationId = "team.mikcoders.neurosteno"
-        minSdk = 26
+        // AAR minSdk 21; sherpa Java demo uses 28. Brief allows 26–28.
+        minSdk = 28
         targetSdk = 35
         versionCode = 1
         versionName = "0.1.0-overnight"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
+        }
     }
 
     flavorDimensions += "role"
@@ -57,7 +61,41 @@ android {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
+        jniLibs {
+            useLegacyPackaging = true
+        }
     }
+}
+
+val sherpaOnnxVersion = "1.13.5"
+val sherpaAar = layout.projectDirectory.file("libs/sherpa-onnx-$sherpaOnnxVersion.aar")
+
+val fetchSherpaOnnxAar by tasks.registering {
+    group = "build"
+    description = "Download sherpa-onnx Android AAR (same file JitPack jitpack.yml wget's)."
+    outputs.file(sherpaAar)
+    outputs.upToDateWhen { sherpaAar.asFile.isFile && sherpaAar.asFile.length() > 1_000_000L }
+    doLast {
+        val dest = sherpaAar.asFile
+        dest.parentFile.mkdirs()
+        if (dest.isFile && dest.length() > 1_000_000L) return@doLast
+        val url =
+            uri("https://github.com/k2-fsa/sherpa-onnx/releases/download/v$sherpaOnnxVersion/sherpa-onnx-$sherpaOnnxVersion.aar")
+        logger.lifecycle("GET $url")
+        url.toURL().openStream().use { input ->
+            dest.outputStream().buffered().use { output -> input.copyTo(output) }
+        }
+        require(dest.length() > 1_000_000L) {
+            "sherpa-onnx AAR download too small (${dest.length()} bytes)"
+        }
+    }
+}
+
+tasks.matching { it.name.startsWith("pre") && it.name.endsWith("Build") }.configureEach {
+    dependsOn(fetchSherpaOnnxAar)
+}
+tasks.matching { it.name.contains("compile") && it.name.contains("Kotlin") }.configureEach {
+    dependsOn(fetchSherpaOnnxAar)
 }
 
 dependencies {
@@ -76,8 +114,10 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    // JNI + Java API: ASR, Silero VAD, OfflineSpeakerDiarization
-    implementation("com.github.k2-fsa.sherpa-onnx:sherpa-onnx:v2.0.1")
+    // sherpa-onnx Android AAR (Kotlin API + JNI). JitPack coordinate
+    // com.github.k2-fsa.sherpa-onnx:sherpa-onnx:v2.0.1 is 404; v1.13.5 AAR is
+    // what k2-fsa jitpack.yml wget's from GitHub Releases (settings ivy + fetch).
+    implementation(files(sherpaAar))
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     testImplementation("junit:junit:4.13.2")

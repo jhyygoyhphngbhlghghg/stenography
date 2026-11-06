@@ -17,12 +17,23 @@ data class ModelPaths(
     val llmGguf: File?,
 ) {
     val hasPrimaryAsr: Boolean
-        get() = zipformerDir != null && zipformerFile(zipformerDir, "tokens.txt") != null &&
-            (zipformerFile(zipformerDir, "encoder") != null)
+        get() {
+            val dir = zipformerDir ?: return false
+            return ModelStore.zipformerFile(dir, "tokens.txt") != null &&
+                ModelStore.zipformerFile(dir, "encoder") != null &&
+                ModelStore.zipformerFile(dir, "decoder") != null &&
+                ModelStore.zipformerFile(dir, "joiner") != null
+        }
 
     val hasVad: Boolean get() = sileroVad != null
     val hasDiar: Boolean get() = diarSegmentation != null && diarEmbedding != null
-    val hasBackupAsr: Boolean get() = whisperTinyDir != null
+    val hasBackupAsr: Boolean
+        get() {
+            val dir = whisperTinyDir ?: return false
+            return ModelStore.whisperFile(dir, "encoder") != null &&
+                ModelStore.whisperFile(dir, "decoder") != null &&
+                ModelStore.whisperFile(dir, "tokens") != null
+        }
     val hasEmergencyAsr: Boolean get() = voskDir != null
     val hasLlm: Boolean get() = llmGguf != null
 
@@ -68,6 +79,19 @@ class ModelStore(private val context: Context) {
                     "encoder" -> n.contains("encoder") && n.endsWith(".onnx")
                     "decoder" -> n.contains("decoder") && n.endsWith(".onnx")
                     "joiner" -> n.contains("joiner") && n.endsWith(".onnx")
+                    else -> false
+                }
+            }
+        }
+
+        fun whisperFile(dir: File, kind: String): File? {
+            val names = dir.listFiles() ?: return null
+            return names.firstOrNull { f ->
+                val n = f.name.lowercase()
+                when (kind) {
+                    "tokens" -> n.endsWith("tokens.txt")
+                    "encoder" -> n.contains("encoder") && n.endsWith(".onnx")
+                    "decoder" -> n.contains("decoder") && n.endsWith(".onnx")
                     else -> false
                 }
             }

@@ -44,6 +44,8 @@ captures/
 *.jks
 *.keystore
 !debug.keystore
+src/android/app/libs/*.aar
+!src/android/app/libs/.gitkeep
 
 # Received files are generated during demonstrations
 examples/output/*
