@@ -1,2 +1,2 @@
-test_id,timestamp_utc,commit,file_name,duration_ms,wall_ms,rtf,speakers_hyp,notes
-# no rows yet — fill after a real on-device run
+test_id,clip_id,timestamp_utc,commit,file_name,duration_ms,wall_ms,rtf,wer,speakers_hyp,speakers_ref,notes
+# no rows yet — fill after a real on-device or host run; leave wer and rtf empty until measured
