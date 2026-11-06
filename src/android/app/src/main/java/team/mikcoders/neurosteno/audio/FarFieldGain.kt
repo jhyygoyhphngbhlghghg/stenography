@@ -486,8 +486,8 @@ object FarFieldSynth {
         peak: Double = 0.22,
         sampleRateHz: Int = Pcm.TARGET_HZ,
     ): FloatArray {
-        val freqs = doubleArrayOf(400.0, 800.0, 1_200.0, 1_600.0, 2_000.0, 2_400.0, 2_800.0, 3_200.0, 3_600.0)
-        val rel = doubleArrayOf(1.0, 0.75, 0.55, 0.40, 0.32, 0.25, 0.20, 0.16, 0.12)
+        val freqs = doubleArrayOf(250.0, 400.0, 800.0, 1_200.0, 1_600.0, 2_000.0, 2_400.0, 2_800.0, 3_200.0, 3_600.0, 4_000.0, 4_400.0)
+        val rel = doubleArrayOf(0.85, 1.0, 0.75, 0.55, 0.40, 0.32, 0.25, 0.20, 0.16, 0.12, 0.10, 0.08)
         val raw = FloatArray(n)
         val twoPi = 2.0 * Math.PI
         var i = 0
@@ -544,7 +544,7 @@ object FarFieldSynth {
 
     /** Sequential mix: hot near speech (no phone crush) + muffled 5 m / 6 m phone scenes. */
     fun sequentialPhoneMix(): Pair<FloatArray, List<MixTurn>> {
-        val near = speechStack(peak = 0.28)
+        val near = speechStack(peak = 0.36)
         val g1 = gap()
         val far5 = phoneDistanceScene(5.0)
         val g2 = gap()

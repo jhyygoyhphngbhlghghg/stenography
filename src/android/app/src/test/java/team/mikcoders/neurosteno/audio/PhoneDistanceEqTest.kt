@@ -15,11 +15,13 @@ class PhoneDistanceEqTest {
         assertEquals(0.08, FarFieldGain.TARGET_RMS_FS, 0.0)
         assertEquals(24.0, FarFieldGain.MAX_GAIN_DB, 0.0)
         assertEquals(1.0, FarFieldGain.gainForSegment(0.12, 0.4), 1e-12)
+        assertEquals(250.0, PhoneDistanceEq.SPEECH_LO_HZ, 0.0)
+        assertEquals(4500.0, PhoneDistanceEq.SPEECH_HI_HZ, 0.0)
     }
 
     @Test
     fun nearSeatIsIdentity() {
-        val near = FarFieldSynth.speechStack(peak = 0.28)
+        val near = FarFieldSynth.speechStack(peak = 0.36)
         val eq = PhoneDistanceEq.apply(near)
         assertFalse(eq.applied)
         assertFalse(eq.nearCrushed)
