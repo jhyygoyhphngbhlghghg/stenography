@@ -16,13 +16,17 @@ import com.k2fsa.sherpa.onnx.SpeakerEmbeddingExtractorConfig
 import com.k2fsa.sherpa.onnx.Vad
 import com.k2fsa.sherpa.onnx.VadModelConfig
 import team.mikcoders.neurosteno.audio.Pcm
+import team.mikcoders.neurosteno.audio.SpeechEndpointing
 import team.mikcoders.neurosteno.export.TranscriptFile
 import team.mikcoders.neurosteno.export.Utterance
 import team.mikcoders.neurosteno.llm.IdentityLlmPostPass
 import team.mikcoders.neurosteno.llm.LocalLlmPostPass
 
 /**
- * VAD → OfflineSpeakerDiarization → Zipformer-ru (or Whisper tiny) per crop → LLM stub.
+ * Endpoint trim → VAD → OfflineSpeakerDiarization → Zipformer-ru (or Whisper tiny) per crop → LLM stub.
+ *
+ * Overlap/bleed: tighter Silero params + drop crops that fail [SpeechEndpointing.isMainSpeech]
+ * (cite-only bar: EDGE_overlap WER 0.74 DER 0.99).
  *
  * Wired to the sherpa-onnx **Kotlin** Android AAR (data classes, not Java builders).
  * Models live on disk (filesDir), so AssetManager is null → newFromFile.
@@ -77,6 +81,7 @@ class SherpaStenoPipeline(
     ): List<Utterance> {
         val diar = createDiarizer()
         try {
+            val contextP80 = SpeechEndpointing.streamP80Rms(audio.samples, audio.sampleRate)
             val segs = diar.process(audio.samples)
             val out = ArrayList<Utterance>(segs.size)
             segs.forEachIndexed { i, seg ->
@@ -90,7 +95,9 @@ class SherpaStenoPipeline(
                 val startMs = (seg.start * 1000).toLong()
                 val endMs = (seg.end * 1000).toLong()
                 val crop = crop(audio.samples, audio.sampleRate, startMs, endMs)
-                val text = asr(recognizer, crop, audio.sampleRate)
+                val voiced = SpeechEndpointing.trimToSpeech(crop, audio.sampleRate)
+                if (!SpeechEndpointing.isMainSpeech(voiced, audio.sampleRate, contextP80)) continue
+                val text = asr(recognizer, voiced, audio.sampleRate)
                 if (text.isNotBlank()) {
                     out += Utterance(
                         speakerId = "speaker_${seg.speaker + 1}",
@@ -113,8 +120,10 @@ class SherpaStenoPipeline(
     ): List<Utterance> {
         if (!paths.hasVad) {
             onProgress(PipelineProgress(PipelineStage.Asr, "ASR whole file (no VAD)", 0.5f))
-            val text = asr(recognizer, audio.samples, audio.sampleRate)
-            val end = audio.durationMs
+            val voiced = SpeechEndpointing.trimToSpeech(audio.samples, audio.sampleRate)
+            if (!SpeechEndpointing.isMainSpeech(voiced, audio.sampleRate)) return emptyList()
+            val text = asr(recognizer, voiced, audio.sampleRate)
+            val end = (voiced.size.toLong() * 1000) / audio.sampleRate
             return listOf(Utterance("speaker_1", 0, end, text))
         }
         val vad = createVad()
@@ -122,6 +131,7 @@ class SherpaStenoPipeline(
             val window = 512
             var offset = 0
             val samples = audio.samples
+            val contextP80 = SpeechEndpointing.streamP80Rms(samples, audio.sampleRate)
             val out = ArrayList<Utterance>()
             var idx = 0
             while (offset + window <= samples.size) {
@@ -131,11 +141,8 @@ class SherpaStenoPipeline(
                     val seg = vad.front()
                     vad.pop()
                     val startMs = (seg.start.toDouble() / audio.sampleRate * 1000).toLong()
-                    val durMs = (seg.samples.size.toLong() * 1000) / audio.sampleRate
-                    onProgress(PipelineProgress(PipelineStage.Asr, "VAD chunk ${++idx}", 0.4f))
-                    val text = asr(recognizer, seg.samples, audio.sampleRate)
-                    if (text.isNotBlank()) {
-                        out += Utterance("speaker_1", startMs, startMs + durMs, text)
+                    emitVadUtterance(recognizer, seg.samples, audio.sampleRate, startMs, contextP80, out) {
+                        onProgress(PipelineProgress(PipelineStage.Asr, "VAD chunk ${++idx}", 0.4f))
                     }
                 }
             }
@@ -144,15 +151,30 @@ class SherpaStenoPipeline(
                 val seg = vad.front()
                 vad.pop()
                 val startMs = (seg.start.toDouble() / audio.sampleRate * 1000).toLong()
-                val durMs = (seg.samples.size.toLong() * 1000) / audio.sampleRate
-                val text = asr(recognizer, seg.samples, audio.sampleRate)
-                if (text.isNotBlank()) {
-                    out += Utterance("speaker_1", startMs, startMs + durMs, text)
-                }
+                emitVadUtterance(recognizer, seg.samples, audio.sampleRate, startMs, contextP80, out)
             }
             return out
         } finally {
             vad.release()
+        }
+    }
+
+    private fun emitVadUtterance(
+        recognizer: OfflineRecognizer,
+        raw: FloatArray,
+        sampleRate: Int,
+        startMs: Long,
+        contextP80: Float,
+        out: MutableList<Utterance>,
+        onChunk: () -> Unit = {},
+    ) {
+        val voiced = SpeechEndpointing.trimToSpeech(raw, sampleRate)
+        if (!SpeechEndpointing.isMainSpeech(voiced, sampleRate, contextP80)) return
+        onChunk()
+        val text = asr(recognizer, voiced, sampleRate)
+        if (text.isNotBlank()) {
+            val durMs = (voiced.size.toLong() * 1000) / sampleRate
+            out += Utterance("speaker_1", startMs, startMs + durMs, text)
         }
     }
 
@@ -248,10 +270,11 @@ class SherpaStenoPipeline(
         val cfg = VadModelConfig(
             sileroVadModelConfig = SileroVadModelConfig(
                 model = paths.sileroVad!!.absolutePath,
-                minSilenceDuration = 0.25f,
-                minSpeechDuration = 0.25f,
+                threshold = SpeechEndpointing.VAD_THRESHOLD,
+                minSilenceDuration = SpeechEndpointing.MIN_SILENCE_SEC,
+                minSpeechDuration = SpeechEndpointing.MIN_SPEECH_SEC,
                 windowSize = 512,
-                maxSpeechDuration = 20f,
+                maxSpeechDuration = SpeechEndpointing.MAX_SPEECH_SEC,
             ),
             sampleRate = 16_000,
             numThreads = 1,
