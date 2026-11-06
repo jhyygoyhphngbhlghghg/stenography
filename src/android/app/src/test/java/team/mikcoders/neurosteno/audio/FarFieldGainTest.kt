@@ -96,4 +96,53 @@ class FarFieldGainTest {
         assertTrue(g.clipGuard)
         assertTrue(g.peakAfter <= FarFieldGain.PEAK_LIMIT + 1e-5)
     }
+
+    @Test
+    fun sequentialMixBoostsQuietFarWithoutCrushingNear() {
+        val (pcm, turns) = FarFieldSynth.sequentialMix()
+        val mixRms = FarFieldGain.rms(pcm)
+        assertTrue("mix already loud like Eval ffgain 0.119 FS: $mixRms", mixRms > FarFieldGain.TARGET_RMS_FS)
+        val wholeFileGain = FarFieldGain.TARGET_RMS_FS / mixRms
+        assertTrue("whole-file AGC would attenuate", wholeFileGain < 1.0)
+
+        val g = FarFieldGain.stage(pcm)
+        assertFalse("never crush loud turns", g.loudCrushed)
+        assertTrue(g.boosted)
+        assertTrue(g.segments.size >= 3)
+
+        val near = turns.first { it.name == "near_3m" }
+        val far5 = turns.first { it.name == "far_5m" }
+        val far6 = turns.first { it.name == "far_6m" }
+        fun slice(src: FloatArray, r: IntRange) = src.copyOfRange(r.first, r.last + 1)
+
+        val nearBefore = FarFieldGain.rms(slice(pcm, near.range))
+        val nearAfter = FarFieldGain.rms(slice(g.samples, near.range))
+        val far5Before = FarFieldGain.rms(slice(pcm, far5.range))
+        val far5After = FarFieldGain.rms(slice(g.samples, far5.range))
+        val far6Before = FarFieldGain.rms(slice(pcm, far6.range))
+        val far6After = FarFieldGain.rms(slice(g.samples, far6.range))
+
+        assertTrue("near already above target $nearBefore", nearBefore > FarFieldGain.TARGET_RMS_FS)
+        assertEquals("near not attenuated", nearBefore, nearAfter, 1e-6)
+        assertTrue("far 5 m below target $far5Before", far5Before < FarFieldGain.TARGET_RMS_FS)
+        assertTrue("far 6 m below target $far6Before", far6Before < FarFieldGain.TARGET_RMS_FS)
+        assertTrue("far 5 m lifted $far5After", far5After > far5Before * 1.5)
+        assertTrue("far 6 m lifted $far6After", far6After > far6Before * 1.5)
+        assertTrue("far 5 m after $far5After", far5After >= StreamPcmGate.RMS_SOFT_FS * 0.9)
+        assertTrue("far 6 m after $far6After", far6After >= StreamPcmGate.RMS_REJECT_FS)
+
+        val prep = DemoPcmPrep.prepare(PcmAudio(pcm, sourceName = "mix-3m-5m-6m"))
+        assertFalse("demo never hard-drops the mix", prep.skipAsr)
+        assertTrue(prep.afterGate.asrAllowed)
+        assertEquals(null, prep.skipCode)
+    }
+
+    @Test
+    fun gainForSegmentNeverAttenuatesLoudTurn() {
+        assertEquals(1.0, FarFieldGain.gainForSegment(0.119, 0.4), 1e-12)
+        assertEquals(1.0, FarFieldGain.gainForSegment(0.08, 0.2), 1e-12)
+        val quiet = FarFieldGain.gainForSegment(0.01, 0.02)
+        assertTrue(quiet > 1.0)
+        assertTrue(20.0 * kotlin.math.ln(quiet) / kotlin.math.ln(10.0) <= FarFieldGain.MAX_GAIN_DB + 1e-6)
+    }
 }
