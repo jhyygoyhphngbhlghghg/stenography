@@ -63,9 +63,10 @@ class StreamPcmGateTest {
     }
 
     @Test
-    fun phoneCrushWithoutClipIsBandLimited() {
+    fun unboundPhoneCrushIsHardBandLimited() {
         val stack = StreamPcmGate.inspect(StreamPcmSynth.toneStack(StreamPcmSynth.PHONE_HZ))
         assertEquals(PresentConnectCodes.BAND_LIMITED, stack.rejectCode)
+        assertFalse(stack.asrAllowed)
         assertEquals(0.0, stack.clipRatio, 1e-9)
         assertTrue(absDc(stack) < StreamPcmGate.DC_REJECT_FS)
         assertTrue(stack.hfRatio < StreamPcmGate.BAND_LIMITED_HF_RATIO)
@@ -74,9 +75,22 @@ class StreamPcmGateTest {
 
         val lpf = StreamPcmGate.inspect(StreamPcmSynth.phoneCrushLpf())
         assertEquals(PresentConnectCodes.BAND_LIMITED, lpf.rejectCode)
+        assertFalse(lpf.asrAllowed)
         assertEquals(0.0, lpf.clipRatio, 1e-9)
         assertTrue(absDc(lpf) < StreamPcmGate.DC_REJECT_FS)
         assertTrue(lpf.hfRatio < StreamPcmGate.BAND_LIMITED_HF_RATIO)
+    }
+
+    @Test
+    fun boundPhoneCrushIsSoftBandLimitedStillAsr() {
+        val pcm = StreamPcmSynth.phoneCrushLpf()
+        val q = StreamPcmGate.inspect(pcm, boundSeat = true)
+        assertTrue(q.asrAllowed)
+        assertEquals(null, q.rejectCode)
+        assertTrue(q.softFlags.contains(PresentConnectCodes.BAND_LIMITED))
+        val stack = StreamPcmGate.inspect(StreamPcmSynth.toneStack(StreamPcmSynth.PHONE_HZ), boundSeat = true)
+        assertTrue(stack.asrAllowed)
+        assertTrue(stack.softFlags.contains(PresentConnectCodes.BAND_LIMITED))
     }
 
     @Test
@@ -164,7 +178,28 @@ class StreamPcmGateTest {
     }
 
     @Test
-    fun sessionPhoneCrushSkipsAsrBandLimited() = runBlocking {
+    fun sessionBoundCrushInvokesAsrSoftBandLimited() = runBlocking {
+        var asrCalls = 0
+        val session = PathBSession(
+            asr = PathBAsr { _, _ ->
+                asrCalls++
+                listOf(Utterance("cluster", 0, 1, "kept"))
+            },
+        )
+        session.bindStart("s09")
+        val out = session.finish("s09", StreamPcmSynth.phoneCrushLpf())
+        assertEquals(1, asrCalls)
+        assertTrue(out.asrInvoked)
+        assertEquals(null, out.rejectCode)
+        assertTrue(out.quality.softFlags.contains(PresentConnectCodes.BAND_LIMITED))
+        assertEquals("speaker_9", out.utterances.single().speakerId)
+        assertEquals(PresentConnectCodes.BAND_LIMITED, session.micFlags().single().code)
+        assertFalse(session.micFlags().single().hardReject)
+        assertEquals(1, session.brief().transcript.size)
+    }
+
+    @Test
+    fun sessionUnboundCrushHardBandLimited() = runBlocking {
         var asrCalls = 0
         val session = PathBSession(
             asr = PathBAsr { _, _ ->
@@ -172,12 +207,33 @@ class StreamPcmGateTest {
                 listOf(Utterance("cluster", 0, 1, "nope"))
             },
         )
-        session.bindStart("s09")
-        val out = session.finish("s09", StreamPcmSynth.phoneCrushLpf())
+        val out = session.finish("mic-a", StreamPcmSynth.phoneCrushLpf())
         assertEquals(0, asrCalls)
         assertEquals(PresentConnectCodes.BAND_LIMITED, out.rejectCode)
-        assertTrue(out.wireJson.single().contains("\"stream_id\":\"s09\""))
+        assertTrue(out.wireJson.single().contains("\"stream_id\":\"mic-a\""))
         assertTrue(session.brief().transcript.isEmpty())
+    }
+
+    @Test
+    fun boundMainS01NeverHardSkippedByEnergyOrBandLimit() = runBlocking {
+        var asrCalls = 0
+        val session = PathBSession(
+            asr = PathBAsr { _, _ ->
+                asrCalls++
+                listOf(Utterance("cluster", 0, 1, "main"))
+            },
+        )
+        session.bindStart("s01")
+        val quiet = session.finish("s01", StreamPcmSynth.silence())
+        assertEquals(null, quiet.rejectCode)
+        assertTrue(quiet.asrInvoked)
+        assertTrue(quiet.quality.softFlags.contains("SOFT_LOW"))
+        val crush = session.finish("s01", StreamPcmSynth.phoneCrushLpf())
+        assertEquals(null, crush.rejectCode)
+        assertTrue(crush.asrInvoked)
+        assertTrue(crush.quality.softFlags.contains(PresentConnectCodes.BAND_LIMITED))
+        assertEquals(2, asrCalls)
+        assertEquals("speaker_1", crush.utterances.single().speakerId)
     }
 
     @Test
