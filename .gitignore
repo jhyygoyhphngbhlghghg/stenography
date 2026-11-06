@@ -76,3 +76,9 @@ tokens.txt
 
 # Uploaded kickoff notes (agent workspace only)
 uploads/
+
+# Eval drops — judge «котики» and local audio/hypotheses stay out of git
+eval/clips/**
+!eval/clips/README.md
+!eval/clips/.gitkeep
+eval/hyp/**
