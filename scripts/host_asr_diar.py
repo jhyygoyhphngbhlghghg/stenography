@@ -327,7 +327,7 @@ def rms_speech_regions(
     sr: int,
     *,
     frame_ms: int = 20,
-    rel_thresh: float = 0.12,
+    rel_thresh: float = 0.04,
     pad_ms: int = 80,
     min_ms: int = 150,
     merge_gap_ms: int = 250,
@@ -366,10 +366,16 @@ def rms_speech_regions(
             merged.append([a, b])
     pad_f = max(0, pad_ms // frame_ms)
     min_f = max(1, min_ms // frame_ms)
-    out = []
+    padded: list[list[int]] = []
     for a, b in merged:
         a = max(0, a - pad_f)
         b = min(n, b + pad_f)
+        if padded and a <= padded[-1][1]:
+            padded[-1][1] = max(padded[-1][1], b)
+        else:
+            padded.append([a, b])
+    out = []
+    for a, b in padded:
         if b - a < min_f:
             continue
         out.append((a * frame / sr, min(x.size, b * frame) / sr))
@@ -387,6 +393,7 @@ def transcribe_per_stream(
     pad_ms: int = 80,
     min_duration_on: float = 0.15,
     min_duration_off: float = 0.25,
+    rel_thresh: float = 0.04,
 ) -> tuple[dict, dict]:
     """Path B: one dry track per PresentConnect stream, then merge.
 
@@ -437,6 +444,7 @@ def transcribe_per_stream(
             regions = rms_speech_regions(
                 samples,
                 sr,
+                rel_thresh=rel_thresh,
                 pad_ms=pad_ms,
                 min_ms=int(min_duration_on * 1000),
                 merge_gap_ms=int(min_duration_off * 1000),
@@ -504,6 +512,7 @@ def transcribe_per_stream(
         "pad_ms": pad_ms,
         "min_duration_on": min_duration_on,
         "min_duration_off": min_duration_off,
+        "rel_thresh": rel_thresh,
         "stack": "linux-sherpa-onnx per-stream RMS-VAD+ASR (oracle stream id), merge by time",
         "streams": per,
         "no_kvm_adb": True,
