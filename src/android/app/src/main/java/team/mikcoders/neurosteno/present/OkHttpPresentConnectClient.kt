@@ -20,7 +20,6 @@ import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * WebSocket worker from docs/PRESENT_CONNECT.md. Caps at [PresentConnectConfig.maxStreams] (20).
@@ -35,13 +34,14 @@ class OkHttpPresentConnectClient(
 
     private val json = Json { ignoreUnknownKeys = true }
     private val openStreams = ConcurrentHashMap<String, StreamBuf>()
-    private val count = AtomicInteger(0)
+    private var table = PresentConnectStreamTable(20)
     private var socket: WebSocket? = null
     private var maxStreams: Int = 20
 
     override suspend fun connect(config: PresentConnectConfig) {
         disconnect()
         maxStreams = config.maxStreams
+        table = PresentConnectStreamTable(config.maxStreams)
         val req = Request.Builder()
             .url(config.wsUrl)
             .build()
@@ -52,11 +52,11 @@ class OkHttpPresentConnectClient(
         socket?.close(1000, "bye")
         socket = null
         openStreams.clear()
-        count.set(0)
+        table.clear()
         _events.tryEmit(PresentConnectEvent.Disconnected)
     }
 
-    override fun activeStreamCount(): Int = count.get()
+    override fun activeStreamCount(): Int = table.activeCount()
 
     private inner class Listener(private val config: PresentConnectConfig) : WebSocketListener() {
         override fun onOpen(webSocket: WebSocket, response: Response) {
@@ -102,22 +102,26 @@ class OkHttpPresentConnectClient(
 
     private fun onStart(ws: WebSocket, obj: JsonObject) {
         val id = obj.str("stream_id") ?: return
-        if (count.get() >= maxStreams) {
-            ws.send(
-                """{"type":"error","stream_id":"$id","code":"${PresentConnectCodes.OVER_CAPACITY}","message":"max $maxStreams streams"}""",
-            )
-            _events.tryEmit(PresentConnectEvent.OverCapacity(id))
-            return
-        }
         if (obj.str("encoding") != null && obj.str("encoding") != "pcm_s16le") {
             ws.send(
                 """{"type":"error","stream_id":"$id","code":"${PresentConnectCodes.BAD_ENCODING}","message":"need pcm_s16le"}""",
             )
             return
         }
-        openStreams[id] = StreamBuf()
-        count.incrementAndGet()
-        _events.tryEmit(PresentConnectEvent.StreamStarted(id))
+        when (val admitted = table.tryStart(id)) {
+            is AdmitResult.OverCapacity -> {
+                ws.send(
+                    """{"type":"error","stream_id":"$id","code":"${PresentConnectCodes.OVER_CAPACITY}","message":"max $maxStreams streams"}""",
+                )
+                _events.tryEmit(PresentConnectEvent.OverCapacity(id))
+            }
+            is AdmitResult.Accepted -> {
+                if (!admitted.duplicate) {
+                    openStreams[id] = StreamBuf()
+                }
+                _events.tryEmit(PresentConnectEvent.StreamStarted(id))
+            }
+        }
     }
 
     private fun onPcm(obj: JsonObject) {
@@ -134,8 +138,8 @@ class OkHttpPresentConnectClient(
 
     private fun onEnd(ws: WebSocket, id: String?) {
         if (id == null) return
+        table.end(id)
         openStreams.remove(id) ?: return
-        count.updateAndGet { n -> (n - 1).coerceAtLeast(0) }
         // Transcript is produced by the pipeline owner (ViewModel) listening to StreamEnded.
         ws.send("""{"type":"stream.closed","stream_id":"$id"}""")
         _events.tryEmit(PresentConnectEvent.StreamEnded(id))
@@ -143,9 +147,8 @@ class OkHttpPresentConnectClient(
 
     private fun onCancel(id: String?) {
         if (id == null) return
-        if (openStreams.remove(id) != null) {
-            count.updateAndGet { n -> (n - 1).coerceAtLeast(0) }
-        }
+        table.end(id)
+        openStreams.remove(id)
         _events.tryEmit(PresentConnectEvent.StreamEnded(id))
     }
 
