@@ -1,0 +1,13 @@
+{
+  "wav": "/agent/repos/neuro-stenographer/samples/demo-stress/dry/spk_01.wav",
+  "wall_ms": 1000,
+  "duration_ms": 16930,
+  "num_clusters": 1,
+  "n_segments": 1,
+  "n_hyp_speakers": 1,
+  "asr_only": true,
+  "stack": "linux-sherpa-onnx-python Zipformer-ru ASR-only (no diarization)",
+  "sherpa_onnx": "2.0.1",
+  "no_kvm_adb": true,
+  "rtf": 0.05906674542232723
+}

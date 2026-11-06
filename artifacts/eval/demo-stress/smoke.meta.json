@@ -1,0 +1,20 @@
+{
+  "wav": "/agent/repos/neuro-stenographer/samples/demo-stress/smoke.wav",
+  "wall_ms": 970,
+  "duration_ms": 1120,
+  "num_clusters": 20,
+  "n_segments": 2,
+  "n_hyp_speakers": 2,
+  "stack": "linux-sherpa-onnx-python Zipformer-ru + OfflineSpeakerDiarization",
+  "sherpa_onnx": "2.0.1",
+  "models": {
+    "encoder": "/agent/repos/neuro-stenographer/models/asr/zipformer-ru-int8/encoder.int8.onnx",
+    "decoder": "/agent/repos/neuro-stenographer/models/asr/zipformer-ru-int8/decoder.onnx",
+    "joiner": "/agent/repos/neuro-stenographer/models/asr/zipformer-ru-int8/joiner.int8.onnx",
+    "tokens": "/agent/repos/neuro-stenographer/models/asr/zipformer-ru-int8/tokens.txt",
+    "segmentation": "/agent/repos/neuro-stenographer/models/diar/segmentation.onnx",
+    "embedding": "/agent/repos/neuro-stenographer/models/diar/embedding.onnx"
+  },
+  "no_kvm_adb": true,
+  "rtf": 0.8660714285714286
+}

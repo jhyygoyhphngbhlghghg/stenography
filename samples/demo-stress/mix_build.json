@@ -1,0 +1,33 @@
+{
+  "label": "SYNTHETIC",
+  "description": "20-talker cocktail-party mix for host Linux ASR+diarization stress",
+  "sample_rate_hz": 16000,
+  "n_talkers": 20,
+  "main_speaker_id": "speaker_1",
+  "main_stream_id": "s01",
+  "target_snr_db": 3.0,
+  "stagger_ms": 90,
+  "engine": "espeak-ng",
+  "seed": 20261106,
+  "licenses": {
+    "audio": "synthetic; not a recorded corpus",
+    "espeak-ng": "GPLv3 (renderer only; not redistributed)",
+    "formant_fallback": "generated in this script"
+  },
+  "presentconnect_note": "offset_ms simulates ≤20 WS channels landing at different times",
+  "host_linux_only": true,
+  "no_kvm_adb": true,
+  "smoke": {
+    "file": "samples/demo-stress/smoke.wav",
+    "duration_ms": 1120,
+    "snr_db_measured": 3.0,
+    "engine": "espeak-ng"
+  },
+  "full": {
+    "file": "samples/demo-stress/mix_20talker.wav",
+    "duration_ms": 16930,
+    "snr_db_measured": 3.0,
+    "engine": "espeak-ng",
+    "n_utterances_ref": 22
+  }
+}

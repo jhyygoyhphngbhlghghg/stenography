@@ -1,0 +1,3 @@
+# Optional host-Linux eval extras. Generator + scorer need numpy (often already present) + stdlib.
+numpy
+# pip install sherpa-onnx   # required only for --run-host (Zipformer-ru + OfflineSpeakerDiarization)

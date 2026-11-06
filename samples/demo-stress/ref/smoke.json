@@ -1,0 +1,124 @@
+{
+  "transcript": [
+    {
+      "speaker_id": "speaker_1",
+      "start_ms": 0,
+      "end_ms": 280,
+      "text": "ноль"
+    },
+    {
+      "speaker_id": "speaker_2",
+      "start_ms": 40,
+      "end_ms": 320,
+      "text": "один"
+    },
+    {
+      "speaker_id": "speaker_3",
+      "start_ms": 80,
+      "end_ms": 360,
+      "text": "два"
+    },
+    {
+      "speaker_id": "speaker_4",
+      "start_ms": 120,
+      "end_ms": 400,
+      "text": "три"
+    },
+    {
+      "speaker_id": "speaker_5",
+      "start_ms": 160,
+      "end_ms": 440,
+      "text": "четыре"
+    },
+    {
+      "speaker_id": "speaker_6",
+      "start_ms": 200,
+      "end_ms": 480,
+      "text": "пять"
+    },
+    {
+      "speaker_id": "speaker_7",
+      "start_ms": 240,
+      "end_ms": 520,
+      "text": "шесть"
+    },
+    {
+      "speaker_id": "speaker_8",
+      "start_ms": 280,
+      "end_ms": 560,
+      "text": "семь"
+    },
+    {
+      "speaker_id": "speaker_9",
+      "start_ms": 320,
+      "end_ms": 600,
+      "text": "восемь"
+    },
+    {
+      "speaker_id": "speaker_10",
+      "start_ms": 360,
+      "end_ms": 640,
+      "text": "девять"
+    },
+    {
+      "speaker_id": "speaker_11",
+      "start_ms": 400,
+      "end_ms": 680,
+      "text": "десять"
+    },
+    {
+      "speaker_id": "speaker_12",
+      "start_ms": 440,
+      "end_ms": 720,
+      "text": "двадцать"
+    },
+    {
+      "speaker_id": "speaker_13",
+      "start_ms": 480,
+      "end_ms": 760,
+      "text": "тридцать"
+    },
+    {
+      "speaker_id": "speaker_14",
+      "start_ms": 520,
+      "end_ms": 800,
+      "text": "сорок"
+    },
+    {
+      "speaker_id": "speaker_15",
+      "start_ms": 560,
+      "end_ms": 840,
+      "text": "пятьдесят"
+    },
+    {
+      "speaker_id": "speaker_16",
+      "start_ms": 600,
+      "end_ms": 880,
+      "text": "сто"
+    },
+    {
+      "speaker_id": "speaker_17",
+      "start_ms": 640,
+      "end_ms": 920,
+      "text": "тысяча"
+    },
+    {
+      "speaker_id": "speaker_18",
+      "start_ms": 680,
+      "end_ms": 960,
+      "text": "привет"
+    },
+    {
+      "speaker_id": "speaker_19",
+      "start_ms": 720,
+      "end_ms": 1000,
+      "text": "коллеги"
+    },
+    {
+      "speaker_id": "speaker_20",
+      "start_ms": 760,
+      "end_ms": 1040,
+      "text": "доклад"
+    }
+  ]
+}

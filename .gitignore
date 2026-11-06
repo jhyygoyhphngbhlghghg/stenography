@@ -64,6 +64,13 @@ samples/ref/*.json
 artifacts/eval/hyp/*.json
 artifacts/eval/hyp/*.wall_ms
 !artifacts/eval/hyp/.gitkeep
+
+# demo-stress: generated full mix + dry tracks stay local; smoke wav is committed
+samples/demo-stress/*.wav
+samples/demo-stress/dry/
+!samples/demo-stress/smoke.wav
+!artifacts/eval/demo-stress/*.log
+!artifacts/eval/demo-stress/run.log
 apk/*.apk
 apk/*.aab
 
