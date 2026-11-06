@@ -29,4 +29,6 @@ class StubPresentConnectClient : PresentConnectClient {
     override fun sendTranscriptPartial(streamId: String, utterance: Utterance) = Unit
 
     override fun sendError(streamId: String?, code: String, message: String) = Unit
+
+    override fun sendStreamClosed(streamId: String) = Unit
 }

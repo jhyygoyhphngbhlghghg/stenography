@@ -62,6 +62,10 @@ object PresentConnectFrames {
 
     fun error(streamId: String?, code: String, message: String): String =
         PresentConnectLimits.errorJson(streamId, code, message)
+
+    /** Hard mic-gate reject: error first, then stream.closed. No transcript row. */
+    fun hardRejectThenClosed(streamId: String, code: String, message: String): List<String> =
+        listOf(error(streamId, code, message), streamClosed(streamId))
 }
 
 internal fun JsonObject.str(key: String): String? {

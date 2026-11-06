@@ -183,7 +183,31 @@ HTTP `transcribe` is for bringing-up the phone without WS. The 20-stream demo **
 | `UNKNOWN_STREAM` | PCM for a stream that was not started |
 | `PIPELINE` | on-device ASR/VAD failure |
 | `MODELS_MISSING` | worker in stub mode — **do not use on stage** |
-| `BAD_AUDIO` | clipped / non-finite mic PCM — worker **refuses** ASR (no hallucinated text) |
+| `LOW_ENERGY` | stream buffer near-silence / RMS below gate; **ASR skipped** |
+| `CLIPPED` | clip ratio too high (hard-limited mic); **ASR skipped** |
+| `BAD_MIC` | stuck mic / extreme DC; **ASR skipped** |
+
+### 4.1 Path B pre-ASR energy / mic-quality gate
+
+Mirrored from platform PR #3 (`platform/derisk-sherpa-present` @ `f5ff5e2`). Runs on the **accumulated pcm_s16le for that `stream_id` only** (never mixed), **before** Silero / diar / Zipformer.
+
+Measure command (synthetic fixtures only; **Eval WORST_CASE wavs untouched**):
+
+```bash
+python3 scripts/measure-stream-pcm-gate.py --record
+```
+
+Units: full-scale (FS) = 32768 for s16. `dBFS = 20*log10(rms_fs)`. Evidence: `artifacts/test-results/stream-pcm-gate.json`.
+
+| Constant | Value | Code |
+|---|---|---|
+| `RMS_REJECT_FS` | 0.008 (≈ −41.94 dBFS) | `LOW_ENERGY` |
+| `PEAK_REJECT_FS` | 0.012 | `LOW_ENERGY` |
+| `CLIP_REJECT` | 0.02 of samples with \|s16\| ≥ 32760 | `CLIPPED` |
+| `DC_REJECT_FS` | 0.20 (+ `STUCK_VARIANCE_FS` 1e-7) | `BAD_MIC` |
+| `MIN_SAMPLES` | 800 (50 ms @ 16 kHz) | `LOW_ENERGY` |
+
+Hard reject: no ASR, no brief row, wire `error` with `LOW_ENERGY|CLIPPED|BAD_MIC`, then `stream.closed`. Soft flags (`SOFT_LOW` / `SOFT_CLIP` / `SOFT_DC`) still ASR; scored brief stays four fields only.
 
 ---
 
