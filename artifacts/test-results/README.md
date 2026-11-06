@@ -18,3 +18,5 @@ Platform de-risk evidence (Track B):
 | `gradle-assemble-retry.txt` | incremental assemble that produced APKs |
 | `sherpa-apk-jni.txt` | `unzip -l` of native libs inside the debug APK |
 | `TEST-PresentConnectStreamTableTest.xml` | JUnit XML for the 20-stream cap |
+| `host-jni-smoke.json` / `host-jni-smoke.txt` | Linux x86_64 AAR JNI inspect (`file`/`readelf`/`nm`/`dlopen`) |
+| `device-jni-probe-logcat.txt` | produced only when johann runs `scripts/device-sideload-probe.sh` on a phone |
