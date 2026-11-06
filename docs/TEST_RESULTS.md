@@ -28,7 +28,7 @@
 
 ## Eval-measured (H1 / Eval Owner) — не выдумано
 
-Источник: [PR #4](https://cursor.com/codebase/johann-schilling/neuro-stenographer/pull/4), real Common Voice 17 RU, host Linux sherpa-onnx Zipformer-ru. H1 принял эти числа и залочил демо на **Path B**. Округление как в DEMO LOCK; в том же замере DER Path B также **0.235**.
+Источник: [PR #4](https://cursor.com/codebase/johann-schilling/neuro-stenographer/pull/4), real Common Voice 17 RU, host Linux sherpa-onnx Zipformer-ru. H1 принял эти числа как **clean per-stream** (dry/separate tracks) и залочил демо Path B **в этой области**. Округление как в DEMO LOCK; в том же замере DER Path B также **0.235**. Это не echo, overlap, white/room noise, bad mics.
 
 | path | speakers recovered | DER | main WER | RTF |
 |---|---|---|---|---|
@@ -36,6 +36,10 @@
 | **B per-stream PresentConnect** | **20/20** | **0.24** (also 0.235) | **0.087** | 2.65 |
 | dry main alone | 1/1 | 0.02 | 0.174 | 0.06 |
 
-Path A — documented hard fail, не демо. Path B — ≤20 отдельных потоков, поддерживаемое multi-talker демо.
+Path A — documented hard fail, не демо. Строка Path B (≤20 отдельных потоков, **20/20**, DER **0.24** / 0.235, main WER **0.087**) — **только clean per-stream** (dry/separate tracks PR #4).
 
-Overnight-клипы без перекрытия (тот же PR, speaker-blind WER): **~3.5% / 0% / 0%** (в теле PR #4: clip_01 **0.0345**, clip_02 **0**, clip_03 **0**).
+Overnight-клипы без перекрытия (тот же PR, speaker-blind WER): **~3.5% / 0% / 0%** (в теле PR #4: clip_01 **0.0345**, clip_02 **0**, clip_03 **0**). Тоже без overlap и без edge-шума.
+
+## Worst-case edge suite — pending, чисел нет
+
+Echo, overlap, white noise / room noise, bad mics: **unmeasured until edge suite**. DER/WER/RTF для suite в этом файле нет и не подставляются. Когда Eval прогонит suite, публикуем **honest FAIL / hard numbers**. До замера: **expect FAIL / hard degradation**. **Do not claim in slides.** Запрещены формулировки «should be fine», «robust», «handles noisy rooms», «graceful under echo».
