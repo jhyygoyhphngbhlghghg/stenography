@@ -1,4 +1,4 @@
-demo-stress eval  commit=84b255c  utc=2026-11-06T18:02:22.167837+00:00
+demo-stress eval  commit=9d2219b  utc=2026-11-06T18:02:47.345110+00:00
 Cloud agents have no KVM/ADB — host Linux sherpa-onnx only.
 run_host=False models=/agent/repos/neuro-stenographer/models
 ROW mix_20talker status=measured der=0.9500 jer=0.9503 purity=0.9947 wer_main=1.0000 rtf=0.1592 blocked='' notes='diarization collapsed to 1 speaker (ref 20); Full 20-talker room mix; main +3 dB vs babble sum; staggered PresentConnect offsets.'

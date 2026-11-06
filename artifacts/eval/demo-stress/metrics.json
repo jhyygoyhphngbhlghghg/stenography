@@ -6,8 +6,8 @@
   "rows": [
     {
       "test_id": "mix_20talker",
-      "timestamp_utc": "2026-11-06T18:02:22Z",
-      "commit": "84b255c",
+      "timestamp_utc": "2026-11-06T18:02:47Z",
+      "commit": "9d2219b",
       "file_name": "samples/demo-stress/mix_20talker.wav",
       "status": "measured",
       "duration_ms": "16930",
@@ -28,8 +28,8 @@
     },
     {
       "test_id": "mix_20talker_main_dry",
-      "timestamp_utc": "2026-11-06T18:02:22Z",
-      "commit": "84b255c",
+      "timestamp_utc": "2026-11-06T18:02:47Z",
+      "commit": "9d2219b",
       "file_name": "samples/demo-stress/dry/spk_01.wav",
       "status": "measured",
       "duration_ms": "16930",
@@ -50,8 +50,8 @@
     },
     {
       "test_id": "smoke",
-      "timestamp_utc": "2026-11-06T18:02:22Z",
-      "commit": "84b255c",
+      "timestamp_utc": "2026-11-06T18:02:47Z",
+      "commit": "9d2219b",
       "file_name": "samples/demo-stress/smoke.wav",
       "status": "measured",
       "duration_ms": "1120",
