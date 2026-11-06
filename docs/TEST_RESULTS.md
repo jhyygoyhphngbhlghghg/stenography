@@ -175,6 +175,8 @@ Python Path B ingest mirrors StreamPcmGate.kt @ Implementer PR #6 `e3ad908` (sha
 
 Honest: v2 does what v1 could not — phone-crush seats fail `BAND_LIMITED` instead of sailing through RMS/clip/DC. Bound quiet EDGE_noise seats survive (`SOFT_LOW`, 19/20 vs v1 gated 11/20). Cost: EDGE_noise **s01** is loud enough for the band check and is rejected (HVAC/phone-like whole-file spectrum), so WER_main 0.1739→**0.9565**. EDGE_badmic WER_main 1.0000→0.2609 because s01 still ASR (hf_occupancy=1, so not `BAND_LIMITED`) and 14 crushed babble seats are gone; JER got worse (0.2863→0.7707) from those misses. WORST_CASE is a **full refuse**: 20/20 `BAND_LIMITED`, hyp **0/20**, DER/JER/WER **1.0**. Do not claim clean WER/DER on WORST_CASE. Frozen 20/20 lock remains the ungated baseline.
 
+**Idle — gate v2 hard `BAND_LIMITED` is rejected for bound seats.** `SOFT_LOW` only covers energy floor, not spectral crush. Measured consequence @ `bed868b`: WORST_CASE **0/20** empty `{transcript:[]}`; EDGE_badmic **6/20**; EDGE_noise drops main **s01**. Do not retune fixtures. Do not remeasure until Platform softens `BAND_LIMITED` on bound `s01`–`s20`; then one more run of EDGE_noise / EDGE_badmic / WORST_CASE only (`*_gated_v2` history stays). Hold merge; overnight #2 still first.
+
 #### Ablation (interpretive — no new run)
 
 Read off the frozen table above, not a new measurement. Single-factor vs CLEAN Path B (DER 0.0913 / WER_main 0.0870):

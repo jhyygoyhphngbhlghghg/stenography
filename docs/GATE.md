@@ -28,3 +28,5 @@ Harden-claim remeasures use **new** test_ids on the **same** frozen wavs. They d
 - `*_gated` @ `3b31e24` — StreamPcmGate whole-stream wipe (9 EDGE_noise LOW_ENERGY drops)
 - `*_gated_b142a4d` — no padded-file hush wipe; same thresholds; crop inspect before ASR
 - `*_gated_v2` — StreamPcmGate v2 Implementer `e3ad908` (sha256 == Platform `b12a2bb`; BAND_LIMITED + boundSeat SOFT_LOW). Headline ingest; supersedes v1 gate for new runs. Does not replace frozen baseline or prior gated history.
+
+**Idle:** gate v2 hard `BAND_LIMITED` is **rejected for bound seats** (not softened like energy → `SOFT_LOW`). Measured @ `bed868b`: WORST_CASE **0/20** empty transcript; EDGE_badmic **6/20**; EDGE_noise drops main **s01**. Next remeasure of EDGE_noise / EDGE_badmic / WORST_CASE only after Platform softens `BAND_LIMITED` on bound `s01`–`s20`. Fixtures stay frozen. Hold merge; #2 first.
