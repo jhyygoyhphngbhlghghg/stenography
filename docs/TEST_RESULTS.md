@@ -65,10 +65,21 @@ Stack: Python `sherpa-onnx==2.0.1`, Zipformer-ru int8 + pyannote segmentation-3.
 |---|---|---|---|---|---|---|---|---|
 | mix_20talker (Path A) | measured | **0.9500** | 0.9497 | **0.9520** | 0.9983 | **1.0000** | **0.1784** | 1 / 20 |
 | mix_20talker_main_dry | measured | 0.0192 | 0.0921 | 0.0843 | 0.9157 | **0.1739** | 0.0587 | 1 / 1 |
-| mix_20talker_per_stream (Path B) | measured | **0.2350** | 0.2729 | **0.2716** | 0.9984 | **0.0870** | 2.6481 | **20 / 20** |
+| mix_20talker_per_stream (Path B) | measured | **0.0913** | 0.1728 | **0.1840** | 0.9983 | **0.0870** | **0.1212** | **20 / 20** |
 | smoke | measured | n/a (collar ate 1.24 s) | 0.9025 | 0.9620 | 0.3774 | 1.0000 | 0.7855 | 2 / 20 |
 
-Path A mix wall **3343 ms** / **18736 ms**. Path B wall **49615 ms** (20 sequential dry tracks). Dry-main Zipformer reads the three CV sentences (WER 0.1739 vs eSpeak 1.0). Mix hyp still one blob — cocktail overlap, not OOD TTS.
+Path A mix wall **3343 ms** / **18736 ms**. Path B wall **2271 ms** / **18736 ms** (20 dry tracks, RMS VAD + Zipformer, no pyannote). Dry-main Zipformer reads the three CV sentences (WER 0.1739 vs eSpeak 1.0). Mix hyp still one blob — cocktail overlap, not OOD TTS. JSON schema unchanged: `transcript[].{speaker_id,start_ms,end_ms,text}` only.
+
+### Path B DER try (same branch, measured)
+
+Hypothesis from the 0.2350 row: residual DER was looping babble vs one-utterance refs + VAD/segment edges, not identity collapse. Path A mix/ref untouched.
+
+| Path B `mix_20talker_per_stream` | DER 250ms | JER | WER main | RTF | wall_ms | segs | hyp/ref |
+|---|---|---|---|---|---|---|---|
+| before (looped dry + per-stream diar) | **0.2350** | **0.2716** | **0.0870** | 2.6481 | 49615 | 60 | 20 / 20 |
+| after (unlooped dry + Path-B-only ref + RMS VAD) | **0.0913** | **0.1840** | **0.0870** | **0.1212** | 2271 | 27 | 20 / 20 |
+
+Real improvement on DER/JER/RTF; WER_main held. Knobs: unlooped babble dry tracks + `ref/mix_20talker_per_stream.json` (original clip spans, not offset→mix_end); RMS VAD `rel_thresh=0.04`, `pad_ms=250`, `min_duration_on=0.20`, `min_duration_off=0.45`, re-merge after pad. First VAD pass (`pad_ms=80`, `rel_thresh=0.12`) over-split main (WER_main 0.2609, JER 0.3133) — discarded. Residual DER is mostly CV clip silence in refs vs speech-only VAD edges. Regression: `python3 scripts/test_path_b_regression.py`.
 
 ### Path A vs Path B (diarization collapse 20→1)
 
@@ -85,7 +96,7 @@ Path A mix wall **3343 ms** / **18736 ms**. Path B wall **49615 ms** (20 sequent
 
 Forcing `num_clusters=20` still yields **one** cluster: pyannote segmentation sees the overlapped cocktail as a single speech region, so FastClustering has nothing to split. Auto-threshold finds 3–5 speakers; DER stays ~0.94 because 19 babble tracks occupy the same time. Clustering knobs do not rescue a 20-way additive mix.
 
-**B. Per-stream / PresentConnect:** diar+ASR each `dry/spk_XX.wav` with oracle stream→`speaker_id`, merge by time. **20/20 speakers recovered.** DER 0.2350 / JER 0.2716 / WER_main 0.0870. Residual DER is mostly looping babble vs one-utterance refs and VAD/segment edges — not identity collapse.
+**B. Per-stream / PresentConnect (tech demo):** RMS VAD + ASR each unlooped `dry/spk_XX.wav` with oracle stream→`speaker_id` (`s0N`↔`speaker_N`, main=`s01`/`speaker_1`), merge by time. **20/20 speakers recovered.** DER **0.0913** / JER **0.1840** / WER_main **0.0870** / RTF **0.1212**. Identity did not collapse. Residual DER is clip-silence in refs vs VAD speech edges.
 
 Demo implication: the 20-mic PresentConnect path is the one that can track talkers; a single room mic with 20 overlapping voices is still a measured fail.
 

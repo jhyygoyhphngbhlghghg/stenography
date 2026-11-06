@@ -36,7 +36,9 @@ python3 scripts/generate_demo_stress_mix.py
 pip install sherpa-onnx                   # Linux wheel, not the Android AAR
 python3 scripts/eval_harness.py --suite demo-stress --run-host
 python3 scripts/diar_param_sweep.py       # Path A clustering grid (diar only)
-python3 scripts/verify-transcript-json.py artifacts/eval/demo-stress/hyp.json
+python3 scripts/eval_demo_stress.py --run-host --only mix_20talker_per_stream
+python3 scripts/test_path_b_regression.py
+python3 scripts/verify-transcript-json.py artifacts/eval/demo-stress/mix_20talker_per_stream.json
 ```
 
 Overnight turn-taking clips from the same talkers (no overlap):
@@ -48,7 +50,8 @@ python3 scripts/eval_harness.py --suite clips --run-host --write-csv
 ## Path A vs Path B
 
 - **A (one-room mix):** `mix_20talker` — diarize the cocktail wav (`num_clusters=20` default). Sweep: `scripts/diar_param_sweep.py`.
-- **B (PresentConnect per-stream):** `mix_20talker_per_stream` — diar+ASR each `dry/spk_XX.wav` with oracle stream→speaker_id, merge by time.
+- **B (PresentConnect per-stream, tech demo):** `mix_20talker_per_stream` — RMS VAD + Zipformer on each **unlooped** `dry/spk_XX.wav`, oracle `s0N`↔`speaker_N`, merge by time. Mix still loops babble (Path A). Path-B-only ref: `ref/mix_20talker_per_stream.json`. JSON: `{speaker_id,start_ms,end_ms,text}` only.
+- Path B regression (no inference): `python3 scripts/test_path_b_regression.py`
 
 ## Metrics
 
