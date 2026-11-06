@@ -27,3 +27,4 @@ Harden-claim remeasures use **new** test_ids on the **same** frozen wavs. They d
 
 - `*_gated` @ `3b31e24` — StreamPcmGate whole-stream wipe (9 EDGE_noise LOW_ENERGY drops)
 - `*_gated_b142a4d` — no padded-file hush wipe; same thresholds; crop inspect before ASR
+- `*_gated_v2` — StreamPcmGate v2 @ `b12a2bb` (BAND_LIMITED + boundSeat SOFT_LOW). Headline ingest; supersedes v1 gate for new runs. Does not replace frozen baseline or prior gated history.
