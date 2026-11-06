@@ -33,6 +33,24 @@
 - EDGE_reverb (DER 0.0849, WER main 0.1304, 20/20) — isolated-mic reverb alone does not collapse Path B. Это не разрешение цитировать clean WER/DER на EDGE_overlap, EDGE_noise, EDGE_badmic, WORST_CASE.
 - Запрещены формулировки «should be fine», «robust», «handles noisy rooms», «graceful under echo». **Do not claim in slides** clean WER/DER на edge.
 
+### Gate v2 hard `BAND_LIMITED` — REJECTED for bound seats
+
+**STOP.** Hard `BAND_LIMITED` is **REJECTED** for bound seats (`s01`..`s20`). Source: Eval [PR #4](https://cursor.com/codebase/johann-schilling/neuro-stenographer/pull/4) gated_v2 @ `bed868b3` (gate pinned Implementer `e3ad908` / Platform `b12a2bb`). Rejection note @ `ffe53ba4` (`docs/TEST_RESULTS.md`, `docs/GATE.md` on that branch). Fixtures **not** retuned.
+
+Measured consequence @ `bed868b3` (gated_v2 hyp — **not** the demo claim):
+
+| test_id | gated_v2 hyp | gate |
+|---|---|---|
+| EDGE_noise | **19/20** | drop 1 `BAND_LIMITED` **s01** (main) |
+| EDGE_badmic | **6/20** | drop 14 `BAND_LIMITED` |
+| WORST_CASE | **0/20** | drop 20 `BAND_LIMITED`; empty `{transcript:[]}` |
+
+**Do not claim** these gated_v2 hyp counts. **Do not claim** clean WER/DER on WORST_CASE. No new WER/DER from this gate.
+
+Bound seats (`s01`..`s20`) must **soft-flag only** (still ASR), same spirit as `SOFT_LOW`. Never hard-drop main/`s01`. Hard `BAND_LIMITED` only for unbound/anonymous. Platform owns the code fix on PR #3. This doc locks the claim only.
+
+**Claim remains ungated Path B stream tracking 20/20** under edge (frozen baseline @ `9908353d`). Ungated WORST_CASE stays FAIL: WER main **0.9130**, DER 250ms **1.2985**. Hold merge. Overnight #2 first.
+
 Ранний clean-замер того же PR #4 (до этого suite): Path B DER **0.24** (также 0.235), main WER **0.087**, RTF **2.65**, 20/20. Это не строка CLEAN этого suite (там DER 0.0913, RTF 0.1212, WER main 0.0870) и не WORST_CASE. Path A того раннего замера — hard fail: **1/20**, DER **0.95**, main WER **1.00**, RTF **0.18**. Офлайн-файл по-прежнему одна запись (VAD → диаризация → ASR) и не является 20-talker демо.
 
 ## Известные ограничения
