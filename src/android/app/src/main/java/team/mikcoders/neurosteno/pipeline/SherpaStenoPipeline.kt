@@ -58,7 +58,7 @@ class SherpaStenoPipeline(
             onProgress(
                 PipelineProgress(
                     PipelineStage.Llm,
-                    if (llm.weightsPresent) "LLM cleanup" else "LLM identity stub",
+                    llm.displayName,
                     0.92f,
                 ),
             )
