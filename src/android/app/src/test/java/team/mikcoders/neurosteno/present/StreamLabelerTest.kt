@@ -1,15 +1,9 @@
 package team.mikcoders.neurosteno.present
 
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.long
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 
 class StreamLabelerTest {
     private val labeler = StreamLabeler.oracle()
@@ -61,60 +55,5 @@ class StreamLabelerTest {
         assertEquals("speaker_1", fromFile.speakerId("s01"))
         assertEquals("speaker_5", fromFile.speakerId("s05"))
         assertEquals(360L, fromFile.bind("s05").evalOffsetMs)
-    }
-}
-
-class PathBGoldenBriefTest {
-    private val itemKeys = setOf("speaker_id", "start_ms", "end_ms", "text")
-
-    @Test
-    fun goldenBriefFourFieldsSortedWithMain() {
-        val raw = loadGolden()
-        val root = Json.parseToJsonElement(raw).jsonObject
-        assertEquals(setOf("transcript"), root.keys)
-        val rows = root["transcript"]!!.jsonArray
-        assertEquals(8, rows.size)
-        var prev = Long.MIN_VALUE
-        val speakers = LinkedHashSet<String>()
-        for (el in rows) {
-            val o = el.jsonObject
-            assertEquals(itemKeys, o.keys)
-            assertFalse(o.containsKey("stream_id"))
-            assertFalse(o.containsKey("type"))
-            val start = o["start_ms"]!!.jsonPrimitive.long
-            assertTrue(start >= prev)
-            prev = start
-            speakers += o["speaker_id"]!!.jsonPrimitive.content
-        }
-        assertTrue(speakers.contains("speaker_1"))
-        assertTrue(speakers.size >= 3)
-        assertEquals(7, speakers.size)
-    }
-
-    @Test
-    fun labelerMatchesEvalMapUsedByGoldenSpeakers() {
-        val labeler = StreamLabeler.oracle()
-        assertEquals("speaker_1", labeler.bind("s01").speakerId)
-        assertEquals("speaker_5", labeler.bind("s05").speakerId)
-        assertEquals("speaker_20", labeler.bind("s20").speakerId)
-        val goldenSpeakers = setOf(
-            "speaker_1", "speaker_3", "speaker_4", "speaker_5",
-            "speaker_9", "speaker_10", "speaker_20",
-        )
-        for (sp in goldenSpeakers) {
-            val n = sp.removePrefix("speaker_").toInt()
-            assertEquals(sp, labeler.bind("s%02d".format(n)).speakerId)
-        }
-    }
-
-    private fun loadGolden(): String {
-        val fromResource = javaClass.classLoader.getResourceAsStream("golden_path_b_brief.json")
-        if (fromResource != null) return fromResource.bufferedReader().readText()
-        val candidates = listOf(
-            File("src/test/resources/golden_path_b_brief.json"),
-            File("../../artifacts/test-results/golden_path_b_brief.json"),
-            File("../../../artifacts/test-results/golden_path_b_brief.json"),
-        )
-        return candidates.first { it.isFile }.readText()
     }
 }

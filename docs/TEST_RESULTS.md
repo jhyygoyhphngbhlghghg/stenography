@@ -153,3 +153,26 @@ After Origin PR #2 merges, overnight's canonical URL is
 | `dlopen` / `ctypes.CDLL` | **fail**: `libandroid.so: cannot open shared object file` (Android bionic/NDK, expected on glibc host) |
 
 Evidence: `artifacts/test-results/host-jni-smoke.json`, `host-jni-smoke.txt`.
+
+## 5. Path B PresentConnect ingest + golden brief (JVM)
+
+Tech demo = Path B (per-stream ASR, oracle `s0N`→`speaker_N`, merge by time). **Not** Path A cocktail mix. Eval numbers below are **Eval’s** (PR #4 `mix_20talker_per_stream`); this branch did not re-run Eval and does not invent WER/DER.
+
+| Source | DER | WER_main | Speakers |
+|---|---|---|---|
+| Eval PR #4 `mix_20talker_per_stream` (cite only) | 0.235 | 0.087 | 20/20 |
+
+Golden brief (exact Eval cut, 8 utterances / 7 speakers incl. `speaker_1`): `artifacts/test-results/golden_path_b_brief.json` and `samples/demo-stress/golden_path_b_brief.json`. Mapping: `samples/demo-stress/channels.json`.
+
+```bash
+cd src/android && ./gradlew --no-daemon :app:testStenographerDebugUnitTest
+```
+
+| Command | Result | Wall |
+|---|---|---|
+| `./gradlew :app:testStenographerDebugUnitTest` | **PASS** (17 tests, 0 failures) | 21 s then 14 s re-run |
+| `./gradlew :app:compilePresentConnectDebugKotlin` | **PASS** | same second run |
+
+JVM tests cover: brief four keys only (no `stream_id`), sorted by `start_ms`, `speaker_1` present and ≥3 distinct speakers (golden has 7), StreamLabeler `s01`→`speaker_1` / `s05`→`speaker_5` / `s20`→`speaker_20`, fake two-stream Path B session (oracle relabel, cancel does not absorb, PCM not mixed), stream table 20 accept / 21 `OVER_CAPACITY`.
+
+No device JNI this push. No Eval re-run.
