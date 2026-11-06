@@ -3,12 +3,15 @@ package team.mikcoders.neurosteno.present
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
-/** Brief / demo hard cap: 20 concurrent streams per phone worker. */
+/** Brief / demo hard cap: 20 concurrent streams per phone worker. Path B: isolated, not mixed. */
 object PresentConnectLimits {
     const val MAX_STREAMS = 20
     const val PROTOCOL = "present-connect/1"
     const val ENCODING = "pcm_s16le"
     const val SAMPLE_RATE = 16_000
+
+    /** 1 s of 16 kHz s16le — cadence for optional transcript.partial on that stream only. */
+    const val PARTIAL_PERIOD_BYTES = SAMPLE_RATE * 2
 
     fun canAccept(active: Int, max: Int = MAX_STREAMS): Boolean = active in 0 until max
 
