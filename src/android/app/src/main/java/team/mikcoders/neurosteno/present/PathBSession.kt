@@ -1,6 +1,5 @@
 package team.mikcoders.neurosteno.present
 
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
@@ -79,7 +78,7 @@ class PathBSession(
         fun fromPipeline(pipeline: StenoPipeline, labeler: StreamLabeler = StreamLabeler.oracle()): PathBSession =
             PathBSession(
                 labeler = labeler,
-                asr = PathBAsr { streamId, audio ->
+                asr = PathBAsr { _, audio ->
                     pipeline.transcribe(audio) { }.transcript
                 },
             )
@@ -98,8 +97,6 @@ data class WireFinal(
 )
 
 object PresentConnectWire {
-    private val json = Json { encodeDefaults = true }
-
     fun transcriptFinal(streamId: String, u: Utterance): String =
         buildJsonObject {
             put("type", "transcript.final")
