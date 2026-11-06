@@ -18,7 +18,7 @@
 - `test_stream_pcm_gate.py` — v2 verdicts: bound silence SOFT_LOW, phone crush BAND_LIMITED, broadband Pass.
 - `host_asr_diar.py` — Zipformer-ru + OfflineSpeakerDiarization on Linux Python.
 - `eval_demo_stress.py` — DER/JER/purity + main-speaker WER + RTF; pending/blocked if inference cannot run.
-- `eval_metrics.py` — metric implementations (not pyannote.metrics).
+- `eval_metrics.py` — DER/JER/purity + WER. Hex.Team lock: keep `,` `.` `?` `!`; fold ё→е.
 - `test_eval_metrics.py` — unit checks of the metric code (not clip scores).
 - `ci-check.sh` — schema + eval skeleton + optional Gradle.
 - PresentConnect mock server (later): local WS hub for the Android worker.

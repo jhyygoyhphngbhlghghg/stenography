@@ -42,3 +42,13 @@ DEMO_STAGE6 fixture (wav/gold/recipe) is **frozen** @ `a8b39d5a`. Harden-claim r
 - `DEMO_STAGE6_perturn` @ `db3afe4` — per-turn FarFieldGain (`ae86903`); near 0 dB, quiet islands → 0.08 FS, no crush
 
 Do not replace prior rows. Do not retune gold.
+
+## Hex.Team WER lock (Mikhail Grigorev / Q&A 2026-11-06)
+
+Applies to all eval WER (`scripts/eval_metrics.py` tokenize):
+
+1. Punctuation **is** in WER. Do **not** strip `,` `.` `?` `!` before scoring (they are their own tokens).
+2. Comma placement in gold = **spoken intonation** (where the talker paused), not a prettier orthographic edit. Do not retune wording to fake low WER.
+3. **е vs ё does not count** — fold `ё→е` on hyp and ref.
+
+STAGE6 wav/recipe frozen @ `a8b39d5a`. Gold wording unchanged after intonation audit (dry-CV pauses match existing commas on s1/s3/s6; s2/s4/s5 stay period-only).

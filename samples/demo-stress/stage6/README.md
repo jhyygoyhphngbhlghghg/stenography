@@ -23,3 +23,5 @@ python3 scripts/eval_demo_stress.py --run-host --only DEMO_STAGE6_perturn
 Baseline `DEMO_STAGE6` is frozen @ `a8b39d5a`. `DEMO_STAGE6_ffgain` is whole-file AGC @ `b66581c` / `e0e64b85`. `DEMO_STAGE6_perturn` is per-turn FarFieldGain @ `db3afe4`. Do not retune gold.
 
 Full `DEMO_STAGE6.wav` is gitignored. Committed: `recipe.json`, `ref/DEMO_STAGE6.json`, `smoke.wav`. Do not retune gold to fake low WER.
+
+Hex.Team WER lock (2026-11-06): keep `,` `.` `?` `!`; fold ё→е. Gold punct audit vs dry-CV pauses: existing commas on speaker_1/3/6 match intonation; speaker_2/4/5 period-only. Wording not changed.

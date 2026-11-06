@@ -48,25 +48,32 @@ JSON: `artifacts/eval/hyp/clip_0{1,2,3}.json` validates. CSV: `artifacts/test-re
 
 H1 / Johann format change: **stop treating 20-stream soft-bound as the presentation target.** This row is the demo. 20-stream Path B / `*_gated_v3` is **secondary regression only**.
 
-Recipe: `samples/demo-stress/stage6/` (CV17 CC0, 6 distinct `client_id`s). One-mic mix, turn-taking with **200 ms** end overlap only (max 2 concurrent; 2.56% of speech frames ≥2 speakers). Distances 3.0–6.0 m. SYNTHETIC large-room IR RT60 1.4 s. Medium HVAC (~14 dB) + quiet babble bed (~18 dB). Nothing-class phone mic on the mix (not EDGE_badmic crush). Gold = corpus `sentence`. **Not retuned after seeing scores.**
+Recipe: `samples/demo-stress/stage6/` (CV17 CC0, 6 distinct `client_id`s). One-mic mix, turn-taking with **200 ms** end overlap only (max 2 concurrent; 2.56% of speech frames ≥2 speakers). Distances 3.0–6.0 m. SYNTHETIC large-room IR RT60 1.4 s. Medium HVAC (~14 dB) + quiet babble bed (~18 dB). Nothing-class phone mic on the mix (not EDGE_badmic crush). Gold = corpus `sentence`. **Not retuned after seeing scores.** WER tokenize = Hex.Team lock 2026-11-06 (keep `,` `.` `?` `!`; fold ё→е).
 
-Stack: Path A `OfflineSpeakerDiarization` `num_clusters=6` + Zipformer-ru on the mix. Wall **3690 ms** / **39718 ms**, RTF **0.0929**.
+Stack: Path A `OfflineSpeakerDiarization` `num_clusters=6` + Zipformer-ru on the mix. Wall **3690 ms** / **39718 ms**, RTF **0.0929**. Same frozen hyp JSON as @ `a8b39d5a` (no new ASR); WER rescored only.
 
-| speaker | distance_m | WER | notes |
+### Hex.Team WER lock — DEMO_STAGE6 before / after
+
+Prior tokenize stripped punct (56 word tokens). New tokenize keeps punct as tokens (68). Same hyp, same gold wording, same wav.
+
+| speaker | m | WER strip-punct (prior @ a8b39d5a) | WER Hex keep-punct (now) |
 |---|---|---|---|
-| speaker_1 | 3.0 | **0.0000** | mapped; Zipformer reads the CV sentence |
-| speaker_2 | 3.6 | **0.5455** | partial |
-| speaker_3 | 4.2 | **1.0000** | |
-| speaker_4 | 4.8 | **1.0000** | empty hyp segment |
-| speaker_5 | 5.4 | **1.0000** | **missing** from hyp (no cluster) |
-| speaker_6 | 6.0 | **1.0000** | |
-| **aggregate** (41 edits / 56 ref words) | — | **0.7321** | micro-average, not mean of WERs |
+| speaker_1 | 3.0 | **0.0000** | **0.2857** |
+| speaker_2 | 3.6 | **0.5455** | **0.5833** |
+| speaker_3 | 4.2 | **1.0000** | **1.0000** |
+| speaker_4 | 4.8 | **1.0000** | **1.0000** |
+| speaker_5 | 5.4 | **1.0000** (missing) | **1.0000** (missing) |
+| speaker_6 | 6.0 | **1.0000** | **1.0000** |
+| **aggregate** | — | **0.7321** (41/56) | **0.7794** (53/68) |
 
-| test_id | status | DER 250ms | JER | purity | WER_main | WER_agg | RTF | hyp/ref |
-|---|---|---|---|---|---|---|---|---|
-| DEMO_STAGE6 | measured | **0.5174** | **0.6280** | 1.0000 | **0.0000** | **0.7321** | **0.0929** | **5 / 6** |
+| test_id | DER | JER | purity | WER_main | WER_agg | RTF | hyp/ref |
+|---|---|---|---|---|---|---|---|
+| DEMO_STAGE6 prior (strip punct) | **0.5174** | **0.6280** | 1.0000 | **0.0000** | **0.7321** | **0.0929** | **5 / 6** |
+| DEMO_STAGE6 Hex WER lock | **0.5174** | **0.6280** | 1.0000 | **0.2857** | **0.7794** | **0.0929** | **5 / 6** |
 
-Honest: closest seat (3 m) is WER 0. IDEAL ≪ 0.1 does **not** hold for the room — aggregate **0.73**, DER **0.52**, diarization **5/6** (speaker_5 missed). Farther 4–6 m + reverb + HVAC + phone mic still fail Zipformer/pyannote. Do not cite speaker_1 WER 0 as the demo-room result. Do not retune gold.
+Punct audit (dry CV pauses, not mix HVAC): s1/s3/s6 literary commas sit on real pauses; s2/s4/s5 stay period-only. **No gold wording or punct change.** Zipformer hyp has no commas/periods, so s1 WER 0.0→0.2857 is four punct deletions, not a word-error change.
+
+Honest: IDEAL ≪ 0.1 does **not** hold. Do not cite WER_main 0 (that number is the old strip-punct score). Soft-flag only. Do not retune gold.
 
 ### DEMO_STAGE6_ffgain — Platform-only delta @ `b66581c`
 
@@ -74,23 +81,9 @@ Same **frozen** wav/gold as baseline @ `a8b39d5a`. Host ingest mirrors Platform 
 
 Measured ingest on this mix: RMS **0.1191 → 0.0800** (**−3.46 dB**, `boosted=false`) because the frozen room mix already sat **above** the 0.08 target (peak 0.89). Energy-VAD fire 1.000 → 0.977. Whole-file AGC cannot lift 5–6 m seats relative to the 3 m talker here. Synth 5–6 m VAD 0→1 still holds on Platform sine scenes (`artifacts/test-results/farfield-gain.json`).
 
-| speaker | m | baseline @ a8b39d5a | ffgain @ e0e64b85 | perturn @ db3afe4 |
-|---|---|---|---|---|
-| speaker_1 | 3.0 | **0.0000** | **0.0000** | **0.0000** |
-| speaker_2 | 3.6 | **0.5455** | **0.3636** | **0.5455** |
-| speaker_3 | 4.2 | **1.0000** | **1.0000** | **1.0000** |
-| speaker_4 | 4.8 | **1.0000** | **1.0000** | **1.0000** |
-| speaker_5 | 5.4 | **1.0000** (missing) | **1.0000** (missing) | **1.0000** (missing) |
-| speaker_6 | 6.0 | **1.0000** | **1.0000** | **1.0000** |
-| **aggregate** | — | **0.7321** (41/56) | **0.6964** (39/56) | **0.7321** (41/56) |
+Prior strip-punct WER (cite only). Hex keep-punct rescore of the same hyps is the STAGE6 table above. ffgain/perturn Hex WER_agg: **0.7500** / **0.7794** (DER/JER/hyp unchanged).
 
-| test_id | DER | JER | WER_agg | RTF | hyp/ref |
-|---|---|---|---|---|---|
-| DEMO_STAGE6 (baseline @ a8b39d5a) | **0.5174** | **0.6280** | **0.7321** | **0.0929** | **5 / 6** |
-| DEMO_STAGE6_ffgain (whole-file @ e0e64b85) | **0.5174** | **0.6280** | **0.6964** | **0.0951** | **5 / 6** |
-| DEMO_STAGE6_perturn (per-turn @ db3afe4) | **0.5231** | **0.6330** | **0.7321** | **0.0948** | **5 / 6** |
-
-Honest: diarization **unchanged** on ffgain (same 5 segments, speaker_5 still missing). 4–6 m still WER 1.0. Tiny speaker_2 ASR delta on whole-file AGC only. Do **not** claim far-field gain recovered the room. Do **not** cite WER_main 0 as the room result. Lock still: ideal only at 3 m on baseline.
+Honest: diarization **unchanged** on ffgain (same 5 segments, speaker_5 still missing). 4–6 m still WER 1.0. Tiny speaker_2 ASR delta on whole-file AGC only. Do **not** claim far-field gain recovered the room. Do **not** cite old strip-punct WER_main 0 as the room result.
 
 ### DEMO_STAGE6_perturn — Platform per-turn @ `db3afe4`
 
@@ -98,7 +91,7 @@ Same **frozen** wav/gold. Host ingest mirrors `FarFieldGain.stagePerSegment` (`a
 
 On Platform **synth** sequential mix: near 3 m 0 dB; far 5 m **+16.8 dB**; far 6 m **+18.2 dB**; whole-file AGC would have been −3.55 dB. On this **frozen STAGE6 mix**, 34 energy islands: **33 already ≥ 0.08 FS → 0 dB**; only the 80 ms lead-in got **+16.55 dB**. Mix RMS 0.1191 → 0.1192, `loud_crushed=false`. Far seats on this fixture are not the quiet 0.01 FS sine scenes.
 
-Measured: WER_agg **0.7321** (same as baseline), DER **0.5231** / JER **0.6330** (slightly worse than 0.5174 / 0.6280), hyp **5 / 6**, speaker_5 still missing, 4–6 m still WER 1.0. **Gain did not recover the room.**
+Measured (Hex WER): WER_agg **0.7794** (same hyp as baseline), DER **0.5231** / JER **0.6330**, hyp **5 / 6**, speaker_5 still missing, 4–6 m still WER 1.0. **Gain did not recover the room.**
 
 ## Demo-stress (20 talkers) — SECONDARY regression, host Linux only
 
@@ -161,6 +154,8 @@ Demo implication: the 20-mic PresentConnect path is the one that can track talke
 **Not the presentation target** (see DEMO_STAGE6 above). These six Path B rows are **frozen**. They change only with Lead sign-off. Do **not** retune fixtures, VAD, or refs to make numbers pretty. Re-run host inference only when Implementer/Platform claim a harden fix. Policy: `docs/GATE.md`. EDGE_* / hybrid Path B stay green.
 
 **Lock claim: 20/20 stream tracking holds under edge; do NOT claim clean WER/DER on WORST_CASE.**
+
+WER columns in the frozen Path B tables below are **strip-punct historical**. Hex.Team lock (keep `,` `.` `?` `!`) rescored CLEAN `WER_main` 0.0870→**0.2759** (gold periods now count). DER/JER/20/20 unchanged. See `metrics.csv`.
 
 Frozen ids: `mix_20talker_per_stream` (CLEAN), `EDGE_reverb`, `EDGE_overlap`, `EDGE_noise`, `EDGE_badmic`, `WORST_CASE`. All six stay in `artifacts/eval/demo-stress/metrics.csv` / `metrics.json` / this table.
 

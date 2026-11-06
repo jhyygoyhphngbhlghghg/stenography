@@ -1,16 +1,16 @@
 {
   "test_id": "DEMO_STAGE6",
-  "wer_aggregate": 0.7321428571428571,
+  "wer_aggregate": 0.7794117647058824,
   "per_speaker": {
-    "speaker_1": 0.0,
-    "speaker_2": 0.5454545454545454,
+    "speaker_1": 0.2857142857142857,
+    "speaker_2": 0.5833333333333334,
     "speaker_3": 1.0,
     "speaker_4": 1.0,
     "speaker_5": 1.0,
     "speaker_6": 1.0
   },
-  "n_ref_words": 56,
-  "n_edits": 41,
+  "n_ref_words": 68,
+  "n_edits": 53,
   "mapping_hyp_to_ref": {
     "speaker_1": "speaker_1",
     "speaker_2": "speaker_2",
