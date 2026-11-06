@@ -1,0 +1,110 @@
+{
+  "sample_rate_hz": 16000,
+  "full_scale": 32768,
+  "n": 6400,
+  "clip_s16": 32760,
+  "thresholds": {
+    "rms_reject_fs": 0.008,
+    "rms_reject_dbfs": -41.94,
+    "rms_soft_fs": 0.02,
+    "peak_reject_fs": 0.012,
+    "clip_reject": 0.02,
+    "dc_reject_fs": 0.2,
+    "stuck_variance_fs": 1e-07,
+    "min_samples": 800
+  },
+  "eval_fixtures_untouched": true,
+  "rows": [
+    {
+      "name": "silence",
+      "n": 6400,
+      "duration_ms": 400.0,
+      "rms_fs": 0.0,
+      "rms_dbfs": -Infinity,
+      "peak_fs": 0.0,
+      "dc_fs": 0.0,
+      "variance_fs": 0.0,
+      "ac_rms_fs": 0.0,
+      "clip_ratio": 0.0,
+      "crest": null
+    },
+    {
+      "name": "tiny_noise",
+      "n": 6400,
+      "duration_ms": 400.0,
+      "rms_fs": 6.112568816819548e-05,
+      "rms_dbfs": -84.27552476891083,
+      "peak_fs": 9.1552734375e-05,
+      "dc_fs": 7.43865966796875e-07,
+      "variance_fs": 3.735796417458914e-09,
+      "ac_rms_fs": 6.112116178099786e-05,
+      "clip_ratio": 0.0,
+      "crest": 1.4977783828474935
+    },
+    {
+      "name": "clipped_square",
+      "n": 6400,
+      "duration_ms": 400.0,
+      "rms_fs": 0.999969482421875,
+      "rms_dbfs": -0.00026507636037961915,
+      "peak_fs": 0.999969482421875,
+      "dc_fs": 0.0,
+      "variance_fs": 0.9999389657750726,
+      "ac_rms_fs": 0.999969482421875,
+      "clip_ratio": 1.0,
+      "crest": 1.0
+    },
+    {
+      "name": "clean_tone_-20dBpeak",
+      "n": 6400,
+      "duration_ms": 400.0,
+      "rms_fs": 0.07070781671779962,
+      "rms_dbfs": -23.010651449732286,
+      "peak_fs": 0.100006103515625,
+      "dc_fs": 0.0,
+      "variance_fs": 0.0049995953449979424,
+      "ac_rms_fs": 0.07070781671779962,
+      "clip_ratio": 0.0,
+      "crest": 1.4143571129449113
+    },
+    {
+      "name": "low_peak_tone",
+      "n": 6400,
+      "duration_ms": 400.0,
+      "rms_fs": 0.0028288700284221837,
+      "rms_dbfs": -50.967740112265105,
+      "peak_fs": 0.003997802734375,
+      "dc_fs": 0.0,
+      "variance_fs": 8.002505637705326e-06,
+      "ac_rms_fs": 0.0028288700284221837,
+      "clip_ratio": 0.0,
+      "crest": 1.413215416123163
+    },
+    {
+      "name": "stuck_dc",
+      "n": 6400,
+      "duration_ms": 400.0,
+      "rms_fs": 0.244140625,
+      "rms_dbfs": -12.247198959355487,
+      "peak_fs": 0.244140625,
+      "dc_fs": 0.244140625,
+      "variance_fs": 0.0,
+      "ac_rms_fs": 0.0,
+      "clip_ratio": 0.0,
+      "crest": 1.0
+    },
+    {
+      "name": "extreme_dc",
+      "n": 6400,
+      "duration_ms": 400.0,
+      "rms_fs": 0.6103515625,
+      "rms_dbfs": -4.288398785914734,
+      "peak_fs": 0.6103515625,
+      "dc_fs": 0.6103515625,
+      "variance_fs": 0.0,
+      "ac_rms_fs": 0.0,
+      "clip_ratio": 0.0,
+      "crest": 1.0
+    }
+  ]
+}

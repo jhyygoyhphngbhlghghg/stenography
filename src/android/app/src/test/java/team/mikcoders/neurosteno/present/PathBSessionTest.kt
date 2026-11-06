@@ -30,7 +30,7 @@ class PathBSessionTest {
         val session = PathBSession(asr = asr)
         session.bindStart("s01")
         session.bindStart("s05")
-        val pcm = ByteArray(320) // 10 ms @ 16 kHz s16le mono
+        val pcm = StreamPcmSynth.sine()
         val a = session.finish("s01", pcm)
         val b = session.finish("s05", pcm)
         assertEquals("speaker_1", a.utterances.single().speakerId)
@@ -75,9 +75,9 @@ class PathBSessionTest {
         )
         session.bindStart("s01")
         session.bindStart("s02")
-        session.finish("s01", ByteArray(64))
-        session.finish("s02", ByteArray(128))
-        assertEquals(listOf("s01" to 32, "s02" to 64), seen)
+        session.finish("s01", StreamPcmSynth.sine(n = 3_200))
+        session.finish("s02", StreamPcmSynth.sine(n = 6_400))
+        assertEquals(listOf("s01" to 3_200, "s02" to 6_400), seen)
         val speakers = session.brief().transcript.map { it.speakerId }.toSet()
         assertEquals(setOf("speaker_1", "speaker_2"), speakers)
     }
@@ -88,7 +88,7 @@ class PathBSessionTest {
             asr = PathBAsr { _, _ -> listOf(Utterance("cluster", 100, 200, "hi")) },
         )
         session.bindStart("s03", clockOffsetMs = 180)
-        val out = session.finish("s03", ByteArray(32))
+        val out = session.finish("s03", StreamPcmSynth.sine())
         assertEquals(280L, out.utterances.single().startMs)
         assertEquals(380L, out.utterances.single().endMs)
         assertEquals("speaker_3", out.utterances.single().speakerId)

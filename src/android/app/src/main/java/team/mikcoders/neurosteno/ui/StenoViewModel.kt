@@ -47,12 +47,21 @@ data class StenoUiState(
     val overCapacityId: String? = null,
     val presentConnected: Boolean = false,
     val wsUrl: String = "wss://present.example.local/v1/present-connect?session=demo&role=worker&device=phone",
+    val micFlags: List<MicFlagChip> = emptyList(),
 )
 
 data class ActiveStreamChip(
     val streamId: String,
     val speakerId: String,
     val role: String,
+    val qualityCode: String? = null,
+)
+
+data class MicFlagChip(
+    val streamId: String,
+    val speakerId: String,
+    val code: String,
+    val hardReject: Boolean,
 )
 
 class StenoViewModel(app: Application) : AndroidViewModel(app) {
@@ -93,6 +102,7 @@ class StenoViewModel(app: Application) : AndroidViewModel(app) {
                     s.copy(
                         activeStreams = s.activeStreams.filterNot { it.streamId == e.streamId } +
                             ActiveStreamChip(e.streamId, e.speakerId, e.role),
+                        micFlags = s.micFlags.filterNot { it.streamId == e.streamId },
                     )
                 }
             is PresentConnectEvent.StreamEnded ->
@@ -112,8 +122,20 @@ class StenoViewModel(app: Application) : AndroidViewModel(app) {
                 _state.update { it.copy(overCapacityId = e.rejectedStreamId) }
             is PresentConnectEvent.Error ->
                 _state.update { it.copy(error = "${e.code}: ${e.message}") }
+            is PresentConnectEvent.MicQuality ->
+                _state.update { s ->
+                    s.copy(
+                        activeStreams = s.activeStreams.map { chip ->
+                            if (chip.streamId == e.streamId) chip.copy(qualityCode = e.code) else chip
+                        },
+                        micFlags = s.micFlags.filterNot { it.streamId == e.streamId } +
+                            MicFlagChip(e.streamId, e.speakerId, e.code, e.hardReject),
+                    )
+                }
             PresentConnectEvent.Disconnected ->
-                _state.update { it.copy(presentConnected = false, activeStreams = emptyList()) }
+                _state.update {
+                    it.copy(presentConnected = false, activeStreams = emptyList(), micFlags = emptyList())
+                }
             is PresentConnectEvent.Partial -> { }
         }
     }

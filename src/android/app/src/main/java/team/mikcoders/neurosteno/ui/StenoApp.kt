@@ -110,7 +110,16 @@ fun StenoApp(vm: StenoViewModel = viewModel()) {
                             FilterChip(
                                 selected = s.role == "main",
                                 onClick = {},
-                                label = { Text("${s.streamId}→${s.speakerId}") },
+                                label = {
+                                    Text(
+                                        buildString {
+                                            append(s.streamId)
+                                            append('→')
+                                            append(s.speakerId)
+                                            s.qualityCode?.let { append(" $it") }
+                                        },
+                                    )
+                                },
                             )
                         }
                     }
@@ -119,6 +128,18 @@ fun StenoApp(vm: StenoViewModel = viewModel()) {
                     Text(
                         "OVER_CAPACITY: $id (stream 21)",
                         color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                state.micFlags.forEach { f ->
+                    Text(
+                        "${f.code}: ${f.streamId}→${f.speakerId}" +
+                            if (f.hardReject) " (ASR skipped)" else " (soft, ASR ran)",
+                        color = if (f.hardReject) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
