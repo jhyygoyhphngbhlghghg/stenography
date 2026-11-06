@@ -211,9 +211,13 @@ def build_cv(selection: dict) -> dict:
     last_babble_ms = STAGGER_MS * (n_talkers - 1) + int(round(longest_b * 1000.0 / HZ))
     dur_ms = max(last_main_end, last_babble_ms) + 400
     n = int(dur_ms * HZ / 1000)
-    dry = [np.zeros(n, dtype=np.float32) for _ in range(n_talkers)]
+    # dry_mix: looped babble for Path A cocktail. dry_once: one utterance per
+    # stream (PresentConnect Path B — people do not loop their sentence).
+    dry_mix = [np.zeros(n, dtype=np.float32) for _ in range(n_talkers)]
+    dry_once = [np.zeros(n, dtype=np.float32) for _ in range(n_talkers)]
     channels = []
-    utterances = []
+    utterances_mix = []
+    utterances_once = []
 
     channels.append(
         {
@@ -225,8 +229,10 @@ def build_cv(selection: dict) -> dict:
         }
     )
     for start, _end, clip, text in main_plan:
-        s, e = place(dry[0], clip, start)
-        utterances.append(item("speaker_1", s, e, text))
+        s, e = place(dry_mix[0], clip, start)
+        place(dry_once[0], clip, start)
+        utterances_mix.append(item("speaker_1", s, e, text))
+        utterances_once.append(item("speaker_1", s, e, text))
 
     for i, (t, clip) in enumerate(babble_loaded, start=1):
         offset = i * STAGGER_MS
@@ -241,21 +247,26 @@ def build_cv(selection: dict) -> dict:
         )
         remain = n - int(offset * HZ / 1000)
         looped = loop_to(clip, max(remain, clip.size), HZ)
-        s, e = place(dry[i], looped, offset)
-        utterances.append(item(t["speaker_id"], s, e, t["clips"][0]["sentence"]))
+        s_loop, e_loop = place(dry_mix[i], looped, offset)
+        s_once, e_once = place(dry_once[i], clip, offset)
+        utterances_mix.append(item(t["speaker_id"], s_loop, e_loop, t["clips"][0]["sentence"]))
+        utterances_once.append(item(t["speaker_id"], s_once, e_once, t["clips"][0]["sentence"]))
 
-    main_a = dry[0]
+    main_a = dry_mix[0]
     babble = np.zeros(n, dtype=np.float32)
     for i in range(1, n_talkers):
-        babble += dry[i]
+        babble += dry_mix[i]
     mix, main_scaled, snr_db, g = mix_snr(main_a, babble, MAIN_SNR_DB)
-    dry[0] = main_scaled
-    dry = [d * g for d in dry]
-    utterances.sort(key=lambda u: (u["start_ms"], u["speaker_id"]))
+    dry_once[0] = (main_scaled * g).astype(np.float32)
+    dry_once = [dry_once[0]] + [(d * g).astype(np.float32) for d in dry_once[1:]]
+    utterances_mix.sort(key=lambda u: (u["start_ms"], u["speaker_id"]))
+    utterances_once.sort(key=lambda u: (u["start_ms"], u["speaker_id"]))
     return {
         "mix": mix,
-        "dry": dry,
-        "ref": {"transcript": utterances},
+        "dry": dry_once,
+        "dry_mix": dry_mix,
+        "ref": {"transcript": utterances_mix},
+        "ref_per_stream": {"transcript": utterances_once},
         "channels": channels,
         "snr_db_measured": snr_db,
         "duration_ms": int(round(mix.size * 1000.0 / HZ)),
@@ -511,9 +522,10 @@ def main() -> int:
             for i, d in enumerate(full["dry"]):
                 write_wav(out / "dry" / f"spk_{i + 1:02d}.wav", d)
             dump_json(out / "ref" / "mix_20talker.json", full["ref"])
+            dump_json(out / "ref" / "mix_20talker_per_stream.json", full["ref_per_stream"])
             dump_json(
                 out / "ref" / "mix_20talker_main.json",
-                {"transcript": [u for u in full["ref"]["transcript"] if u["speaker_id"] == "speaker_1"]},
+                {"transcript": [u for u in full["ref_per_stream"]["transcript"] if u["speaker_id"] == "speaker_1"]},
             )
             dump_json(out / "channels.json", {"sample_rate_hz": HZ, "n_talkers": full["n_talkers"], "stagger_ms": STAGGER_MS, "channels": full["channels"]})
             print(f"wrote mix_20talker.wav ({full['duration_ms']} ms, SNR {full['snr_db_measured']:.2f} dB, talkers={full['n_talkers']})")
@@ -544,6 +556,9 @@ def main() -> int:
                     "duration_ms": full["duration_ms"],
                     "snr_db_measured": round(float(full["snr_db_measured"]), 3),
                     "n_utterances_ref": len(full["ref"]["transcript"]),
+                    "n_utterances_ref_per_stream": len(full["ref_per_stream"]["transcript"]),
+                    "dry_tracks": "unlooped original clips (Path B PresentConnect)",
+                    "mix_babble": "looped (Path A cocktail)",
                     "n_talkers": full["n_talkers"],
                 },
             },
