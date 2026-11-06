@@ -1,50 +1,35 @@
 package team.mikcoders.neurosteno.audio
 
-import kotlin.math.sqrt
-
 /**
- * Energy gate **before** diar/ASR so stationary noise does not spawn speakers.
+ * Conservative frame helpers. **Not** a pre-diar skip.
  *
- * Cite-only bar: noise false alarms DER 1.70. Path B applies this per stream_id
- * (never a mix). Synthetic tests only — not tuned on Common Voice.
+ * H1 gated remeasure: the old stationary-bed wipe / hush skip dropped 9 Path B
+ * speakers. Ingest hard-reject stays [team.mikcoders.neurosteno.present.StreamPcmGate]
+ * (byte-identical to platform). Path B 20/20 speaker survival is a hard constraint.
+ *
+ * [zeroNonSpeech] only zeros near-digital-silence frames (below StreamPcmGate
+ * RMS_REJECT_FS). It never replaces a whole buffer with zeros.
  */
 object SpeechEnergy {
-    const val ABS_RMS_FLOOR = 0.015f
-    const val MIN_VOICED_MS = 400
-    const val MIN_SPEECH_RATIO = 0.06f
-
-    /** Coefficient of variation below this on frame RMS ⇒ stationary bed, not speech. */
-    const val STATIONARY_CV = 0.28f
-
-    /**
-     * Only treat low-CV as a noise bed when mean RMS is in the hiss band.
-     * Must sit below StreamPcmGate clean-tone RMS (0.0707 FS, −23 dBFS) so a
-     * platform Pass is not zeroed before ASR.
-     */
-    const val STATIONARY_MAX_MEAN = 0.04f
+    /** Match StreamPcmGate.RMS_REJECT_FS — do not raise this or quiet talkers die. */
+    const val ABS_RMS_FLOOR = 0.008f
 
     fun hasEnoughSpeech(samples: FloatArray, sampleRate: Int): Boolean {
         if (samples.isEmpty()) return false
-        val frames = SpeechEndpointing.frameRms(samples, sampleRate)
-        if (frames.isEmpty()) return false
-        if (isStationaryNoise(frames)) return false
-        val mask = voicedMask(frames)
-        var voiced = 0
-        for (v in mask) if (v) voiced++
-        val voicedMs = voiced * SpeechEndpointing.FRAME_MS
-        val ratio = voiced.toFloat() / mask.size
-        return voicedMs >= MIN_VOICED_MS && ratio >= MIN_SPEECH_RATIO
+        return SpeechEndpointing.rms(samples) >= ABS_RMS_FLOOR
     }
 
     /**
-     * Zero frames that fail the energy gate so pyannote/Zipformer never see the noise bed.
-     * Does not mix other streams.
+     * Zero frames below [ABS_RMS_FLOOR] only. If that would wipe the whole clip,
+     * return the original samples so a quiet on-mic speaker is not deleted.
      */
     fun zeroNonSpeech(samples: FloatArray, sampleRate: Int): FloatArray {
         val frames = SpeechEndpointing.frameRms(samples, sampleRate)
-        if (frames.isEmpty()) return FloatArray(samples.size)
-        if (isStationaryNoise(frames)) return FloatArray(samples.size)
-        val mask = voicedMask(frames)
+        if (frames.isEmpty()) return samples.copyOf()
+        val mask = BooleanArray(frames.size) { i -> frames[i] >= ABS_RMS_FLOOR }
+        var kept = 0
+        for (v in mask) if (v) kept++
+        if (kept == 0) return samples.copyOf()
         val frame = ((sampleRate * SpeechEndpointing.FRAME_MS) / 1000).coerceAtLeast(1)
         val out = samples.copyOf()
         var i = 0
@@ -61,28 +46,5 @@ object SpeechEnergy {
             i++
         }
         return out
-    }
-
-    fun isStationaryNoise(frameRms: FloatArray): Boolean {
-        if (frameRms.size < 8) return false
-        var sum = 0.0
-        for (x in frameRms) sum += x
-        val mean = (sum / frameRms.size).toFloat()
-        if (mean < ABS_RMS_FLOOR) return true
-        if (mean > STATIONARY_MAX_MEAN) return false
-        var varAcc = 0.0
-        for (x in frameRms) {
-            val d = (x - mean).toDouble()
-            varAcc += d * d
-        }
-        val std = sqrt(varAcc / frameRms.size).toFloat()
-        val cv = std / mean
-        return cv < STATIONARY_CV
-    }
-
-    private fun voicedMask(frameRms: FloatArray): BooleanArray {
-        val p80 = SpeechEndpointing.percentile(frameRms, 0.8f)
-        val floor = maxOf(ABS_RMS_FLOOR, p80 * SpeechEndpointing.BLEED_RELATIVE)
-        return BooleanArray(frameRms.size) { i -> frameRms[i] >= floor }
     }
 }
