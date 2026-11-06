@@ -1,4 +1,4 @@
-demo-stress eval  commit=5dc0440  utc=2026-11-06T18:45:02.973206+00:00
+demo-stress eval  commit=3004cb6  utc=2026-11-06T18:51:46.694413+00:00
 Cloud agents have no KVM/ADB — host Linux sherpa-onnx only.
 run_host=False only=None models=/agent/repos/neuro-stenographer/models
 ROW mix_20talker status=measured der=0.9500 jer=0.9520 purity=0.9983 wer_main=1.0000 rtf=0.1784 blocked='' notes='diarization collapsed to 1 speaker (ref 20); Path A: one-room mix, 20 distinct CV talkers, main +3 dB vs babble sum, staggered offsets.'
@@ -19,5 +19,8 @@ ROW WORST_CASE_gated_b142a4d status=measured der=1.2985 jer=0.5981 purity=0.9491
 ROW EDGE_noise_gated_v2 status=measured der=1.6234 jer=0.5851 purity=0.9206 wer_main=0.9565 rtf=0.4672 blocked='' notes="pcm_gate passed=19/20 dropped=1 codes={'BAND_LIMITED': 1}; Headline StreamPcmGate v2 @ e3ad908 (sha256 == Platform b12a2bb; BAND_LIMITED + boundSeat SOFT_LOW) on frozen EDGE_noise wavs. Do not retune."
 ROW EDGE_badmic_gated_v2 status=measured der=0.7444 jer=0.7707 purity=0.9549 wer_main=0.2609 rtf=0.2961 blocked='' notes="pcm_gate passed=6/20 dropped=14 codes={'BAND_LIMITED': 14}; Headline StreamPcmGate v2 @ e3ad908 (sha256 == Platform b12a2bb; BAND_LIMITED + boundSeat SOFT_LOW) on frozen EDGE_badmic wavs. Do not retune."
 ROW WORST_CASE_gated_v2 status=measured der=1.0000 jer=1.0000 purity= wer_main=1.0000 rtf=0.1976 blocked='' notes="pcm_gate passed=0/20 dropped=20 codes={'BAND_LIMITED': 20}; Headline StreamPcmGate v2 @ e3ad908 (sha256 == Platform b12a2bb; BAND_LIMITED + boundSeat SOFT_LOW) on frozen WORST_CASE wavs. Do not retune."
+ROW EDGE_noise_gated_v3 status=measured der=1.7005 jer=0.5675 purity=0.9203 wer_main=0.1739 rtf=0.4649 blocked='' notes='pcm_gate passed=20/20 dropped=0 codes={}; Headline StreamPcmGate v3 @ a5b7aed (sha256 == Platform 686ac4a; bound BAND_LIMITED soft + still ASR) on frozen EDGE_noise wavs. Do not retune.'
+ROW EDGE_badmic_gated_v3 status=measured der=0.6569 jer=0.2863 purity=0.9497 wer_main=1.0000 rtf=0.3823 blocked='' notes='pcm_gate passed=20/20 dropped=0 codes={}; Headline StreamPcmGate v3 @ a5b7aed (sha256 == Platform 686ac4a; bound BAND_LIMITED soft + still ASR) on frozen EDGE_badmic wavs. Do not retune.'
+ROW WORST_CASE_gated_v3 status=measured der=1.2985 jer=0.5981 purity=0.9491 wer_main=0.9130 rtf=0.4978 blocked='' notes='pcm_gate passed=20/20 dropped=0 codes={}; Headline StreamPcmGate v3 @ a5b7aed (sha256 == Platform 686ac4a; bound BAND_LIMITED soft + still ASR) on frozen WORST_CASE wavs. Do not retune.'
 copied mix_20talker.json -> hyp.json
 wrote /agent/repos/neuro-stenographer/artifacts/eval/demo-stress/metrics.csv and /agent/repos/neuro-stenographer/artifacts/eval/demo-stress/metrics.json

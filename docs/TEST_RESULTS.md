@@ -175,7 +175,19 @@ Python Path B ingest mirrors StreamPcmGate.kt @ Implementer PR #6 `e3ad908` (sha
 
 Honest: v2 does what v1 could not — phone-crush seats fail `BAND_LIMITED` instead of sailing through RMS/clip/DC. Bound quiet EDGE_noise seats survive (`SOFT_LOW`, 19/20 vs v1 gated 11/20). Cost: EDGE_noise **s01** is loud enough for the band check and is rejected (HVAC/phone-like whole-file spectrum), so WER_main 0.1739→**0.9565**. EDGE_badmic WER_main 1.0000→0.2609 because s01 still ASR (hf_occupancy=1, so not `BAND_LIMITED`) and 14 crushed babble seats are gone; JER got worse (0.2863→0.7707) from those misses. WORST_CASE is a **full refuse**: 20/20 `BAND_LIMITED`, hyp **0/20**, DER/JER/WER **1.0**. Do not claim clean WER/DER on WORST_CASE. Frozen 20/20 lock remains the ungated baseline.
 
-**Idle — gate v2 hard `BAND_LIMITED` is rejected for bound seats.** `SOFT_LOW` only covers energy floor, not spectral crush. Measured consequence @ `bed868b`: WORST_CASE **0/20** empty `{transcript:[]}`; EDGE_badmic **6/20**; EDGE_noise drops main **s01**. Do not retune fixtures. Do not remeasure until Platform softens `BAND_LIMITED` on bound `s01`–`s20`; then one more run of EDGE_noise / EDGE_badmic / WORST_CASE only (`*_gated_v2` history stays). Hold merge; overnight #2 still first.
+**Idle (closed @ `a5b7aed`):** gate v2 hard `BAND_LIMITED` was rejected for bound seats. Measured consequence @ `bed868b`: WORST_CASE **0/20** empty `{transcript:[]}`; EDGE_badmic **6/20**; EDGE_noise drops main **s01**. Platform / Implementer then softened bound crush — see `*_gated_v3` below. `*_gated_v2` rows stay as history.
+
+### StreamPcmGate v3 (Implementer `a5b7aed` == Platform `686ac4a`) — headline ingest
+
+Python Path B ingest mirrors StreamPcmGate.kt @ Implementer PR #6 `a5b7aed` (sha256 `e29a34bb…` == Platform `686ac4a`). Bound `s01`–`s20`: `BAND_LIMITED` is a **soft** flag + still ASR (like `SOFT_LOW`). Bound main `s01` is never hard-dropped for energy or band-limit. `CLIPPED` / `BAD_MIC` stay hard. Empty `n==0` still skips. Frozen wavs/refs/VAD **unchanged**. Prior `*_gated_v2` @ `bed868b` kept. Headline rows: `*_gated_v3`.
+
+| test_id | gated_v2 DER / JER / WER / RTF / hyp | gated_v3 DER / JER / WER / RTF / hyp | gate soft flags / hard drops |
+|---|---|---|---|
+| EDGE_noise | **1.6234** / 0.5851 / **0.9565** / 0.4672 / **19/20** | **1.7005** / 0.5675 / **0.1739** / 0.4649 / **20/20** | **20/20** pass; hard **0**. Soft: **1** `BAND_LIMITED` (**s01** present), **19** `SOFT_LOW` |
+| EDGE_badmic | **0.7444** / 0.7707 / **0.2609** / 0.2961 / **6/20** | **0.6569** / 0.2863 / **1.0000** / 0.3823 / **20/20** | **20/20** pass; hard **0**. Soft: **14** `BAND_LIMITED` (s01 present, no crush flag — hf_occupancy=1) |
+| WORST_CASE | **1.0000** / 1.0000 / **1.0000** / 0.1976 / **0/20** | **1.2985** / 0.5981 / **0.9130** / 0.4978 / **20/20** | **20/20** pass; hard **0**. Soft: **20** `BAND_LIMITED`. **s01 present** (not empty) |
+
+Honest: v3 does what H1 asked — bound crush no longer empties the brief. WORST_CASE is **20/20**, not 0/20 from band-limit. EDGE_noise WER_main 0.9565→**0.1739** because **s01** is back (soft `BAND_LIMITED`, still ASR). EDGE_badmic WER_main 0.2609→**1.0000** matches the ungated phone-crush baseline: 14 crushed seats now reach ASR again and mapping/WER on main is still a fail. WORST_CASE DER/JER/WER match the frozen ungated row (1.2985 / 0.5981 / 0.9130); hyp main text is still `хочу говорить`. Do **not** claim clean WER/DER on WORST_CASE. Frozen 20/20 lock remains the ungated baseline.
 
 #### Ablation (interpretive — no new run)
 
