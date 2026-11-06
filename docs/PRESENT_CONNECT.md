@@ -5,16 +5,34 @@
 **Flavor:** `presentConnect` (`BuildConfig.PRESENT_CONNECT = true`).  
 **Not this:** checkpoint polling so slide-followers stay in sync — that is **web BE only**. Documented at the bottom so we do not collide.
 
-The phone is an **on-device ASR+diarization worker**, not a browser. Demo loop:
+The phone is an **on-device ASR worker** (Zipformer-ru), not a browser. **Normative demo contract = Path B** (see below). Demo loop:
 
 ```
-QR on slide → audience browser mic → web BE relays PCM → Android app
-        → transcript JSON snippets → BE → projector
+QR on slide → one browser mic per seat (own stream_id) → web BE relays PCM
+        → Android worker, each stream independent → transcript JSON → BE → projector
 ```
 
-Hard cap: **≤ 20 concurrent audio streams** per phone worker. Stream 21 is rejected.
+Hard cap: **≤ 20 concurrent audio streams** per phone worker. Stream 21 is rejected with `OVER_CAPACITY`.
 
-Offline stenography (file import / in-app record, airplane mode) is a **different mode**. Do not send present-connect audio through a cloud ASR.
+Offline stenography (file import / in-app record, airplane mode) is a **different mode** (one recording: VAD → diarize → ASR). Do not send present-connect audio through a cloud ASR. Do not run the 20-seat demo by mixing mics into that offline diarizer.
+
+---
+
+## 0. Demo contract — Path B (normative)
+
+PresentConnect demo = **≤20 separate mic/audio streams**. Each `stream_id` is processed **independently**:
+
+`PCM → VAD → ASR` (Zipformer-ru). Streams do not share a clustering pass.
+
+**Labeling (≤20-stream demo):** default **`speaker_id` ← `stream_id`**. If `stream.start.speaker_hint` is a non-null string, use that stable seat label as `speaker_id` instead. Either way the map is stream→speaker, not a room-wide cluster id.
+
+Optional diarization runs **inside one stream only** (`accepts_diarization: true` means that, not “mix the room”). When intra-stream diarization is off, or the stream is one seat, `speaker_id` stays the stream/seat label. Session transcript = per-stream utterances **merged by time**.
+
+Worker pipeline is per stream. The 21st `stream.start` is `error` / `OVER_CAPACITY`; the worker does not accept its PCM.
+
+### Out of scope / known fail (Path A)
+
+One-room cocktail mix of 20 talkers into a **single** stream is **Path A** and **fails**. Eval-measured (H1 / Eval Owner, [PR #4](https://cursor.com/codebase/johann-schilling/neuro-stenographer/pull/4)): speakers recovered **1/20**, DER ≈ **0.95**, main WER **1.00**, RTF **0.18**. Web FE **must not** mix audience mics into one stream and present that as the multi-talker demo. Path A stays documented so we do not overclaim. Numbers are not to be reinvented; see `docs/TEST_RESULTS.md`.
 
 ---
 
@@ -53,27 +71,29 @@ Text frames, JSON. Audio payload is **base64 PCM s16le, 16 kHz, mono**. Chunk ~1
 }
 ```
 
-`transcript.partial` — optional live line:
+`accepts_diarization: true` (default in v1 hello): worker *may* diarize **inside** a single `stream_id`. It does **not** accept a 20-talker room mix. Default labels stay `speaker_id` ← `stream_id` (or `speaker_hint`) unless that one stream actually emits more than one intra-stream speaker.
+
+`transcript.partial` — optional live line. `speaker_id` defaults to `stream_id` (here `s01`); a seat label from `speaker_hint` is equally valid:
 
 ```json
 {
   "type": "transcript.partial",
   "stream_id": "s01",
-  "speaker_id": "speaker_1",
+  "speaker_id": "s01",
   "start_ms": 0,
   "end_ms": 800,
   "text": "добрый"
 }
 ```
 
-`transcript.final` — one utterance, **same fields as the brief JSON item**:
+`transcript.final` — one utterance, **same fields as the brief JSON item**. Demo default: `utterance.speaker_id` equals `stream_id` or the seat label:
 
 ```json
 {
   "type": "transcript.final",
   "stream_id": "s01",
   "utterance": {
-    "speaker_id": "speaker_1",
+    "speaker_id": "s01",
     "start_ms": 1250,
     "end_ms": 4380,
     "text": "Добрый день!"
@@ -115,7 +135,9 @@ Text frames, JSON. Audio payload is **base64 PCM s16le, 16 kHz, mono**. Chunk ~1
 }
 ```
 
-If worker already has 20 open streams it replies `error` / `OVER_CAPACITY` and does **not** accept PCM.
+`speaker_hint` is optional and defaults to `null` (backward compatible). `null` → worker sets `speaker_id` = `stream_id`. A string (seat / QR label) → that string is `speaker_id` for this stream. No new required field.
+
+If the worker already has 20 open streams it replies `error` / `OVER_CAPACITY` and does **not** accept PCM. Processing of accepted streams stays independent (no cross-stream clustering).
 
 `audio.pcm16`:
 
@@ -145,7 +167,7 @@ Server may broadcast to `display`:
   "type": "transcript.final",
   "stream_id": "s01",
   "utterance": {
-    "speaker_id": "speaker_1",
+    "speaker_id": "s01",
     "start_ms": 1250,
     "end_ms": 4380,
     "text": "Добрый день!"
@@ -153,7 +175,7 @@ Server may broadcast to `display`:
 }
 ```
 
-Web FE maps `stream_id` → seat/QR label. `speaker_id` is diarization **inside** that stream (one browser mic can still be one speaker).
+Web FE keeps **one mic ↔ one `stream_id`**. `speaker_id` is that stream (or `speaker_hint` / seat label), not a cluster id from a mixed room. Intra-stream diarization, if enabled, may add speaker ids **only inside that same `stream_id`**. Do not sum browser mics into one `audio.pcm16` stream for the demo claim.
 
 ---
 
@@ -168,7 +190,7 @@ Base: `https://{host}/v1`
 | `POST` | `/sessions/{sid}/transcribe` | BE (debug) | `multipart/audio` → brief JSON `{transcript:[...]}` **one file, not 20 streams** |
 | `GET` | `/sessions/{sid}/transcript` | display | current concatenated `{transcript:[...]}` |
 
-HTTP `transcribe` is for bringing-up the phone without WS. The 20-stream demo **must** use WebSocket.
+HTTP `transcribe` is one file for bringing-up the phone without WS. The ≤20-stream demo **must** use WebSocket, one `stream_id` per mic. This endpoint is not a Path A cocktail claim.
 
 ---
 
@@ -176,7 +198,7 @@ HTTP `transcribe` is for bringing-up the phone without WS. The 20-stream demo **
 
 | Code | When |
 |---|---|
-| `OVER_CAPACITY` | 21st `stream.start` |
+| `OVER_CAPACITY` | 21st `stream.start` (hard cap 20). Reject that stream; do not mix it into an open one |
 | `BAD_ENCODING` | not pcm_s16le / not 16 kHz |
 | `UNKNOWN_STREAM` | PCM for a stream that was not started |
 | `PIPELINE` | on-device ASR/VAD failure |
@@ -211,14 +233,15 @@ interface PresentConnectClient {
 }
 ```
 
-Implementation talks OkHttp WebSocket. Pipeline on the phone is the same as file import: PCM → VAD → diarize → ASR → LLM stub → `transcript.final`.
+Implementation talks OkHttp WebSocket. **Per open `stream_id`, independently:** PCM → VAD → ASR → `transcript.final`, with `speaker_id` ← `stream_id` (or `speaker_hint`). Optional diarization is inside that stream only. This is **not** the offline file path (one recording → `OfflineSpeakerDiarization` → ASR) and **not** Path A mix-then-cluster. LLM post-pass stays the identity stub. Finals from all streams are merged by time for the session transcript.
 
 ---
 
 ## 7. Out of scope for web team tonight (do not block on)
 
 - Shipping ONNX models
-- WER
+- Re-measuring WER (use the Eval numbers in `docs/TEST_RESULTS.md`; do not invent new ones)
 - Airplane-mode file path
+- Path A: mixing 20 talkers into one stream (known fail, §0)
 
 Need from web team: reachable `wss://` on the LAN/demo Wi-Fi, QR → join page with mic permission, display of `transcript.final`.
