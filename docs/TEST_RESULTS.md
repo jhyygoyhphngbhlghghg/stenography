@@ -4,16 +4,18 @@
 
 **Запрещено выдумывать WER/RTF.** Он-девайс строки ниже остаются `pending`, пока нет своего прогона. Eval-measured таблица — замер H1 / Eval Owner, не новая выдумка: её можно цитировать, новые числа к ней не добавлять.
 
-Шаблон он-девайс строк: `artifacts/test-results/results.csv` (файл есть, строк прогонов нет — только заголовок). Каталога `eval/` и `artifacts/eval/` на `main` нет. Измерения Path A и optional Path B описаны в [PR #4](https://cursor.com/codebase/johann-schilling/neuro-stenographer/pull/4) (ветка `cursor/demo-stress-20talker-0106`, не влита; в теле PR указан путь `artifacts/eval/demo-stress/` для более раннего eSpeak-прогона). **DEMO_STAGE6 WER/DER здесь нет.**
+Шаблон он-девайс строк: `artifacts/test-results/results.csv` (файл есть, строк прогонов нет — только заголовок). Каталога `eval/` и `artifacts/eval/` на `main` нет. Измерения Path A и optional Path B описаны в [PR #4](https://cursor.com/codebase/johann-schilling/neuro-stenographer/pull/4) (ветка `cursor/demo-stress-20talker-0106`, не влита; в теле PR указан путь `artifacts/eval/demo-stress/` для более раннего eSpeak-прогона). **DEMO_STAGE6** — первый замер ниже. Ниже aggregate **0.73 / 0.52** не заявлять.
 
-## DEMO_STAGE6 — заявка презентации, scores pending
+## DEMO_STAGE6 — заявка презентации, первый замер
 
-6 спикеров **RU**, **один** микрофон телефона, каждый **3–6 м**, очередь sequential и только лёгкое перекрытие в конце реплики, большая комната, средний babble/HVAC, характер телефонного микрофона (band-limit / compression / distance attenuation + reverb). Пайплайн: один канал, far-field, VAD → диаризация → Zipformer-ru. Цель: ideal recognition (ясные смены спикеров + пригодный текст). **Цифр нет.** Фикстуру и WER/DER держит Eval (PR #4). Это не Path B и не студия. Запрещены «should be fine», «robust», «handles noisy rooms», «graceful under echo».
+6 спикеров **RU**, **один** микрофон телефона, сцена **3–6 м**, очередь sequential и только лёгкое перекрытие в конце реплики, большая комната, средний babble/HVAC, характер телефонного микрофона (band-limit / compression / distance attenuation + reverb). Пайплайн: один канал, far-field, VAD → диаризация → Zipformer-ru. Это не Path B и не студия.
+
+Первый замер H1/Eval ([PR #4](https://cursor.com/codebase/johann-schilling/neuro-stenographer/pull/4), baseline `a8b39d5`): aggregate **WER 0.73 / DER 0.52** (точно **0.7321 / 0.5174**). **Ideal recognition только @ 3 м.** Дальше 3 м — far-field gap; 3 м не равен комнате. Gain baseline / ffgain / perturn, agg WER **0.73 / 0.70 / 0.73** (точно **0.7321 / 0.6964 / 0.7321**; ffgain `e0e64b8`, perturn `db3afe4`). **Gain комнату не вернул.** Следующий рычаг — пометка, не обещание: spectral + diar (Platform/Eval). Полная по-спикерная таблица — на PR #4, не здесь. Запрещены «should be fine», «robust», «handles noisy rooms», «graceful under echo».
 
 ## Методика (черновик)
 
 1. Собрать debug APK flavor `stenographer`.
-2. Положить модели (`scripts/download-models.sh` + push).
+2. Модели на устройстве. Сдача / check APK: assets-bundled (включая локальную LLM). `download-models.sh` + push — только dev.
 3. Авиарежим.
 4. Импорт 2–3 своих диалогов (RU, ≥2 спикера, без перекрытия).
 5. Экспорт JSON, сверка `speaker_id` / `start_ms` / `end_ms` / `text` с ручной расшифровкой.
