@@ -137,7 +137,7 @@ If worker already has 20 open streams it replies `error` / `OVER_CAPACITY` and d
 
 `seq` is uint, monotonic per `stream_id`. Gaps: worker may skip; do not stall the whole session.
 
-`stream.end` — ASR **this stream’s PCM only**, emit `transcript.final` (oracle `speaker_id`), then `stream.closed`.
+`stream.end` — **gate this stream’s PCM** (energy / mic-quality, below) → skip ASR on reject (`error` + `LOW_ENERGY` / `CLIPPED` / `BAD_MIC`) or ASR **this stream’s PCM only** → `transcript.final` (oracle `speaker_id`) → `stream.closed`.
 
 `stream.cancel` — drop the buffer without a final (do not absorb into the session brief).
 
@@ -188,6 +188,34 @@ HTTP `transcribe` is for bringing-up the phone without WS. The 20-stream demo **
 | `UNKNOWN_STREAM` | PCM for a stream that was not started |
 | `PIPELINE` | on-device ASR/VAD failure |
 | `MODELS_MISSING` | worker in stub mode — **do not use on stage** |
+| `LOW_ENERGY` | stream buffer near-silence / RMS below gate; **ASR skipped** |
+| `CLIPPED` | clip ratio too high (hard-limited mic); **ASR skipped** |
+| `BAD_MIC` | stuck mic / extreme DC; **ASR skipped** |
+
+### 4.1 Path B pre-ASR energy / mic-quality gate
+
+Runs on the **accumulated pcm_s16le for that `stream_id` only** (never mixed). Pure Kotlin RMS/energy + heuristics — Silero VAD stays inside `SherpaStenoPipeline` (JNI + `silero_vad.onnx`) *after* this gate has already allowed ASR. JVM tests and stub workers can reject without JNI.
+
+Measure command (synthetic fixtures only; **Eval WORST_CASE / demo-stress wavs untouched**):
+
+```bash
+python3 scripts/measure-stream-pcm-gate.py --record
+```
+
+Units: full-scale (FS) = 32768 for s16. `dBFS = 20*log10(rms_fs)`. Evidence: `artifacts/test-results/stream-pcm-gate.json`.
+
+| Constant | Value | Why |
+|---|---|---|
+| `RMS_REJECT_FS` | 0.008 (≈ −41.94 dBFS) | silence RMS 0; tiny_noise 6.11e-5 (−84.3 dBFS); low-peak tone 0.00283 (−51.0 dBFS); clean 1 kHz −20 dBpeak RMS 0.0707 (−23.0 dBFS) |
+| `PEAK_REJECT_FS` | 0.012 (≈ −38.4 dBFS) | clean peak 0.10; tiny_noise peak 9.2e-5 |
+| `CLIP_REJECT` | 0.02 of samples with \|s16\| ≥ 32760 | clipped square measures clip_ratio **1.0** |
+| `DC_REJECT_FS` | 0.20 | stuck 8000/32768 = 0.244; extreme DC 20000/32768 = 0.610 |
+| `STUCK_VARIANCE_FS` | 1e-7 | stuck/extreme variance 0; tiny_noise variance 3.7e-9 but peak ≪ reject so `LOW_ENERGY` |
+| `MIN_SAMPLES` | 800 (50 ms @ 16 kHz) | shorter buffers are not speech |
+
+Hard reject: no ASR, no brief row, wire `{"type":"error","stream_id":"s0N","code":"LOW_ENERGY|CLIPPED|BAD_MIC","message":"..."}`, then `stream.closed`. UI flags the seat as bad-mic.
+
+Soft flags (`SOFT_LOW` / `SOFT_CLIP` / `SOFT_DC`): still ASR; log + `MicQuality` event only. **Scored brief stays four fields** (`speaker_id`, `start_ms`, `end_ms`, `text`) — no quality extras.
 
 ---
 
