@@ -90,4 +90,23 @@ class IntonationPunctTest {
         assertTrue(out.startsWith("привет") || out.startsWith("Привет"))
         assertFalse(out.contains("коллеги"))
     }
+
+    @Test
+    fun zipformerLikeWithoutGreetingGetsClauseComma() {
+        val hyp = "сегодня мы начинаем работу если все готовы"
+        val out = IntonationPunct.apply(hyp)
+        assertTrue("must ADD commas on Zipformer-like text: $out", out.contains(","))
+        assertTrue(out.contains("если"))
+        assertTrue(out.endsWith("."))
+        assertTrue(out.count { it == ',' } >= 1)
+    }
+
+    @Test
+    fun zipformerLikeOpeningBeatWhenNoCueWords() {
+        val hyp = "мы продолжаем работу по пунктам плана"
+        val out = IntonationPunct.apply(hyp)
+        assertTrue("opening-beat comma on long punct-less hyp: $out", out.contains(","))
+        assertTrue(out.endsWith("."))
+        assertEquals(IntonationPunct.contentWords(hyp), IntonationPunct.contentWords(out))
+    }
 }

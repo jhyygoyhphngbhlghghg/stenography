@@ -4,8 +4,9 @@ package team.mikcoders.neurosteno.pipeline
  * DEMO_STAGE6 single-mic scene vs PresentConnect (Path B, not the live claim).
  *
  * FarFieldGain.stage and EQ are **frozen**. Live work: diar/VAD recover s5
- * with a **hard cap of 6 speakers** (Eval 9b29b9c1 over-split 12/6). Path B
- * ingest is unchanged.
+ * with a **hard cap of 6 speakers** (Eval 9b29b9c1 over-split 12/6;
+ * Eval a2219ef glued s2+s3 — do not merge distinct near-field turns).
+ * Path B ingest is unchanged.
  */
 data class FarFieldScene(
     val name: String,

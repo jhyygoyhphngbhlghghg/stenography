@@ -47,4 +47,11 @@ class HeuristicPunctuationPostPassTest {
     fun keepsIntonationCommas() {
         assertEquals("ну, вот.", HeuristicPunctuationPostPass.punctuate("ну, вот"))
     }
+
+    @Test
+    fun zipformerLikeStringGetsSpokenComma() {
+        val out = HeuristicPunctuationPostPass.punctuate("сегодня мы начинаем работу если все готовы")
+        assertTrue(out.contains(","))
+        assertTrue(out.endsWith("."))
+    }
 }

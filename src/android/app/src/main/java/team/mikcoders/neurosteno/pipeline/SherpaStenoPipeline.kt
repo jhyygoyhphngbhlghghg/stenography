@@ -20,7 +20,7 @@ import team.mikcoders.neurosteno.audio.FarFieldVad
 import team.mikcoders.neurosteno.audio.Pcm
 import team.mikcoders.neurosteno.export.TranscriptFile
 import team.mikcoders.neurosteno.export.Utterance
-import team.mikcoders.neurosteno.llm.IdentityLlmPostPass
+import team.mikcoders.neurosteno.llm.HeuristicPunctuationPostPass
 import team.mikcoders.neurosteno.llm.LocalLlmPostPass
 
 /**
@@ -32,7 +32,7 @@ import team.mikcoders.neurosteno.llm.LocalLlmPostPass
  */
 class SherpaStenoPipeline(
     private val paths: ModelPaths,
-    private val llm: LocalLlmPostPass = IdentityLlmPostPass(),
+    private val llm: LocalLlmPostPass = HeuristicPunctuationPostPass(),
     private val scene: FarFieldScene = FarFieldScene.stage6,
 ) : StenoPipeline {
     override val displayName: String =
