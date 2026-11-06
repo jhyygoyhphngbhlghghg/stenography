@@ -1,0 +1,140 @@
+{
+  "dry_dir": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_noise",
+  "wall_ms": 4875,
+  "duration_ms": 18736,
+  "n_segments": 80,
+  "n_hyp_speakers": 20,
+  "n_streams": 20,
+  "path": "B_per_stream",
+  "vad": "rms",
+  "pad_ms": 250,
+  "min_duration_on": 0.2,
+  "min_duration_off": 0.45,
+  "rel_thresh": 0.04,
+  "stack": "linux-sherpa-onnx per-stream RMS-VAD+ASR (oracle stream id), merge by time",
+  "streams": [
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_noise/spk_01.wav",
+      "n_segments": 1,
+      "wall_ms": 997,
+      "vad": "rms"
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_noise/spk_02.wav",
+      "n_segments": 6,
+      "wall_ms": 223,
+      "vad": "rms"
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_noise/spk_03.wav",
+      "n_segments": 1,
+      "wall_ms": 226,
+      "vad": "rms"
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_noise/spk_04.wav",
+      "n_segments": 10,
+      "wall_ms": 226,
+      "vad": "rms"
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_noise/spk_05.wav",
+      "n_segments": 7,
+      "wall_ms": 117,
+      "vad": "rms"
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_noise/spk_06.wav",
+      "n_segments": 1,
+      "wall_ms": 213,
+      "vad": "rms"
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_noise/spk_07.wav",
+      "n_segments": 6,
+      "wall_ms": 229,
+      "vad": "rms"
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_noise/spk_08.wav",
+      "n_segments": 4,
+      "wall_ms": 216,
+      "vad": "rms"
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_noise/spk_09.wav",
+      "n_segments": 4,
+      "wall_ms": 53,
+      "vad": "rms"
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_noise/spk_10.wav",
+      "n_segments": 3,
+      "wall_ms": 218,
+      "vad": "rms"
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_noise/spk_11.wav",
+      "n_segments": 8,
+      "wall_ms": 205,
+      "vad": "rms"
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_noise/spk_12.wav",
+      "n_segments": 1,
+      "wall_ms": 212,
+      "vad": "rms"
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_noise/spk_13.wav",
+      "n_segments": 1,
+      "wall_ms": 206,
+      "vad": "rms"
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_noise/spk_14.wav",
+      "n_segments": 3,
+      "wall_ms": 217,
+      "vad": "rms"
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_noise/spk_15.wav",
+      "n_segments": 1,
+      "wall_ms": 215,
+      "vad": "rms"
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_noise/spk_16.wav",
+      "n_segments": 2,
+      "wall_ms": 229,
+      "vad": "rms"
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_noise/spk_17.wav",
+      "n_segments": 1,
+      "wall_ms": 221,
+      "vad": "rms"
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_noise/spk_18.wav",
+      "n_segments": 9,
+      "wall_ms": 207,
+      "vad": "rms"
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_noise/spk_19.wav",
+      "n_segments": 9,
+      "wall_ms": 220,
+      "vad": "rms"
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_noise/spk_20.wav",
+      "n_segments": 2,
+      "wall_ms": 206,
+      "vad": "rms"
+    }
+  ],
+  "no_kvm_adb": true,
+  "json_schema": "transcript[].{speaker_id,start_ms,end_ms,text}",
+  "rtf": 0.2601942783945346
+}

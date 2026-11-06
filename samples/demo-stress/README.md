@@ -53,6 +53,17 @@ python3 scripts/eval_harness.py --suite clips --run-host --write-csv
 - **B (PresentConnect per-stream, tech demo):** `mix_20talker_per_stream` — RMS VAD + Zipformer on each **unlooped** `dry/spk_XX.wav`, oracle `s0N`↔`speaker_N`, merge by time. Mix still loops babble (Path A). Path-B-only ref: `ref/mix_20talker_per_stream.json`. JSON: `{speaker_id,start_ms,end_ms,text}` only.
 - Path B regression (no inference): `python3 scripts/test_path_b_regression.py`
 
+## Adversarial Path B (Johann hard requirement)
+
+Worst-case demo room, **not** clean CV. Expect FAIL. Recipe: `samples/demo-stress/adversarial/README.md`.
+
+```bash
+python3 scripts/generate_adversarial_path_b.py
+python3 scripts/eval_demo_stress.py --run-host --only EDGE_reverb --only EDGE_overlap --only EDGE_noise --only EDGE_badmic --only WORST_CASE
+```
+
+CLEAN `mix_20talker_per_stream` is the optimistic baseline. `WORST_CASE` stacks echo + true overlap/bleed + room noises + bad mic.
+
 ## Metrics
 
 `scripts/eval_metrics.py` (no `pyannote.metrics`): DER (250 ms collar + uncollared), JER, speaker purity, WER on mapped **main** speaker, RTF. **No invented numbers.**
