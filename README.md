@@ -85,7 +85,7 @@ CI-ish (no invented WER):
 
 ## Modes
 
-1. **Offline stenography / DEMO_STAGE6** — import or in-app mic → soft VAD → **per-turn** far-field gain → diarize (K=6) → Zipformer-ru → JSON. No network. **Not** whole-file AGC (Eval e0e64b85 did not recover s5).
+1. **Offline stenography / DEMO_STAGE6** — import or in-app mic → per-turn `FarFieldGain.stage` (energy windows, not whole-file AGC) → diarize (K=6) → Zipformer-ru → JSON. No network. Eval e0e64b85 whole-file AGC did not recover s5.
 2. **Present-connect (optional)** — phone is the on-device worker: receive ≤20 audio streams. Network required. **Not** the slide claim. See the contract doc.
 
 Presentation web FE/BE is a **separate** track (designer + Артём/Пётр). This repo owns the Android worker and the API contract they must implement against.

@@ -18,7 +18,6 @@ import com.k2fsa.sherpa.onnx.VadModelConfig
 import team.mikcoders.neurosteno.audio.FarFieldGain
 import team.mikcoders.neurosteno.audio.FarFieldVad
 import team.mikcoders.neurosteno.audio.Pcm
-import team.mikcoders.neurosteno.audio.PerTurnGain
 import team.mikcoders.neurosteno.export.TranscriptFile
 import team.mikcoders.neurosteno.export.Utterance
 import team.mikcoders.neurosteno.llm.IdentityLlmPostPass
@@ -52,23 +51,26 @@ class SherpaStenoPipeline(
         onProgress(PipelineProgress(PipelineStage.Decode, "PCM ${audio.samples.size} samples", 0.05f))
 
         val hz = audio.sampleRate
-        val energy = FarFieldVad.speechRegions(audio.samples, hz)
-        onProgress(PipelineProgress(PipelineStage.Vad, "soft energy-VAD ${energy.size} regions", 0.12f))
-        val silero = if (paths.hasVad) collectSilero(audio) else emptyList()
-        val regions = FarFieldVad.union(energy, silero)
-        val work = if (scene.expectedSpeakers > 0) {
-            val gained = PerTurnGain.apply(audio.samples, regions, hz)
-            onProgress(
-                PipelineProgress(
-                    PipelineStage.Vad,
-                    "per-turn gain ${gained.turns.count { it.boosted }}/${gained.turns.size} boosted",
-                    0.18f,
-                ),
-            )
-            audio.copy(samples = gained.samples)
+        val staged = if (scene.expectedSpeakers > 0) {
+            FarFieldGain.stage(audio.samples)
         } else {
-            audio
+            null
         }
+        val work = if (staged != null) audio.copy(samples = staged.samples) else audio
+        val energy = if (staged != null) {
+            staged.segments.map { SpeechRegion(it.start, it.endInclusive + 1) }
+        } else {
+            FarFieldVad.speechRegions(work.samples, hz)
+        }
+        onProgress(
+            PipelineProgress(
+                PipelineStage.Vad,
+                "per-turn FarFieldGain ${staged?.segments?.count { it.boosted } ?: 0} boosted / ${energy.size} windows",
+                0.18f,
+            ),
+        )
+        val silero = if (paths.hasVad) collectSilero(work) else emptyList()
+        val regions = FarFieldVad.union(energy, silero)
 
         val recognizer = createRecognizer()
         try {
@@ -122,8 +124,8 @@ class SherpaStenoPipeline(
                 )
                 val pad = scene.asrCropPadMs
                 val crop = crop(audio.samples, audio.sampleRate, seg.startMs - pad, seg.endMs + pad)
-                val staged = FarFieldGain.stageTurn(crop)
-                val text = asr(recognizer, staged.samples, audio.sampleRate)
+                val stagedCrop = FarFieldGain.stage(crop)
+                val text = asr(recognizer, stagedCrop.samples, audio.sampleRate)
                 if (text.isNotBlank()) {
                     out += Utterance(
                         speakerId = seg.speakerId,
@@ -199,7 +201,7 @@ class SherpaStenoPipeline(
                     val startMs = (seg.start.toDouble() / audio.sampleRate * 1000).toLong()
                     val durMs = (seg.samples.size.toLong() * 1000) / audio.sampleRate
                     onProgress(PipelineProgress(PipelineStage.Asr, "VAD chunk ${++idx}", 0.4f))
-                    val text = asr(recognizer, FarFieldGain.stageTurn(seg.samples).samples, audio.sampleRate)
+                    val text = asr(recognizer, FarFieldGain.stage(seg.samples).samples, audio.sampleRate)
                     if (text.isNotBlank()) {
                         out += Utterance("speaker_1", startMs, startMs + durMs, text)
                     }
@@ -211,7 +213,7 @@ class SherpaStenoPipeline(
                 vad.pop()
                 val startMs = (seg.start.toDouble() / audio.sampleRate * 1000).toLong()
                 val durMs = (seg.samples.size.toLong() * 1000) / audio.sampleRate
-                val text = asr(recognizer, FarFieldGain.stageTurn(seg.samples).samples, audio.sampleRate)
+                val text = asr(recognizer, FarFieldGain.stage(seg.samples).samples, audio.sampleRate)
                 if (text.isNotBlank()) {
                     out += Utterance("speaker_1", startMs, startMs + durMs, text)
                 }

@@ -26,15 +26,15 @@ Audio (SAF import / in-app 16 kHz mic)
   soft energy-VAD (20 ms, fire 0.0035 FS; keep speech-like)
         │
         ▼
-  per-turn / ≤3 s chunk gain     # FarFieldGain.stageTurn
-  (target 0.08 FS, max +24 dB, peak 0.95; NEVER whole-file AGC)
+  per-turn FarFieldGain.stage    # energy windows; 0.08 FS / +24 dB / peak 0.95
+  (loud near turns ≤0 dB; NEVER whole-file AGC)
         │
         ▼
   OfflineSpeakerDiarization      # FastClustering numClusters=6
   + VAD↔diar reconcile (orphan s5 / expand 202 ms stubs)
         │
         ▼
-  Zipformer-ru int8 per (speaker, t0, t1)  # stageTurn on crop
+  Zipformer-ru int8 per (speaker, t0, t1)  # stage() on crop
         │
         ▼
   Local LLM post-pass → brief JSON {transcript:[{speaker_id,start_ms,end_ms,text}]}
@@ -67,7 +67,7 @@ Checkpoint polling (clients follow presenter) lives on the **web BE**, not in th
 | ASR backup | Whisper tiny multilingual (sherpa) | RU+EN; не whisper.cpp |
 | ASR emergency | Vosk small-ru | Если sherpa не встаёт на устройстве |
 | VAD | Soft energy-VAD + Silero | High-recall 4–6 m; HVAC not a turn; no distant hard-drop |
-| Gain | Per-turn `stageTurn`, not whole-file | Quiet distant seats; do not crush 3 m |
+| Gain | Per-turn `FarFieldGain.stage` (Platform @ db3afe44) | Quiet distant seats; do not crush 3 m |
 | Diarization | sherpa `OfflineSpeakerDiarization` K=6 | Recover quiet far seats (s5 missing @ a8b39d5a) |
 | LLM | Модуль `LocalLlmPostPass` | Чекбокс брифа; веса TODO, identity-stub до поставки GGUF |
 | I/O | MediaExtractor/MediaCodec → PCM; SAF import; AudioRecord | M4A/MP3/WAV + запись в приложении |
