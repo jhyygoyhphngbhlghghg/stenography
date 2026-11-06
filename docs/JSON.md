@@ -32,4 +32,10 @@ Mandatory output of the Android app (Hex.Team brief). Field names and types are 
 - Do not send audio off-device to produce this file (offline path).
 - UTF-8, no BOM. Share sheet + save via SAF.
 
-Kotlin mapping lives in `src/android/app/.../export/` once the shell lands (`TranscriptFile` / `Utterance`).
+Kotlin mapping: `src/android/app/.../export/TranscriptJson.kt` (`TranscriptFile` / `Utterance`).
+
+CI-ish check (rejects extra keys, requires sorted `start_ms`):
+
+```bash
+python3 scripts/verify-transcript-json.py artifacts/test-results/example-transcript.json
+```
