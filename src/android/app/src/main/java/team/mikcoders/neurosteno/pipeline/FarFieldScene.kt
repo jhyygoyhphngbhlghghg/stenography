@@ -3,8 +3,9 @@ package team.mikcoders.neurosteno.pipeline
 /**
  * DEMO_STAGE6 single-mic scene vs PresentConnect (Path B, not the live claim).
  *
- * Per-turn gain uses [team.mikcoders.neurosteno.audio.FarFieldGain.stageTurn]
- * (0.08 FS / +24 dB / peak 0.95) on VAD chunks — **not** whole-file AGC
+ * Per-turn gain uses [team.mikcoders.neurosteno.audio.FarFieldGain.stage]
+ * (Platform PR #3 @ db3afe44): each energy window independently 0.08 FS /
+ * max +24 dB / peak 0.95; loud near turns stay ≤0 dB. **Not** whole-file AGC
  * (Eval e0e64b85: 0.73→0.70, s5 still missing). Path B ingest is unchanged.
  */
 data class FarFieldScene(

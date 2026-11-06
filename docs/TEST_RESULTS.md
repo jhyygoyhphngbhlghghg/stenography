@@ -38,7 +38,7 @@ Eval owns the wavs. Do not invent WER/DER.
 | `a8b39d5a` | agg WER **0.73**; 3.0 m **0**; 3.6 m **0.55**; 4.2–6.0 m **≈1.0**; **s5 missing** (5/6 hyp speakers) |
 | `e0e64b85` | whole-file RMS AGC: agg WER **0.73→0.70**; **s5 still missing** |
 
-This branch: **per-turn / per-chunk** `FarFieldGain.stageTurn` after soft energy-VAD; `numClusters=6`; VAD↔diar orphan expand. Near 3 m is not attenuated. Path B gates untouched.
+This branch syncs Platform per-turn `FarFieldGain.stage` @ `db3afe44` / `ae86903` (sequential mix loud 3 m + quiet 5 m + quiet 6 m). Near turns ≤0 dB; quiet windows independently 0.08 FS. Then K=6 diar + VAD orphan expand. Path B gates untouched.
 
 ```bash
 python3 scripts/measure-farfield-gain.py   # synthetics for the stage() primitive; not the demo fix
