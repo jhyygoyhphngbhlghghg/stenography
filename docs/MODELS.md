@@ -13,7 +13,7 @@ Do not invent WER/RTF here. Sizes below are **published download/listing sizes**
 | ASR | Zipformer-ru int8 (sherpa) | encoder.int8 70.9 MB + decoder 2.09 MB + joiner.int8 259 KB ≈ **~74 MB** listing | [HF csukuangfj/sherpa-onnx-zipformer-ru-int8-2025-04-20](https://huggingface.co/csukuangfj/sherpa-onnx-zipformer-ru-int8-2025-04-20) |
 | VAD | Silero via sherpa | `silero_vad.onnx` **629 KB** (int8 **208 KB**) | [sherpa VAD docs](https://k2-fsa.github.io/sherpa/onnx/vad/silero-vad.html) |
 | Diarization | pyannote segmentation-3.0 ONNX + 3D-Speaker / TitaNet embedding + FastClustering | see sherpa speaker-diarization APK page | [sherpa diarization APKs](https://k2-fsa.github.io/sherpa/onnx/speaker-diarization/apk.html) |
-| LLM | Local on-device post-pass weights (punctuation / cleanup). **Required by TZ**, not a stub and not a cloud API | size is the chosen GGUF; do not invent one here | Pack into `assets/` with the check APK. Candidates named in code (Qwen2-0.5B / Phi / Gemma) are Impl’s choice, not a measured score |
+| LLM | Local on-device post-pass weights. **Required by TZ**, not a stub and not a cloud API. Cleanup must match spoken punctuation / intonation; textbook rewrite is not the target | size is the chosen GGUF; do not invent one here | Pack into `assets/` with the check APK. Candidates named in code (Qwen2-0.5B / Phi / Gemma) are Impl’s choice, not a measured score |
 
 ## Backup / emergency
 
