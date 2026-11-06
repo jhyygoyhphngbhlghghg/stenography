@@ -29,6 +29,8 @@ interface PresentConnectClient {
     fun sendTranscriptPartial(streamId: String, utterance: Utterance)
 
     fun sendError(streamId: String?, code: String, message: String)
+
+    fun sendStreamClosed(streamId: String)
 }
 
 data class PresentConnectConfig(
@@ -93,4 +95,7 @@ object PresentConnectCodes {
     const val PIPELINE = "PIPELINE"
     const val MODELS_MISSING = "MODELS_MISSING"
     const val BAD_AUDIO = "BAD_AUDIO"
+    const val LOW_ENERGY = "LOW_ENERGY"
+    const val CLIPPED = "CLIPPED"
+    const val BAD_MIC = "BAD_MIC"
 }
