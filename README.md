@@ -40,7 +40,7 @@ Schema notes: `docs/JSON.md`.
 - Kotlin + Jetpack Compose, minSdk 26, demo on modern Android
 - sherpa-onnx: Zipformer-ru int8 primary · Whisper tiny backup · Vosk emergency
 - Silero VAD · OfflineSpeakerDiarization
-- Local LLM post-pass is **required** (TZ punctuation/cleanup). Weights are assets-bundled for hand-in. `IdentityLlmPostPass` in code is an Impl gap, not the accepted path
+- Local LLM post-pass is **required**. It may clean only to match spoken punctuation / intonation. Textbook orthography is not the gold. Weights are assets-bundled for hand-in. `IdentityLlmPostPass` in code is an Impl gap, not the accepted path
 - No whisper.cpp primary · no Picovoice · no cloud ASR
 
 Two product flavors, one codebase: **stenographer** (offline file/mic) and **presentConnect** (talks to the presentation backend).
