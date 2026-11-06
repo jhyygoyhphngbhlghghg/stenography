@@ -65,7 +65,10 @@ class PresentConnectProtocolTest {
         assertEquals(1.toByte(), ended.pcmS16le[0])
         assertEquals(1, p.registry.activeCount())
         assertEquals(2, p.registry.get("s02")!!.size())
-        assertTrue(out.filterIsInstance<Outbound.Send>().any { it.json.contains("stream.closed") })
+        assertFalse(
+            "stream.closed waits for the pre-ASR gate (error then closed)",
+            out.filterIsInstance<Outbound.Send>().any { it.json.contains("stream.closed") },
+        )
     }
 
     @Test

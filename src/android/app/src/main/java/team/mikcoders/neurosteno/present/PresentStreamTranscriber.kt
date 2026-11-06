@@ -2,7 +2,6 @@ package team.mikcoders.neurosteno.present
 
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import team.mikcoders.neurosteno.audio.AudioQualityGate
 import team.mikcoders.neurosteno.audio.Pcm
 import team.mikcoders.neurosteno.audio.SpeechEnergy
 import team.mikcoders.neurosteno.export.TranscriptFile
@@ -34,18 +33,21 @@ class PresentStreamTranscriber(
         if (modelsMissing) {
             return IsolatedResult.ModelsMissing(streamId)
         }
-        if (pcmS16le.isEmpty()) {
-            return IsolatedResult.Empty(streamId)
+        // Platform StreamPcmGate on this stream_id only (never mixed), before Silero/diar/ASR.
+        val quality = StreamPcmGate.inspect(pcmS16le)
+        when (val verdict = quality.verdict) {
+            is StreamGateVerdict.Reject -> {
+                return IsolatedResult.Rejected(streamId, verdict.code, verdict.message)
+            }
+            StreamGateVerdict.Pass -> Unit
         }
         val samples = Pcm.s16leToFloat(pcmS16le)
-        when (val q = AudioQualityGate.inspect(samples)) {
-            is AudioQualityGate.Quality.Fail -> {
-                return IsolatedResult.Rejected(streamId, q.code, q.message)
-            }
-            AudioQualityGate.Quality.Ok -> Unit
-        }
         if (!SpeechEnergy.hasEnoughSpeech(samples, Pcm.TARGET_HZ)) {
-            return IsolatedResult.Ok(streamId, speakerHint, TranscriptFile(emptyList()))
+            return IsolatedResult.Rejected(
+                streamId,
+                PresentConnectCodes.LOW_ENERGY,
+                "energy/VAD gate: no speech",
+            )
         }
         val audio = PcmAudio(
             samples = samples,
@@ -59,6 +61,7 @@ class PresentStreamTranscriber(
             streamId = streamId,
             speakerHint = speakerHint,
             file = file,
+            softFlags = quality.softFlags,
         )
     }
 }
@@ -70,6 +73,7 @@ sealed class IsolatedResult {
         override val streamId: String,
         val speakerHint: String?,
         val file: TranscriptFile,
+        val softFlags: List<String> = emptyList(),
     ) : IsolatedResult()
 
     data class ModelsMissing(override val streamId: String) : IsolatedResult()

@@ -103,8 +103,8 @@ class PresentConnectProtocol(
         if (id == null) return emptyList()
         val session = registry.takeForEnd(id) ?: return emptyList()
         val pcm = session.snapshot()
+        // stream.closed is sent *after* the pre-ASR gate (error then closed, or finals then closed).
         return listOf(
-            Outbound.Send(PresentConnectFrames.streamClosed(id)),
             Outbound.Raise(PresentConnectEvent.StreamEnded(id, pcm, session.speakerHint)),
         )
     }

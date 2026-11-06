@@ -72,6 +72,11 @@ class OkHttpPresentConnectClient(
         ws.send(PresentConnectFrames.error(streamId, code, message))
     }
 
+    override fun sendStreamClosed(streamId: String) {
+        val ws = socket ?: return
+        ws.send(PresentConnectFrames.streamClosed(streamId))
+    }
+
     /**
      * HTTP fallback from the contract: POST /v1/workers/register.
      * WebSocket demo must not depend on this.

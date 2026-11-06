@@ -64,7 +64,7 @@ class PresentStreamTranscriberTest {
         val r = t.transcribeIsolated("s01", pcm)
         assertTrue(r is IsolatedResult.Rejected)
         r as IsolatedResult.Rejected
-        assertEquals(PresentConnectCodes.BAD_AUDIO, r.code)
+        assertEquals(PresentConnectCodes.CLIPPED, r.code)
         assertTrue(fake.calls.isEmpty())
     }
 
@@ -73,8 +73,9 @@ class PresentStreamTranscriberTest {
         val fake = RecordingPipeline()
         val t = PresentStreamTranscriber(fake, modelsMissing = false)
         val pcm = ByteArray(Pcm.TARGET_HZ * 2) { 0 } // 1 s of silence s16le
-        val r = t.transcribeIsolated("s01", pcm) as IsolatedResult.Ok
-        assertTrue(r.file.transcript.isEmpty())
+        val r = t.transcribeIsolated("s01", pcm)
+        assertTrue(r is IsolatedResult.Rejected)
+        assertEquals(PresentConnectCodes.LOW_ENERGY, (r as IsolatedResult.Rejected).code)
         assertTrue(fake.calls.isEmpty())
     }
 
@@ -83,7 +84,8 @@ class PresentStreamTranscriberTest {
         val fake = RecordingPipeline()
         val t = PresentStreamTranscriber(fake, modelsMissing = false)
         val r = t.transcribeIsolated("s01", ByteArray(0))
-        assertTrue(r is IsolatedResult.Empty)
+        assertTrue(r is IsolatedResult.Rejected)
+        assertEquals(PresentConnectCodes.LOW_ENERGY, (r as IsolatedResult.Rejected).code)
         assertTrue(fake.calls.isEmpty())
     }
 

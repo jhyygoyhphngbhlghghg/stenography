@@ -174,6 +174,7 @@ class StenoViewModel(app: Application) : AndroidViewModel(app) {
                                 "ONNX missing — stub worker, not for stage",
                             )
                         }
+                        if (final) present?.sendStreamClosed(streamId)
                         _state.update {
                             it.copy(
                                 running = false,
@@ -181,9 +182,15 @@ class StenoViewModel(app: Application) : AndroidViewModel(app) {
                             )
                         }
                     }
-                    is IsolatedResult.Empty -> _state.update { it.copy(running = false) }
+                    is IsolatedResult.Empty -> {
+                        if (final) present?.sendStreamClosed(streamId)
+                        _state.update { it.copy(running = false) }
+                    }
                     is IsolatedResult.Rejected -> {
-                        present?.sendError(streamId, result.code, result.message)
+                        if (final) {
+                            present?.sendError(streamId, result.code, result.message)
+                            present?.sendStreamClosed(streamId)
+                        }
                         _state.update {
                             it.copy(running = false, error = "${result.code}: ${result.message}")
                         }
@@ -191,6 +198,7 @@ class StenoViewModel(app: Application) : AndroidViewModel(app) {
                     is IsolatedResult.Ok -> {
                         if (final) {
                             present?.sendTranscriptFinal(streamId, result.file)
+                            present?.sendStreamClosed(streamId)
                             _state.update {
                                 it.copy(
                                     running = false,
@@ -209,6 +217,7 @@ class StenoViewModel(app: Application) : AndroidViewModel(app) {
                 }
             } catch (t: Throwable) {
                 present?.sendError(streamId, PresentConnectCodes.PIPELINE, t.message ?: "pipeline")
+                if (final) present?.sendStreamClosed(streamId)
                 _state.update { it.copy(running = false, error = t.message ?: "pipeline") }
             } finally {
                 if (!final) partialInFlight.remove(streamId)
