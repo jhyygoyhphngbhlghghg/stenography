@@ -22,7 +22,7 @@ Path B (optional): each `stream_id` is its own PCM buffer → ASR. Oracle map: `
 
 Eval (PR #4, cite only) scored Path B `mix_20talker_per_stream`: DER 0.235, WER_main 0.087, 20/20 speakers.
 
-Offline stenography (file import / in-app record, airplane mode) is the **DEMO_STAGE6 path**. Per-turn far-field gain (not whole-file AGC) lifts quiet 4–6 m islands without crushing a loud near seat. Do not send that audio through a cloud ASR.
+Offline stenography (file import / in-app record, airplane mode) is the **DEMO_STAGE6 path**. Per-turn gain is frozen; phone-distance EQ restores 2–3.4 kHz on far islands without crushing the near seat. Do not send that audio through a cloud ASR.
 
 ---
 

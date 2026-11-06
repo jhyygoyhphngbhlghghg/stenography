@@ -242,11 +242,46 @@ Sequential mix (loud 3 m + quiet 5 m + quiet 6 m in **one** file). Mix RMS 0.120
 | far 5 m | 0.0116 | 0.080 | +16.8 | no | none |
 | far 6 m | 0.0099 | 0.080 | +18.2 | no | none |
 
-Demo hard-skip rate: **0**. Spectral tilt: **not applied** (per-turn already put quiet turns on 0.08 FS; HF ratio unchanged by gain). No Eval wav retune. No DER/WER claimed.
+Demo hard-skip rate: **0**. Gain **frozen** after this table (Eval per-turn @ `54177a1e`: islands already ≥0.08 FS → AGC no-op). Spectral / phone-distance EQ is §8. No Eval wav retune. No DER/WER claimed.
 
 DEMO_STAGE6 prep (`DemoPcmPrep` on the offline ViewModel path): distant talkers never hard-dropped for energy/band-limit (soft flag + ASR). `CLIPPED` / `BAD_MIC` / empty `n==0` still hard-skip. Path B worker code unchanged.
 
 | Command | Result | Wall |
 |---|---|---|
 | `python3 scripts/measure-farfield-gain.py --record` | **PASS** (isolated 3/4/5/6 m + sequential mix) | <1 s |
-| `./gradlew :app:testStenographerDebugUnitTest` | **PASS** (42 tests, 0 failures; +2 per-turn mix) | 15 s |
+| `./gradlew :app:testStenographerDebugUnitTest` | **PASS** (42 tests at gain freeze; see §8) | 15 s |
+
+## 8. DEMO_STAGE6 phone-distance EQ (gain frozen)
+
+Eval per-turn @ `54177a1e` (cite only): STAGE6 energy islands already ≥0.08 FS → `FarFieldGain` was a **no-op**; agg WER still **0.73**. Energy is not the remaining bottleneck. This branch does **not** retune RMS/AGC targets and does **not** claim DER/WER.
+
+```bash
+python3 scripts/measure-phone-distance-eq.py --record
+cd src/android && ./gradlew --no-daemon :app:testStenographerDebugUnitTest
+```
+
+Per-turn 1-pole high-shelf (fc 1600 Hz, up to +9 dB on the high residual) on **far** islands only. Near seat (active RMS ≥ 0.12 FS) is identity. Peak cap by reducing the shelf, not whole-turn AGC. Evidence: `artifacts/test-results/phone-distance-eq.json`.
+
+Isolated phone-mic + distance + muffling scenes (after frozen gain, then EQ). Goertzel speech = 300–3400 Hz; presence = 2000–3400 Hz (the crushed phone band). Hard-skip **0**.
+
+| Scene | RMS after gain → EQ | speech 300–3400 | presence 2–3.4 kHz | presence/speech |
+|---|---|---|---|---|
+| phone+dist 3 m | 0.080 → 0.099 | 3.26e4 → 5.83e4 | 778 → 2575 | 0.024 → 0.044 |
+| phone+dist 4 m | 0.080 → 0.101 | 3.07e4 → 5.58e4 | 537 → 1838 | 0.017 → 0.033 |
+| phone+dist 5 m | 0.080 → 0.103 | 2.85e4 → 5.23e4 | 363 → 1273 | 0.013 → 0.024 |
+| phone+dist 6 m | 0.080 → 0.105 | 2.59e4 → 4.79e4 | 246 → 878 | 0.009 → 0.018 |
+
+Sequential mix (hot near speech + muffled 5 m / 6 m in one file):
+
+| Turn | RMS raw → after EQ | peak raw → after EQ | identity? | speech 300–3400 |
+|---|---|---|---|---|
+| near 3 m | 0.123 → 0.123 | 0.280 → 0.280 | yes (0 dB) | unchanged |
+| far 5 m | 0.015 → 0.103 | — | no | 2.85e4 → 5.23e4 |
+| far 6 m | 0.012 → 0.105 | — | no | 2.59e4 → 4.79e4 |
+
+Near seat not attenuated. Demo hard-skip **0**. CLIPPED / BAD_MIC / empty still hard. Path B `present/` unchanged.
+
+| Command | Result | Wall |
+|---|---|---|
+| `python3 scripts/measure-phone-distance-eq.py --record` | **PASS** (3/4/5/6 m + sequential mix) | <1 s |
+| `./gradlew :app:testStenographerDebugUnitTest` | **PASS** (47 tests, 0 failures; +5 EQ) | 17 s |
