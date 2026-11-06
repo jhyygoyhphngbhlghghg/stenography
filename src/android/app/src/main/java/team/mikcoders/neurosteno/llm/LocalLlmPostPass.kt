@@ -8,7 +8,7 @@ import java.io.File
  *
  * TODO(weights): ship a small GGUF (Qwen2-0.5B / Phi-3-mini / Gemma-2B) via
  * llama.cpp or MediaPipe and run it in [GgufLlmPostPass]. Do **not** call a
- * cloud LLM. Until `models/llm/*.gguf` exists, [HeuristicPunctuationPostPass]
+ * cloud LLM. Until a GGUF file exists under models/llm/, [HeuristicPunctuationPostPass]
  * is the wired implementation — light punctuation/cleanup, not a fake rewrite.
  */
 interface LocalLlmPostPass {
