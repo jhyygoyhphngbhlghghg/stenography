@@ -23,6 +23,11 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+import stream_pcm_gate as PCM_GATE  # noqa: E402
 
 
 class HostBlocked(RuntimeError):
@@ -394,12 +399,17 @@ def transcribe_per_stream(
     min_duration_on: float = 0.15,
     min_duration_off: float = 0.25,
     rel_thresh: float = 0.04,
+    pcm_gate: bool = False,
 ) -> tuple[dict, dict]:
     """Path B: one dry track per PresentConnect stream, then merge.
 
     Oracle stream→speaker_id (s0N ↔ speaker_N). Default RMS VAD + edge pad,
     then Zipformer per region. OfflineSpeakerDiarization is the fallback if
     VAD finds nothing. Timestamps stay on the shared mix timeline.
+
+    pcm_gate: StreamPcmGate (PR #6 dae416f / Platform f5ff5e2) on each
+    stream's PCM before VAD/ASR. Hard reject LOW_ENERGY/CLIPPED/BAD_MIC:
+    no ASR, no brief row. Soft flags still ASR. Fixtures are not rewritten.
     """
     dry_dir = Path(dry_dir)
     t0 = time.perf_counter()
@@ -438,6 +448,31 @@ def transcribe_per_stream(
         duration_ms = max(duration_ms, int(round(samples.size * 1000.0 / sr)))
         sid = f"speaker_{i}"
         t1 = time.perf_counter()
+        gate_stats = None
+        if pcm_gate:
+            gate_stats = PCM_GATE.inspect_float(samples, sample_rate_hz=sr)
+            if not gate_stats["asr_allowed"]:
+                wall_i = int(round((time.perf_counter() - t1) * 1000.0))
+                per.append(
+                    {
+                        "file": str(wav),
+                        "n_segments": 0,
+                        "wall_ms": wall_i,
+                        "vad": "pcm_gate_reject",
+                        "stream_id": f"s{i:02d}",
+                        "speaker_id": sid,
+                        "pcm_gate": {
+                            "verdict": gate_stats["verdict"],
+                            "code": gate_stats["code"],
+                            "message": gate_stats["message"],
+                            "rms_fs": gate_stats["rms_fs"],
+                            "peak_fs": gate_stats["peak_fs"],
+                            "clip_ratio": gate_stats["clip_ratio"],
+                            "dc_fs": gate_stats["dc_fs"],
+                        },
+                    }
+                )
+                continue
         regions: list[tuple[float, float]] = []
         method = vad
         if vad == "rms":
@@ -464,14 +499,19 @@ def transcribe_per_stream(
                 if pad_ms:
                     u["start_ms"] = max(0, int(u["start_ms"]) - pad_ms)
                     u["end_ms"] = int(u["end_ms"]) + pad_ms
-            per.append(
-                {
-                    "file": str(wav),
-                    "n_segments": len(doc["transcript"]),
-                    "wall_ms": meta["wall_ms"],
-                    "vad": method,
+            row_meta = {
+                "file": str(wav),
+                "n_segments": len(doc["transcript"]),
+                "wall_ms": meta["wall_ms"],
+                "vad": method,
+            }
+            if gate_stats is not None:
+                row_meta["pcm_gate"] = {
+                    "verdict": gate_stats["verdict"],
+                    "soft_flags": gate_stats["soft_flags"],
+                    "code": gate_stats["code"],
                 }
-            )
+            per.append(row_meta)
             merged.extend(doc["transcript"])
             continue
         rec = get_recognizer()
@@ -495,7 +535,14 @@ def transcribe_per_stream(
                 }
             )
         wall_i = int(round((time.perf_counter() - t1) * 1000.0))
-        per.append({"file": str(wav), "n_segments": len(rows), "wall_ms": wall_i, "vad": method})
+        row_meta = {"file": str(wav), "n_segments": len(rows), "wall_ms": wall_i, "vad": method}
+        if gate_stats is not None:
+            row_meta["pcm_gate"] = {
+                "verdict": gate_stats["verdict"],
+                "soft_flags": gate_stats["soft_flags"],
+                "code": gate_stats["code"],
+            }
+        per.append(row_meta)
         merged.extend(rows)
     merged.sort(key=lambda u: (u["start_ms"], u["speaker_id"]))
     wall_ms = int(round((time.perf_counter() - t0) * 1000.0))
@@ -513,7 +560,27 @@ def transcribe_per_stream(
         "min_duration_on": min_duration_on,
         "min_duration_off": min_duration_off,
         "rel_thresh": rel_thresh,
-        "stack": "linux-sherpa-onnx per-stream RMS-VAD+ASR (oracle stream id), merge by time",
+        "pcm_gate": pcm_gate,
+        "pcm_gate_source": "StreamPcmGate.kt @ dae416f (Platform f5ff5e2 thresholds)",
+        "streams_passed": sum(1 for s in per if s.get("vad") != "pcm_gate_reject"),
+        "streams_dropped": sum(1 for s in per if s.get("vad") == "pcm_gate_reject"),
+        "pcm_gate_codes": {
+            code: sum(
+                1
+                for x in per
+                if x.get("vad") == "pcm_gate_reject" and x.get("pcm_gate", {}).get("code") == code
+            )
+            for code in ("LOW_ENERGY", "CLIPPED", "BAD_MIC")
+            if any(
+                x.get("vad") == "pcm_gate_reject" and x.get("pcm_gate", {}).get("code") == code
+                for x in per
+            )
+        },
+        "stack": (
+            "linux-sherpa-onnx per-stream StreamPcmGate+RMS-VAD+ASR (oracle stream id), merge by time"
+            if pcm_gate
+            else "linux-sherpa-onnx per-stream RMS-VAD+ASR (oracle stream id), merge by time"
+        ),
         "streams": per,
         "no_kvm_adb": True,
         "json_schema": "transcript[].{speaker_id,start_ms,end_ms,text}",
