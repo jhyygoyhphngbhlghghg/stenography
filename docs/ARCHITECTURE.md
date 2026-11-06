@@ -6,7 +6,7 @@
 
 Path A (one-room cocktail: 20 говорящих в **один** поток, потом кластеризация) — **задокументированный hard fail**. В архитектуре и на слайдах **не** утверждать, что cocktail-диаризация одной комнаты работает для ≥20 говорящих.
 
-Цифры ниже — **Eval-measured** (H1 / Eval Owner, [PR #4](https://cursor.com/codebase/johann-schilling/neuro-stenographer/pull/4), real Common Voice 17 RU, host sherpa-onnx) и относятся **только к clean per-stream**: сухие раздельные дорожки (dry/separate tracks) того прогона. Новые числа не выдумывать. DER Path B в том же замере также **0.235** (в таблице округление **0.24**).
+Первая таблица — **ранний** Eval-measured прогон (H1 / Eval Owner, [PR #4](https://cursor.com/codebase/johann-schilling/neuro-stenographer/pull/4), real Common Voice 17 RU, host sherpa-onnx), clean per-stream и Path A. Новые числа не выдумывать. DER Path B в том замере также **0.235** (в таблице округление **0.24**). Эти WER/DER **не** переносить на WORST_CASE и EDGE_*.
 
 | path | speakers recovered | DER | main WER | RTF |
 |---|---|---|---|---|
@@ -16,9 +16,20 @@ Path A (one-room cocktail: 20 говорящих в **один** поток, п�
 
 Overnight-клипы без перекрытия (тот же замер): WER ~3.5% / 0% / 0%. Это тоже clean/no-overlap, не edge suite.
 
-**Заявка Path B (≤20 отдельных потоков, 20/20, DER ≈ 0.24, main WER 0.087) — только clean per-stream.** Сухие раздельные дорожки, как в PR #4. Это не эхо, не перекрытие речи, не белый шум, не шум комнаты, не плохие микрофоны.
+**Claim lock (edge).** Под edge у Path B остаётся только **stream tracking 20/20** (hyp/ref). **WER/DER under WORST_CASE are FAIL.** Clean WER/DER (и 0.087 / 0.24 раннего прогона, и CLEAN-строка suite) на WORST_CASE и EDGE_* **не** заявлять. **Killers:** overlap/bleed, noise false alarms, bad mic. Reverb alone does **not** collapse Path B.
 
-**Worst-case edge suite** (echo, overlap, white noise / room noise, bad mics): **unmeasured until edge suite**. Чисел нет — сюда их не ставим. Когда Eval прогонит suite, публикуем **honest FAIL / hard numbers**. До замера: **expect FAIL / hard degradation**. **Do not claim in slides**, что Path B в этих условиях работает. Запрещены формулировки «should be fine», «robust», «handles noisy rooms», «graceful under echo».
+Таблица ниже — Eval PR #4 @ `9908353d`, скопирована как замерена. Фикстуры **не** подкручивали после FAIL. Слайды: WORST_CASE WER≈0.91, DER≈1.30 FAIL.
+
+| test_id | DER 250ms | JER | WER main | RTF | hyp/ref |
+|---|---|---|---|---|---|
+| CLEAN Path B | 0.0913 | 0.1840 | 0.0870 | 0.1212 | 20/20 |
+| EDGE_reverb | 0.0849 | 0.1756 | 0.1304 | 0.1263 | 20/20 |
+| EDGE_overlap | 0.9936 | 0.5476 | 0.7391 | 0.2430 | 20/20 |
+| EDGE_noise | 1.7005 | 0.5675 | 0.1739 | 0.2602 | 20/20 |
+| EDGE_badmic | 0.6569 | 0.2863 | 1.0000 | 0.1910 | 20/20 |
+| **WORST_CASE** | **1.2985** | **0.5981** | **0.9130** | **0.2907** | 20/20 |
+
+Overlap real: max 12 concurrent; 91% of speech frames ≥2 speakers. Main vs bleed: +3.0 dB (EDGE_overlap) / +1.5 dB (WORST_CASE). WORST_CASE main hyp collapses to one ~18s blob (`хочу говорить`). DER>1 = false-alarm time > ref speech. Запрещены «should be fine», «robust», «handles noisy rooms», «graceful under echo». **Do not claim in slides** clean WER/DER на edge.
 
 **Контракт Path B.** Каждый `stream_id` обрабатывается **независимо**: PCM → VAD → ASR. Метка по умолчанию: **`speaker_id` ← `stream_id`** (или стабильная карта stream→speaker / `speaker_hint`). Диаризация опциональна и только *внутри* одного потока — не mix-then-cluster по комнате. Реплики сессии склеиваются по времени. Жёсткий потолок — **20** одновременных потоков; 21-й отклоняется (`OVER_CAPACITY`).
 
@@ -26,7 +37,7 @@ Overnight-клипы без перекрытия (тот же замер): WER ~
 
 ## Контекст
 
-Hex.Team case «Нейро-стенографист»: Android-приложение локально превращает аудиозапись разговора в структурированную расшифровку (кто сказал, когда, что). Облачный ASR запрещён. Демо офлайн-пути — в авиарежиме. Отдельный сетевой режим **PresentConnect** — демо Path B: до 20 **отдельных** потоков на локальный Zipformer-ru. Цифры 20/20 — только clean per-stream (DEMO LOCK); edge suite (echo, overlap, white/room noise, bad mics) **unmeasured until edge suite**, **expect FAIL / hard degradation**, **do not claim in slides**. Это не подмена офлайн-ASR и не one-room cocktail.
+Hex.Team case «Нейро-стенографист»: Android-приложение локально превращает аудиозапись разговора в структурированную расшифровку (кто сказал, когда, что). Облачный ASR запрещён. Демо офлайн-пути — в авиарежиме. Отдельный сетевой режим **PresentConnect** — демо Path B: до 20 **отдельных** потоков на локальный Zipformer-ru. Под edge заявка только **20/20** stream tracking. **WORST_CASE FAIL:** WER main **0.9130**, DER **1.2985** (PR #4 @ `9908353d`). Clean WER/DER на WORST_CASE и EDGE_* не заявлять. Это не подмена офлайн-ASR и не one-room cocktail.
 
 Команда: **MIK Coders**. Этот репозиторий — Android-«backend» (обработка на телефоне) + контракт API для web FE/BE.
 
