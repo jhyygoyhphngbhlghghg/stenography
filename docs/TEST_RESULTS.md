@@ -25,7 +25,7 @@ Track B / platform de-risk (seat P1.linq, branch `platform/derisk-sherpa-present
 | Gradle AAR resolve `com.github.k2-fsa.sherpa-onnx:sherpa-onnx:v2.0.1` | **PASS** — JitPack HTTP 200, 49441341 bytes, 444 ms; Gradle `dependencies` exit 0 in 51 s |
 | Gradle assemble debug APK | **PASS** — both flavors. stenographer 143621712 bytes, presentConnect 143621716 bytes |
 | JNI packaged (`libsherpa-onnx-jni.so`) | **PASS** — 4 ABIs in APK |
-| Host-side JNI smoke (no emulator) | see §4 — symbols/NEEDED measured; **does not** replace on-device ULE |
+| Host-side JNI smoke (no emulator) | **PARTIAL** — 134 `Java_*` JNI symbols; glibc `dlopen` fails on `libandroid.so`. Not an on-device ULE probe. |
 | JNI `UnsatisfiedLinkError` on device | **BLOCKED** — see **Platform gap**. No device probe ran. |
 | Import → stub list → JSON (no models) | pending (needs a phone) |
 | Zipformer-ru on-device | pending models-on-device (weights downloaded on the builder, not pushed) |
@@ -128,6 +128,28 @@ Operational consequence (H1 / P1.linq):
 
 Host-side `scripts/host-jni-smoke.sh` only inspects the AAR `.so` on Linux x86_64. It does **not** replace the on-device `UnsatisfiedLinkError` probe.
 
-## 4. Host JNI smoke (no emulator)
+## 4. Host JNI smoke (no emulator) — measured 2026-11-06
 
-See `artifacts/test-results/host-jni-smoke.json` after `./scripts/host-jni-smoke.sh` (filled in the same Track B push; command + wall time in that file).
+```bash
+./scripts/host-jni-smoke.sh
+```
+
+**PARTIAL.** Wall **1021 ms**. Exit 0. Does **not** replace on-device `UnsatisfiedLinkError`.
+
+AAR source (Gradle still on JitPack; not switched this push): Gradle cache  
+`com.github.k2-fsa.sherpa-onnx:sherpa-onnx:v2.0.1`  
+bytes **49441341**, sha256 `a8d09d1d32f3eb8520482c6d3d43fae674681c5b050385967c70a3c2c9bf0ee7` (same as earlier JitPack GET).
+
+After Origin PR #2 merges, overnight's canonical URL is  
+`https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.13.5/sherpa-onnx-1.13.5.aar`  
+(`SHERPA_AAR_URL=… ./scripts/host-jni-smoke.sh`). Not fetched this run.
+
+| Check | Result |
+|---|---|
+| `.so` | `jni/x86_64/libsherpa-onnx-jni.so` — ELF 64-bit LSB x86-64, stripped |
+| `readelf -d` NEEDED | `libandroid.so`, `liblog.so`, `libonnxruntime.so`, `libm.so`, `libdl.so`, `libc.so` |
+| `nm -D` `Java_com_k2fsa_sherpa_onnx_*` | **134** defined (incl. `OfflineRecognizer_newFromFile`, `Vad_*`, `OfflineSpeakerDiarization_process`) |
+| `JNI_OnLoad` | absent (explicit `Java_*` names) |
+| `dlopen` / `ctypes.CDLL` | **fail**: `libandroid.so: cannot open shared object file` (Android bionic/NDK, expected on glibc host) |
+
+Evidence: `artifacts/test-results/host-jni-smoke.json`, `host-jni-smoke.txt`.
