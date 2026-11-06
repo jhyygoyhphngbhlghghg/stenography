@@ -34,6 +34,12 @@ Worker pipeline is per stream. The 21st `stream.start` is `error` / `OVER_CAPACI
 
 One-room cocktail mix of 20 talkers into a **single** stream is **Path A** and **fails**. Eval-measured (H1 / Eval Owner, [PR #4](https://cursor.com/codebase/johann-schilling/neuro-stenographer/pull/4)): speakers recovered **1/20**, DER ≈ **0.95**, main WER **1.00**, RTF **0.18**. Web FE **must not** mix audience mics into one stream and present that as the multi-talker demo. Path A stays documented so we do not overclaim. Numbers are not to be reinvented; see `docs/TEST_RESULTS.md`.
 
+### Measured quality is clean per-stream only
+
+The Path B score claim (≤20 separate streams, **20/20**, DER ≈ **0.24**, main WER **0.087**, PR #4) is **clean per-stream** (dry/separate tracks in that eval). It is not echo, overlap, white noise / room noise, or bad mics.
+
+Worst-case edge suite (echo, overlap, white noise / room noise, bad mics): **unmeasured until edge suite**. No scores in this contract. When Eval runs, publish **honest FAIL / hard numbers**. Until then: **expect FAIL / hard degradation**. **Do not claim in slides.** Banned wording: "should be fine", "robust", "handles noisy rooms", "graceful under echo".
+
 ---
 
 ## 1. Roles
