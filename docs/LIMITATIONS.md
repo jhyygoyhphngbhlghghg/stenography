@@ -15,6 +15,14 @@
 
 Первый замер H1/Eval ([PR #4](https://cursor.com/codebase/johann-schilling/neuro-stenographer/pull/4), baseline `a8b39d5`): aggregate **WER 0.73 / DER 0.52** (точно **0.7321 / 0.5174**). Ниже не заявлять. Gain baseline / ffgain / perturn, agg WER **0.73 / 0.70 / 0.73** (точно **0.7321 / 0.6964 / 0.7321**). **Gain комнату не вернул.** Следующий рычаг — пометка, не обещание: spectral + diar (Platform/Eval). Студийную подмену не заявлять. Запрещены «should be fine», «robust», «handles noisy rooms», «graceful under echo».
 
+### SCORING LOCK (H1, Mikhail Grigorev / Hex.Team)
+
+1. **Пунктуация входит в WER.**
+2. **Запятые = интонация говорящего (gold).** Не «лучшая» орфография и не редакторская правка.
+3. **е/ё игнорируются** — нормализация перед скорингом.
+
+Заявка: совпадаем с **произнесённой** пунктуацией / интонацией. Орфографическая перепись учебником — не gold и не цель оценки. Локальная LLM может чистить только внутри этого правила. Не описывать её как перепись к учебной пунктуации против spoken gold.
+
 Path A (cocktail ≥20 в один поток) — measured FAIL: **1/20**, DER **0.95**, main WER **1.00**, RTF **0.18**. Не демо.
 
 ## Поддерживаемые условия
@@ -75,7 +83,7 @@ Bound seats (`s01`..`s20`) must **soft-flag only** (still ASR), same spirit as `
 - **Новые WER/RTF не выдумывать и DEMO_STAGE6 не занижать.** Замер комнаты — aggregate **WER 0.73 / DER 0.52**. Цитировать H1 / PR #4: DEMO_STAGE6, Path A, optional Path B, overnight-клипы (~3.5% / 0% / 0% WER, без перекрытия), edge suite @ `9908353d`. Он-девайс строки в `artifacts/test-results/results.csv` пусты, пока нет своего прогона.
 - Zipformer-ru — RU-first; английский best-effort (для EN — Whisper tiny, не default).
 - DEMO_STAGE6 допускает только лёгкое перекрытие в конце реплики. Замер комнаты — WER **0.73** / DER **0.52**, ideal только @ 3 м. Path A на ≥20 говорящих в одном миксе — FAIL (1/20). На optional Path B killers — overlap/bleed (EDGE_overlap WER main 0.7391, DER 0.9936), noise false alarms (EDGE_noise DER 1.7005), bad mic (EDGE_badmic WER main 1.0000). WORST_CASE: WER main **0.9130**, DER **1.2985**, hyp/ref **20/20**. Clean WER/DER на эти строки не переносить. Не переносить их на DEMO_STAGE6.
-- **Локальная LLM — требование ТЗ**, on-device post-pass (пунктуация / cleanup), не stub и не облако. Веса входят в assets check APK. В коде сейчас `IdentityLlmPostPass` — разрыв Impl/Platform против ТЗ. Закрыть до сдачи. ТЗ обратно в stub не смягчать.
+- **Локальная LLM — требование ТЗ**, on-device post-pass, не stub и не облако. Чистка только под spoken gold (пунктуация по интонации). Учебная орфография против gold — не её задача и не цель WER. Веса входят в assets check APK. В коде сейчас `IdentityLlmPostPass` — разрыв Impl/Platform против ТЗ. Закрыть до сдачи. ТЗ обратно в stub не смягчать.
 - Модели не в git. **Сдача: assets-bundled primary** (Zipformer-ru, VAD, diar, LLM). Сетевая докачка — UX karma, для check APK не требуется. `download-models.sh` и adb push — разработка.
 - NNAPI на OEM плавает; default provider = CPU.
 - Длинное аудио без VAD-chunking деградирует (особенно если позже включим GigaAM). VAD обязателен.
