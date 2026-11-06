@@ -69,13 +69,35 @@ class PresentStreamTranscriberTest {
     }
 
     @Test
-    fun hushDoesNotReachPipeline() = runBlocking {
+    fun boundSeatHushIsSoftLowStillAsr() = runBlocking {
         val fake = RecordingPipeline()
         val t = PresentStreamTranscriber(fake, modelsMissing = false)
         val pcm = ByteArray(Pcm.TARGET_HZ * 2) { 0 } // 1 s of silence s16le
         val r = t.transcribeIsolated("s01", pcm)
+        assertTrue(r is IsolatedResult.Ok)
+        r as IsolatedResult.Ok
+        assertTrue(r.softFlags.contains("SOFT_LOW"))
+        assertEquals(1, fake.calls.size)
+    }
+
+    @Test
+    fun unboundHushDoesNotReachPipeline() = runBlocking {
+        val fake = RecordingPipeline()
+        val t = PresentStreamTranscriber(fake, modelsMissing = false)
+        val pcm = ByteArray(Pcm.TARGET_HZ * 2) { 0 }
+        val r = t.transcribeIsolated("mic-a", pcm)
         assertTrue(r is IsolatedResult.Rejected)
         assertEquals(PresentConnectCodes.LOW_ENERGY, (r as IsolatedResult.Rejected).code)
+        assertTrue(fake.calls.isEmpty())
+    }
+
+    @Test
+    fun phoneCrushIsBandLimitedWithoutCallingPipeline() = runBlocking {
+        val fake = RecordingPipeline()
+        val t = PresentStreamTranscriber(fake, modelsMissing = false)
+        val r = t.transcribeIsolated("s09", StreamPcmSynth.phoneCrushLpf())
+        assertTrue(r is IsolatedResult.Rejected)
+        assertEquals(PresentConnectCodes.BAND_LIMITED, (r as IsolatedResult.Rejected).code)
         assertTrue(fake.calls.isEmpty())
     }
 
