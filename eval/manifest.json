@@ -1,0 +1,25 @@
+{
+  "harness": "A-12",
+  "status": "skeleton",
+  "description": "Placeholder manifest for the team eval harness. These slots are not the hidden judge «котики» set. Gold files in git are empty schema stubs. Do not treat any path here as a measured result.",
+  "clips": [
+    {
+      "clip_id": "clip_01",
+      "audio": "eval/clips/clip_01.wav",
+      "gold": "eval/gold/clip_01.gold.json",
+      "notes": "Slot only. Audio is gitignored and is not in the repo. Not judge gold."
+    },
+    {
+      "clip_id": "clip_02",
+      "audio": "eval/clips/clip_02.wav",
+      "gold": "eval/gold/clip_02.gold.json",
+      "notes": "Slot only. Audio is gitignored and is not in the repo. Not judge gold."
+    },
+    {
+      "clip_id": "clip_03",
+      "audio": "eval/clips/clip_03.wav",
+      "gold": "eval/gold/clip_03.gold.json",
+      "notes": "Slot only. Audio is gitignored and is not in the repo. Not judge gold."
+    }
+  ]
+}
