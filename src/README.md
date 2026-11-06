@@ -9,7 +9,7 @@ src/android/
   app/src/main/java/team/mikcoders/neurosteno/
     ui/          # Compose: import, progress, transcript list, export
     audio/       # decode, record, PCM 16 kHz mono
-    pipeline/    # VAD → diarize → ASR → LLM post-pass
+    pipeline/    # soft VAD → per-turn gain → diarize K=6 → ASR → LLM
     llm/         # heuristic punctuation + GGUF TODO weights
     export/      # JSON (brief schema) + TXT
     present/     # PresentConnectClient

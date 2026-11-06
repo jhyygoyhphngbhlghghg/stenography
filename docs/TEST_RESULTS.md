@@ -27,4 +27,22 @@
 | Zipformer-ru on-device | pending models (`scripts/download-models.sh`) |
 | Diarization ≥2 speakers | pending on-device |
 | Airplane mode | pending on-device |
-| PresentConnect ≤20 streams | unit cap test; WS needs web BE |
+| PresentConnect ≤20 streams | unit cap test; WS needs web BE — **not** the demo claim |
+
+## DEMO_STAGE6 (cite only — not re-run on this PR)
+
+Eval owns the wavs. Do not invent WER/DER.
+
+| Source | What |
+|---|---|
+| `a8b39d5a` | agg WER **0.73**; 3.0 m **0**; 3.6 m **0.55**; 4.2–6.0 m **≈1.0**; **s5 missing** (5/6 hyp speakers) |
+| `e0e64b85` | whole-file RMS AGC: agg WER **0.73→0.70**; **s5 still missing** |
+
+This branch: **per-turn / per-chunk** `FarFieldGain.stageTurn` after soft energy-VAD; `numClusters=6`; VAD↔diar orphan expand. Near 3 m is not attenuated. Path B gates untouched.
+
+```bash
+python3 scripts/measure-farfield-gain.py   # synthetics for the stage() primitive; not the demo fix
+cd src/android && ./gradlew :app:testStenographerDebugUnitTest :app:assembleDebug
+```
+
+Eval wavs / gold / harness **untouched**. New STAGE6 numbers pending Impl second-pass Eval.

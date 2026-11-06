@@ -5,7 +5,9 @@
 **Flavor:** `presentConnect` (`BuildConfig.PRESENT_CONNECT = true`).  
 **Not this:** checkpoint polling so slide-followers stay in sync — that is **web BE only**. Documented at the bottom so we do not collide.
 
-The phone is an **on-device ASR+diarization worker**, not a browser. Demo loop:
+**Not the live demo claim.** Path B ≤20 browser streams is a secondary codepath (PR #6). Live demo is DEMO_STAGE6: one phone mic, 6 RU speakers at 3–6 m.
+
+The phone is an **on-device ASR+diarization worker**, not a browser. Optional Path B loop:
 
 ```
 QR on slide → audience browser mic → web BE relays PCM → Android app
