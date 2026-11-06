@@ -68,6 +68,29 @@ Stack: Path A `OfflineSpeakerDiarization` `num_clusters=6` + Zipformer-ru on the
 
 Honest: closest seat (3 m) is WER 0. IDEAL ≪ 0.1 does **not** hold for the room — aggregate **0.73**, DER **0.52**, diarization **5/6** (speaker_5 missed). Farther 4–6 m + reverb + HVAC + phone mic still fail Zipformer/pyannote. Do not cite speaker_1 WER 0 as the demo-room result. Do not retune gold.
 
+### DEMO_STAGE6_ffgain — Platform-only delta @ `b66581c`
+
+Same **frozen** wav/gold as baseline @ `a8b39d5a`. Host ingest mirrors Platform `FarFieldGain` + `DemoPcmPrep` (`5bfc582` / `b66581c`): RMS-target **0.08 FS**, max **+24 dB**, peak 0.95; CLIPPED/BAD_MIC/empty hard; distant never hard-dropped for energy. Impl far-field still in flight. **Not a fixture retune.**
+
+Measured ingest on this mix: RMS **0.1191 → 0.0800** (**−3.46 dB**, `boosted=false`) because the frozen room mix already sat **above** the 0.08 target (peak 0.89). Energy-VAD fire 1.000 → 0.977. Whole-file AGC cannot lift 5–6 m seats relative to the 3 m talker here. Synth 5–6 m VAD 0→1 still holds on Platform sine scenes (`artifacts/test-results/farfield-gain.json`).
+
+| speaker | m | baseline WER @ a8b39d5a | ffgain WER post-b66581c |
+|---|---|---|---|
+| speaker_1 | 3.0 | **0.0000** | **0.0000** |
+| speaker_2 | 3.6 | **0.5455** | **0.3636** |
+| speaker_3 | 4.2 | **1.0000** | **1.0000** |
+| speaker_4 | 4.8 | **1.0000** | **1.0000** |
+| speaker_5 | 5.4 | **1.0000** (missing) | **1.0000** (missing) |
+| speaker_6 | 6.0 | **1.0000** | **1.0000** |
+| **aggregate** | — | **0.7321** (41/56) | **0.6964** (39/56) |
+
+| test_id | DER | JER | WER_agg | RTF | hyp/ref |
+|---|---|---|---|---|---|
+| DEMO_STAGE6 (baseline @ a8b39d5a) | **0.5174** | **0.6280** | **0.7321** | **0.0929** | **5 / 6** |
+| DEMO_STAGE6_ffgain (Platform @ b66581c) | **0.5174** | **0.6280** | **0.6964** | **0.0951** | **5 / 6** |
+
+Honest: diarization **unchanged** (same 5 segments, speaker_5 still missing). 4–6 m still WER 1.0. Tiny speaker_2 ASR delta only. Do **not** claim far-field gain recovered the room. Do **not** cite WER_main 0 as the room result. Lock still: ideal only at 3 m on baseline.
+
 ## Demo-stress (20 talkers) — SECONDARY regression, host Linux only
 
 Cloud agents / this VM have **no KVM and no ADB**.

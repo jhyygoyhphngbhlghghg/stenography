@@ -1,0 +1,60 @@
+{
+  "wav": "/agent/repos/neuro-stenographer/samples/demo-stress/stage6/DEMO_STAGE6.wav",
+  "wall_ms": 3777,
+  "duration_ms": 39718,
+  "num_clusters": 6,
+  "cluster_threshold": 0.5,
+  "min_duration_on": 0.15,
+  "min_duration_off": 0.3,
+  "skip_asr": false,
+  "n_segments": 5,
+  "n_hyp_speakers": 5,
+  "stack": "linux-sherpa-onnx-python Zipformer-ru + OfflineSpeakerDiarization; Platform FarFieldGain+DemoPcmPrep @ b66581c (RMS-target 0.08, max +24 dB, soft energy)",
+  "sherpa_onnx": "2.0.1",
+  "models": {
+    "encoder": "/agent/repos/neuro-stenographer/models/asr/zipformer-ru-int8/encoder.int8.onnx",
+    "decoder": "/agent/repos/neuro-stenographer/models/asr/zipformer-ru-int8/decoder.onnx",
+    "joiner": "/agent/repos/neuro-stenographer/models/asr/zipformer-ru-int8/joiner.int8.onnx",
+    "tokens": "/agent/repos/neuro-stenographer/models/asr/zipformer-ru-int8/tokens.txt",
+    "segmentation": "/agent/repos/neuro-stenographer/models/diar/segmentation.onnx",
+    "embedding": "/agent/repos/neuro-stenographer/models/diar/embedding.onnx"
+  },
+  "no_kvm_adb": true,
+  "farfield_gain": true,
+  "farfield": {
+    "platform": "b66581c / 5bfc582 FarFieldGain+DemoPcmPrep",
+    "skip_asr": false,
+    "skip_code": null,
+    "gain_db": -3.4573076347832457,
+    "gain_linear": 0.6716370079871756,
+    "rms_before": 0.11911195935993976,
+    "rms_after": 0.07999999888221164,
+    "peak_before": 0.88995361328125,
+    "peak_after": 0.5977257490158081,
+    "clip_guard": false,
+    "boosted": false,
+    "vad_fire_before": 1.0,
+    "vad_fire_after": 0.9773299748110831,
+    "raw_gate": {
+      "verdict": "Pass",
+      "code": null,
+      "soft_flags": [
+        "BAND_LIMITED"
+      ],
+      "asr_allowed": true,
+      "rms_fs": 0.1191108060794355,
+      "n": 635488
+    },
+    "after_gate": {
+      "verdict": "Pass",
+      "code": null,
+      "soft_flags": [
+        "BAND_LIMITED"
+      ],
+      "asr_allowed": true,
+      "rms_fs": 0.07999757722994219,
+      "n": 635488
+    }
+  },
+  "rtf": 0.09509542273024825
+}
