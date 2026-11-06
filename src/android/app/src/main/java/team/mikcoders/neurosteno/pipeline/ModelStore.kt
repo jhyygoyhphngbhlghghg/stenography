@@ -17,8 +17,9 @@ data class ModelPaths(
     val llmGguf: File?,
 ) {
     val hasPrimaryAsr: Boolean
-        get() = zipformerDir != null && zipformerFile(zipformerDir, "tokens.txt") != null &&
-            (zipformerFile(zipformerDir, "encoder") != null)
+        get() = zipformerDir != null &&
+            ModelStore.zipformerFile(zipformerDir, "tokens.txt") != null &&
+            ModelStore.zipformerFile(zipformerDir, "encoder") != null
 
     val hasVad: Boolean get() = sileroVad != null
     val hasDiar: Boolean get() = diarSegmentation != null && diarEmbedding != null
