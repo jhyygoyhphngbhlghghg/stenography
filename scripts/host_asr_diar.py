@@ -400,6 +400,7 @@ def transcribe_per_stream(
     min_duration_off: float = 0.25,
     rel_thresh: float = 0.04,
     pcm_gate: bool = False,
+    pcm_gate_no_hush: bool = False,
 ) -> tuple[dict, dict]:
     """Path B: one dry track per PresentConnect stream, then merge.
 
@@ -407,9 +408,10 @@ def transcribe_per_stream(
     then Zipformer per region. OfflineSpeakerDiarization is the fallback if
     VAD finds nothing. Timestamps stay on the shared mix timeline.
 
-    pcm_gate: StreamPcmGate (PR #6 dae416f / Platform f5ff5e2) on each
-    stream's PCM before VAD/ASR. Hard reject LOW_ENERGY/CLIPPED/BAD_MIC:
-    no ASR, no brief row. Soft flags still ASR. Fixtures are not rewritten.
+    pcm_gate: StreamPcmGate (PR #6 / Platform f5ff5e2 thresholds, unchanged).
+    Hard CLIPPED/BAD_MIC still drop the stream. pcm_gate_no_hush (b142a4d):
+    do **not** wipe a quiet on-mic seat because padded-file RMS is LOW_ENERGY;
+    apply the same inspect() to each ASR crop instead. Fixtures are not rewritten.
     """
     dry_dir = Path(dry_dir)
     t0 = time.perf_counter()
@@ -451,7 +453,11 @@ def transcribe_per_stream(
         gate_stats = None
         if pcm_gate:
             gate_stats = PCM_GATE.inspect_float(samples, sample_rate_hz=sr)
-            if not gate_stats["asr_allowed"]:
+            hard = gate_stats.get("code") in ("CLIPPED", "BAD_MIC")
+            # b142a4d: StreamPcmGate thresholds unchanged, but do not wipe the
+            # whole stream on LOW_ENERGY padded-file RMS (quiet on-mic seats).
+            wipe = hard or (not pcm_gate_no_hush and not gate_stats["asr_allowed"])
+            if wipe:
                 wall_i = int(round((time.perf_counter() - t1) * 1000.0))
                 per.append(
                     {
@@ -516,10 +522,16 @@ def transcribe_per_stream(
             continue
         rec = get_recognizer()
         rows = []
+        crops_skipped = 0
         for start, end in regions:
             a = max(0, int(start * sr))
             b = min(samples.size, int(end * sr))
             crop = samples[a:b]
+            if pcm_gate and pcm_gate_no_hush and crop.size:
+                cq = PCM_GATE.inspect_float(crop, sample_rate_hz=sr)
+                if not cq["asr_allowed"]:
+                    crops_skipped += 1
+                    continue
             text = ""
             if crop.size:
                 stream = rec.create_stream()
@@ -541,6 +553,7 @@ def transcribe_per_stream(
                 "verdict": gate_stats["verdict"],
                 "soft_flags": gate_stats["soft_flags"],
                 "code": gate_stats["code"],
+                "crops_skipped": crops_skipped,
             }
         per.append(row_meta)
         merged.extend(rows)
@@ -561,7 +574,8 @@ def transcribe_per_stream(
         "min_duration_off": min_duration_off,
         "rel_thresh": rel_thresh,
         "pcm_gate": pcm_gate,
-        "pcm_gate_source": "StreamPcmGate.kt @ dae416f (Platform f5ff5e2 thresholds)",
+        "pcm_gate_no_hush": pcm_gate_no_hush,
+        "pcm_gate_source": "StreamPcmGate.kt thresholds f5ff5e2; no-hush ingest b142a4d",
         "streams_passed": sum(1 for s in per if s.get("vad") != "pcm_gate_reject"),
         "streams_dropped": sum(1 for s in per if s.get("vad") == "pcm_gate_reject"),
         "pcm_gate_codes": {

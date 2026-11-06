@@ -192,6 +192,7 @@ def run_one(
                     min_duration_off=float(clip.get("min_duration_off", 0.25)),
                     rel_thresh=float(clip.get("rel_thresh", 0.04)),
                     pcm_gate=bool(clip.get("pcm_gate", False)),
+                    pcm_gate_no_hush=bool(clip.get("pcm_gate_no_hush", False)),
                 )
             else:
                 doc, meta = host_asr_diar.transcribe_file(
