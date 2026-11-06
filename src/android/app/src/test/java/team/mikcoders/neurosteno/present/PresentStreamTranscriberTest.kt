@@ -51,9 +51,14 @@ class PresentStreamTranscriberTest {
     fun clippedMicFailsLoudWithoutCallingPipeline() = runBlocking {
         val fake = RecordingPipeline()
         val t = PresentStreamTranscriber(fake, modelsMissing = false)
-        // 16-bit full-scale square wave → clip_ratio 1.0
+        // 16-bit full-scale square wave → clip_ratio ~1.0
         val pcm = ByteArray(16000) { i ->
-            if (i % 4 == 0 || i % 4 == 1) 0xff.toByte() else 0x7f
+            when (i % 4) {
+                0 -> 0xff.toByte()
+                1 -> 0x7f.toByte()
+                2 -> 0x00
+                else -> 0x80.toByte()
+            }
         }
         val r = t.transcribeIsolated("s01", pcm)
         assertTrue(r is IsolatedResult.Rejected)
