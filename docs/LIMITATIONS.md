@@ -6,21 +6,40 @@
 - Вход: локальный файл (WAV/M4A/MP3 через SAF) или запись микрофоном приложения.
 - Выход: JSON брифа + просмотр списка реплик.
 - Офлайн-стенография: авиарежим после того, как модели лежат в filesDir/assets.
-- PresentConnect (демо **Path B**): отдельный сетевой режим, до **20 отдельных** потоков (один mic = один `stream_id`). 21-й поток — `OVER_CAPACITY`. Цифры 20/20 ниже — только clean per-stream. Echo, overlap, white/room noise, bad mics в поддержку **не** входят.
+- PresentConnect (демо **Path B**): отдельный сетевой режим, до **20 отдельных** потоков (один mic = один `stream_id`). 21-й поток — `OVER_CAPACITY`. Под edge из качества остаётся только stream tracking **20/20**. **WORST_CASE WER/DER — FAIL** (ниже).
 
-## Multi-talker: что замерено
+## Multi-talker: claim lock
 
-Замер multi-talker демо — **Path B** и **только clean per-stream**: ≤20 отдельных PresentConnect-потоков, каждый сам по себе (PCM → VAD → ASR), `speaker_id` ← `stream_id` (или метка места), сухие раздельные дорожки (dry/separate tracks). Цифры — Eval-measured, не обещание он-девайс прогона и не новые выдумки (таблица в `docs/TEST_RESULTS.md`, источник [PR #4](https://cursor.com/codebase/johann-schilling/neuro-stenographer/pull/4)): **20/20** спикеров, DER **0.24** (в замере также 0.235), main WER **0.087**, RTF **2.65**. Эти числа не про эхо, перекрытие, белый шум, шум комнаты и плохие микрофоны.
+Архитектура демо — **Path B**: ≤20 отдельных потоков, PCM → VAD → ASR, `speaker_id` ← `stream_id`. Источник edge-цифр: Eval [PR #4](https://cursor.com/codebase/johann-schilling/neuro-stenographer/pull/4) @ `9908353d`. Числа не выдуманы. Фикстуры **не** подкручивали после FAIL.
 
-**Worst-case edge suite** (echo, overlap, white noise / room noise, bad mics): **unmeasured until edge suite**. Чисел нет. Когда Eval прогонит suite, публикуем **honest FAIL / hard numbers**. До замера: **expect FAIL / hard degradation**. **Do not claim in slides.** Запрещены формулировки «should be fine», «robust», «handles noisy rooms», «graceful under echo». Path B в этих условиях не заявлен.
+**Path B under edge: stream tracking still 20/20** (hyp/ref speakers) на каждой строке таблицы. Это **единственная** multi-talker заявка, которая переживает edge.
 
-**Path A не заявляем.** One-room cocktail (20 говорящих в один смешанный поток, потом кластеризация) — hard fail того же clean-замера: **1/20**, DER **0.95**, main WER **1.00**, RTF **0.18**. Офлайн-файл по-прежнему одна запись (VAD → диаризация → ASR) и не является этим демо.
+**WER/DER under WORST_CASE are FAIL.** Слайды: WORST_CASE WER≈0.91, DER≈1.30. Точные значения — строка таблицы: WER main **0.9130**, DER 250ms **1.2985**. Clean WER/DER на WORST_CASE и на EDGE_* **не** заявлять.
+
+**Killers:** overlap/bleed, noise false alarms, bad mic. Reverb alone does **not** collapse Path B.
+
+| test_id | DER 250ms | JER | WER main | RTF | hyp/ref |
+|---|---|---|---|---|---|
+| CLEAN Path B | 0.0913 | 0.1840 | 0.0870 | 0.1212 | 20/20 |
+| EDGE_reverb | 0.0849 | 0.1756 | 0.1304 | 0.1263 | 20/20 |
+| EDGE_overlap | 0.9936 | 0.5476 | 0.7391 | 0.2430 | 20/20 |
+| EDGE_noise | 1.7005 | 0.5675 | 0.1739 | 0.2602 | 20/20 |
+| EDGE_badmic | 0.6569 | 0.2863 | 1.0000 | 0.1910 | 20/20 |
+| **WORST_CASE** | **1.2985** | **0.5981** | **0.9130** | **0.2907** | 20/20 |
+
+- Overlap real: max 12 concurrent; 91% of speech frames ≥2 speakers.
+- Main vs bleed: +3.0 dB (EDGE_overlap) / +1.5 dB (WORST_CASE).
+- WORST_CASE main hyp collapses to one ~18s blob (`хочу говорить`). DER>1 = false-alarm time > ref speech.
+- EDGE_reverb (DER 0.0849, WER main 0.1304, 20/20) — isolated-mic reverb alone does not collapse Path B. Это не разрешение цитировать clean WER/DER на EDGE_overlap, EDGE_noise, EDGE_badmic, WORST_CASE.
+- Запрещены формулировки «should be fine», «robust», «handles noisy rooms», «graceful under echo». **Do not claim in slides** clean WER/DER на edge.
+
+Ранний clean-замер того же PR #4 (до этого suite): Path B DER **0.24** (также 0.235), main WER **0.087**, RTF **2.65**, 20/20. Это не строка CLEAN этого suite (там DER 0.0913, RTF 0.1212, WER main 0.0870) и не WORST_CASE. Path A того раннего замера — hard fail: **1/20**, DER **0.95**, main WER **1.00**, RTF **0.18**. Офлайн-файл по-прежнему одна запись (VAD → диаризация → ASR) и не является 20-talker демо.
 
 ## Известные ограничения
 
-- **Новые WER/RTF не выдумывать.** Eval-measured Path A/B и overnight-клипы (~3.5% / 0% / 0% WER, без перекрытия) можно цитировать только как замер H1 / PR #4. Он-девайс строки в `artifacts/test-results/results.csv` пусты, пока нет своего прогона.
+- **Новые WER/RTF не выдумывать.** Цитировать только замер H1 / PR #4: ранний clean и Path A, overnight-клипы (~3.5% / 0% / 0% WER, без перекрытия), и edge suite @ `9908353d` (таблица выше). Он-девайс строки в `artifacts/test-results/results.csv` пусты, пока нет своего прогона.
 - Zipformer-ru — RU-first; английский best-effort (для EN — Whisper tiny, не default).
-- Перекрытие в **одной** записи: Path A на ≥20 говорящих уже FAIL (1/20). Офлайн-демо файла — клипы без перекрытия. Multi-talker сцены с отдельными потоками имеет цифры только на clean per-stream (PR #4). Echo, overlap, white/room noise, bad mics: **unmeasured until edge suite**, **expect FAIL / hard degradation**, **do not claim in slides**.
+- Перекрытие в **одной** записи: Path A на ≥20 говорящих уже FAIL (1/20). Офлайн-демо файла — клипы без перекрытия. На Path B killers — overlap/bleed (EDGE_overlap WER main 0.7391, DER 0.9936), noise false alarms (EDGE_noise DER 1.7005), bad mic (EDGE_badmic WER main 1.0000). WORST_CASE: WER main **0.9130**, DER **1.2985**, hyp/ref **20/20**. Clean WER/DER на эти строки не переносить.
 - LLM post-pass: модуль есть, **веса не приложены** (TODO Gemma/Qwen/Phi via llama.cpp или MediaPipe). Сейчас identity / лёгкая пунктуация, честно в UI.
 - Модели не в git (~74 MB+ ASR, плюс VAD/diar). Без `download-models.sh` / adb push приложение соберётся, но pipeline уйдёт в stub.
 - NNAPI на OEM плавает; default provider = CPU.
