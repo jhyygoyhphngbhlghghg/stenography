@@ -33,7 +33,11 @@ class PresentStreamTranscriber(
             return IsolatedResult.ModelsMissing(streamId)
         }
         // Platform StreamPcmGate on this stream_id only (never mixed), before Silero/diar/ASR.
-        val quality = StreamPcmGate.inspect(pcmS16le)
+        // Known seats s01..s20: near/below RMS floor is SOFT_LOW (still ASR), not LOW_ENERGY.
+        val quality = StreamPcmGate.inspect(
+            pcmS16le,
+            boundSeat = StreamLabeler.isKnownSeat(streamId),
+        )
         when (val verdict = quality.verdict) {
             is StreamGateVerdict.Reject -> {
                 return IsolatedResult.Rejected(streamId, verdict.code, verdict.message)
