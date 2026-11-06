@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""StreamPcmGate v2 Python mirror vs Implementer e3ad908 (sha256 == Platform b12a2bb)."""
+"""StreamPcmGate v3 Python mirror vs Implementer a5b7aed (sha256 == Platform 686ac4a)."""
 from __future__ import annotations
 
 import math
@@ -34,12 +34,12 @@ def _tiny_noise(n: int = 6400, seed: int = 1) -> list[int]:
 
 
 class Thresholds(unittest.TestCase):
-    def test_pinned_to_implementer_e3ad908(self):
-        self.assertEqual(G.IMPLEMENTER_GATE_V2_SHA, "e3ad9085b58b563a4feff5932396909c09e18fe2")
-        self.assertEqual(G.PLATFORM_GATE_V2_SHA, "b12a2bbbf3c5b7770063c21a2e36d2c63b88d5c5")
+    def test_pinned_to_implementer_a5b7aed(self):
+        self.assertEqual(G.IMPLEMENTER_GATE_V3_SHA, "a5b7aed7d89ec76e919eed62c69f31bf0e926725")
+        self.assertEqual(G.PLATFORM_GATE_V3_SHA, "686ac4a790fd52b831709955525d029098a65bae")
         self.assertEqual(
             G.STREAM_PCM_GATE_KT_SHA256,
-            "3caa3a6a2d4aaf0ed9ed0592847ab7c9aadfbe8b5916eb95136745c293d26c51",
+            "e29a34bb2503000b48b083e3ee1234e81e0f020a08cac52937da6db161a20d15",
         )
 
     def test_v2_constants(self):
@@ -93,9 +93,10 @@ class Verdicts(unittest.TestCase):
         self.assertEqual(G.inspect_s16([8000] * 6400)["code"], "BAD_MIC")
         self.assertEqual(G.inspect_s16([20000] * 6400)["code"], "BAD_MIC")
 
-    def test_phone_crush_band_limited(self):
+    def test_unbound_phone_crush_hard_band_limited(self):
         stack = G.inspect_s16(G.tone_stack_s16(G.PHONE_HZ))
         self.assertEqual(stack["code"], "BAND_LIMITED")
+        self.assertFalse(stack["asr_allowed"])
         self.assertEqual(stack["clip_ratio"], 0.0)
         self.assertLess(abs(stack["dc_fs"]), G.DC_REJECT_FS)
         self.assertLess(stack["hf_ratio"], G.BAND_LIMITED_HF_RATIO)
@@ -103,9 +104,24 @@ class Verdicts(unittest.TestCase):
         self.assertEqual(stack["hf_occupancy"], 0)
         lpf = G.inspect_s16(G.phone_crush_lpf_s16())
         self.assertEqual(lpf["code"], "BAND_LIMITED")
+        self.assertFalse(lpf["asr_allowed"])
         self.assertEqual(lpf["clip_ratio"], 0.0)
         self.assertLess(abs(lpf["dc_fs"]), G.DC_REJECT_FS)
         self.assertLess(lpf["hf_ratio"], G.BAND_LIMITED_HF_RATIO)
+
+    def test_bound_phone_crush_soft_band_limited_still_asr(self):
+        q = G.inspect_s16(G.phone_crush_lpf_s16(), bound_seat=True)
+        self.assertTrue(q["asr_allowed"])
+        self.assertIsNone(q["code"])
+        self.assertIn("BAND_LIMITED", q["soft_flags"])
+        stack = G.inspect_s16(G.tone_stack_s16(G.PHONE_HZ), bound_seat=True)
+        self.assertTrue(stack["asr_allowed"])
+        self.assertIn("BAND_LIMITED", stack["soft_flags"])
+
+    def test_v2_bound_crush_still_hard(self):
+        q = G.inspect_s16(G.phone_crush_lpf_s16(), bound_seat=True, version=2)
+        self.assertEqual(q["code"], "BAND_LIMITED")
+        self.assertFalse(q["asr_allowed"])
 
     def test_broadband_and_clean_tone_not_band_limited(self):
         broad = G.inspect_s16(G.tone_stack_s16(G.BROADBAND_HZ))

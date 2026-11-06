@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
-"""Python mirror of StreamPcmGate.kt v2.
+"""Python mirror of StreamPcmGate.kt (headline = v3 soft bound BAND_LIMITED).
 
 Source artifact (byte-identical Kotlin):
-  Implementer PR #6 e3ad9085b58b563a4feff5932396909c09e18fe2
-  == Platform b12a2bbbf3c5b7770063c21a2e36d2c63b88d5c5
+  Implementer PR #6 a5b7aed7d89ec76e919eed62c69f31bf0e926725
+  == Platform 686ac4a790fd52b831709955525d029098a65bae
   path: src/android/app/src/main/java/team/mikcoders/neurosteno/present/StreamPcmGate.kt
-  sha256: 3caa3a6a2d4aaf0ed9ed0592847ab7c9aadfbe8b5916eb95136745c293d26c51
+  sha256: e29a34bb2503000b48b083e3ee1234e81e0f020a08cac52937da6db161a20d15
 
-Path B pre-ASR gate on one stream's pcm_s16le.
-Bound known seats (s01..s20): near/below RMS floor is SOFT_LOW — still ASR.
-Hard LOW_ENERGY only for unbound streams or empty (n==0).
-Phone-mic crush (no hard clip/DC): Goertzel HF/speech occupancy → BAND_LIMITED.
+Bound s01..s20: SOFT_LOW and BAND_LIMITED are soft flags — still ASR.
+Bound main s01 is never hard-dropped for energy or band-limit.
+Hard LOW_ENERGY / hard BAND_LIMITED only for unbound streams.
+Empty (n==0) still skips. CLIPPED / BAD_MIC stay hard.
+
+inspect(..., version=2) keeps historical hard BAND_LIMITED (e3ad908 / b12a2bb).
 
 Do not retune constants. Eval fixture wavs are not modified here.
 """
@@ -21,7 +23,10 @@ from typing import Any
 
 IMPLEMENTER_GATE_V2_SHA = "e3ad9085b58b563a4feff5932396909c09e18fe2"
 PLATFORM_GATE_V2_SHA = "b12a2bbbf3c5b7770063c21a2e36d2c63b88d5c5"
-STREAM_PCM_GATE_KT_SHA256 = "3caa3a6a2d4aaf0ed9ed0592847ab7c9aadfbe8b5916eb95136745c293d26c51"
+STREAM_PCM_GATE_KT_SHA256_V2 = "3caa3a6a2d4aaf0ed9ed0592847ab7c9aadfbe8b5916eb95136745c293d26c51"
+IMPLEMENTER_GATE_V3_SHA = "a5b7aed7d89ec76e919eed62c69f31bf0e926725"
+PLATFORM_GATE_V3_SHA = "686ac4a790fd52b831709955525d029098a65bae"
+STREAM_PCM_GATE_KT_SHA256 = "e29a34bb2503000b48b083e3ee1234e81e0f020a08cac52937da6db161a20d15"
 
 SAMPLE_RATE_HZ = 16_000
 FULL_SCALE = 32768.0
@@ -115,12 +120,22 @@ def is_band_limited(rms_fs: float, bands: dict[str, Any]) -> bool:
     )
 
 
-def _soft_flags(*, clip_ratio: float, below_floor: bool, rms_fs: float, dc_fs: float) -> list[str]:
+def _soft_flags(
+    *,
+    clip_ratio: float,
+    below_floor: bool,
+    rms_fs: float,
+    dc_fs: float,
+    crush: bool = False,
+) -> list[str]:
+    # Order matches StreamPcmGate.decide @ a5b7aed: CLIP, LOW, BAND_LIMITED, DC.
     soft: list[str] = []
     if clip_ratio >= CLIP_SOFT:
         soft.append("SOFT_CLIP")
     if below_floor or rms_fs < RMS_SOFT_FS:
         soft.append("SOFT_LOW")
+    if crush:
+        soft.append("BAND_LIMITED")
     if abs(dc_fs) >= DC_SOFT_FS:
         soft.append("SOFT_DC")
     return soft
@@ -164,7 +179,7 @@ def decide_v1(
     )
 
 
-def decide(
+def decide_v2(
     *,
     n: int,
     rms_fs: float,
@@ -175,7 +190,7 @@ def decide(
     bands: dict[str, Any] | None,
     bound_seat: bool,
 ) -> tuple[str, str | None, str, list[str]]:
-    """Match StreamPcmGate.decide @ e3ad908 / b12a2bb (sha256 STREAM_PCM_GATE_KT_SHA256)."""
+    """Match StreamPcmGate.decide @ e3ad908 / b12a2bb (hard BAND_LIMITED even when bound)."""
     bands = bands or {
         "hf_ratio": 0.0,
         "speech_ratio": 0.0,
@@ -217,12 +232,70 @@ def decide(
     )
 
 
+def decide(
+    *,
+    n: int,
+    rms_fs: float,
+    peak_fs: float,
+    dc_fs: float,
+    variance_fs: float,
+    clip_ratio: float,
+    bands: dict[str, Any] | None,
+    bound_seat: bool,
+) -> tuple[str, str | None, str, list[str]]:
+    """Match StreamPcmGate.decide @ a5b7aed / 686ac4a (bound crush is soft BAND_LIMITED)."""
+    bands = bands or {
+        "hf_ratio": 0.0,
+        "speech_ratio": 0.0,
+        "speech_occupancy": 0,
+        "hf_occupancy": 0,
+    }
+    if clip_ratio >= CLIP_REJECT:
+        return (
+            "Reject",
+            "CLIPPED",
+            f"clip_ratio={clip_ratio:.3f} ≥ {CLIP_REJECT}",
+            [],
+        )
+    stuck = variance_fs < STUCK_VARIANCE_FS and peak_fs >= PEAK_REJECT_FS
+    if abs(dc_fs) >= DC_REJECT_FS or stuck:
+        return (
+            "Reject",
+            "BAD_MIC",
+            f"dc_fs={dc_fs:.3f} variance_fs={variance_fs:.3g}",
+            [],
+        )
+    crush = n >= MIN_SAMPLES and is_band_limited(rms_fs, bands)
+    if crush and not bound_seat:
+        return (
+            "Reject",
+            "BAND_LIMITED",
+            f"hf_ratio={bands['hf_ratio']:.4f} occ_speech={bands['speech_occupancy']} occ_hf={bands['hf_occupancy']}",
+            [],
+        )
+    below_floor = n < MIN_SAMPLES or rms_fs < RMS_REJECT_FS or peak_fs < PEAK_REJECT_FS
+    if below_floor and not bound_seat:
+        return (
+            "Reject",
+            "LOW_ENERGY",
+            f"rms_fs={rms_fs:.5f} peak_fs={peak_fs:.5f} n={n} unbound",
+            [],
+        )
+    return "Pass", None, "Pass", _soft_flags(
+        clip_ratio=clip_ratio,
+        below_floor=below_floor,
+        rms_fs=rms_fs,
+        dc_fs=dc_fs,
+        crush=crush,
+    )
+
+
 def inspect_s16(
     samples_s16,
     sample_rate_hz: int = SAMPLE_RATE_HZ,
     *,
     bound_seat: bool = False,
-    version: int = 2,
+    version: int = 3,
 ) -> dict[str, Any]:
     n = len(samples_s16)
     if n <= 0:
@@ -298,8 +371,19 @@ def inspect_s16(
         "hf_occupancy": 0,
     }
     duration_ms = 1000.0 * n / sample_rate_hz
-    if version >= 2:
+    if version >= 3:
         verdict, code, message, soft = decide(
+            n=n,
+            rms_fs=rms_fs,
+            peak_fs=peak_fs,
+            dc_fs=dc_fs,
+            variance_fs=variance_fs,
+            clip_ratio=clip_ratio,
+            bands=bands,
+            bound_seat=bound_seat,
+        )
+    elif version >= 2:
+        verdict, code, message, soft = decide_v2(
             n=n,
             rms_fs=rms_fs,
             peak_fs=peak_fs,
@@ -359,7 +443,7 @@ def inspect_float(
     sample_rate_hz: int = SAMPLE_RATE_HZ,
     *,
     bound_seat: bool = False,
-    version: int = 2,
+    version: int = 3,
 ) -> dict[str, Any]:
     return inspect_s16(
         float_to_s16(samples),

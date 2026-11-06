@@ -194,6 +194,7 @@ def run_one(
                     pcm_gate=bool(clip.get("pcm_gate", False)),
                     pcm_gate_no_hush=bool(clip.get("pcm_gate_no_hush", False)),
                     pcm_gate_v2=bool(clip.get("pcm_gate_v2", False)),
+                    pcm_gate_v3=bool(clip.get("pcm_gate_v3", False)),
                 )
             else:
                 doc, meta = host_asr_diar.transcribe_file(
