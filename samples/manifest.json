@@ -1,0 +1,24 @@
+{
+  "description": "Fixed own-test clips for WER+RTF. Large wav files are gitignored. Do not invent metrics.",
+  "sample_rate_hz": 16000,
+  "clips": [
+    {
+      "test_id": "clip_01",
+      "file": "samples/clip_01.wav",
+      "reference_json": "samples/ref/clip_01.json",
+      "notes": "RU two speakers, no overlap. Place wav locally."
+    },
+    {
+      "test_id": "clip_02",
+      "file": "samples/clip_02.wav",
+      "reference_json": "samples/ref/clip_02.json",
+      "notes": "RU two speakers, longer pause between turns."
+    },
+    {
+      "test_id": "clip_03",
+      "file": "samples/clip_03.wav",
+      "reference_json": "samples/ref/clip_03.json",
+      "notes": "RU three speakers if we record it; otherwise two."
+    }
+  ]
+}
