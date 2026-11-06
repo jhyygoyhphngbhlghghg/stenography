@@ -196,6 +196,7 @@ def transcribe_file(
     speaker_id_override: str | None = None,
     farfield_gain: bool = False,
     farfield_per_turn: bool = False,
+    phone_distance_eq: bool = False,
 ) -> tuple[dict, dict]:
     if asr_only:
         return transcribe_asr_only(wav, models, num_threads=num_threads)
@@ -216,16 +217,27 @@ def transcribe_file(
     d = find_diar(models)
     samples, sr = load_wav_mono16k(wav)
     ff_meta = None
-    if farfield_gain:
+    use_prep = bool(farfield_gain or phone_distance_eq)
+    if use_prep:
+        # phone_eq forces frozen per-turn gain (never whole-file crush).
         prep = DEMO_PREP.prepare(
-            samples, sr, bound_main=True, per_turn=bool(farfield_per_turn)
+            samples,
+            sr,
+            bound_main=True,
+            per_turn=bool(farfield_per_turn or phone_distance_eq),
+            phone_eq=bool(phone_distance_eq),
         )
         ff_meta = DEMO_PREP.gain_meta(prep)
-        src = "db3afe4 per-turn" if farfield_per_turn else "b66581c whole-file"
+        if phone_distance_eq:
+            src = "af71d91 PhoneDistanceEq + frozen per-turn FarFieldGain"
+        elif farfield_per_turn:
+            src = "db3afe4 per-turn"
+        else:
+            src = "b66581c whole-file"
         if prep["skip_asr"]:
             raise HostBlocked(
                 f"DemoPcmPrep hard-skip {prep['skip_code']} "
-                f"(Platform FarFieldGain @ {src}; CLIPPED/BAD_MIC/empty only)"
+                f"(Platform {src}; CLIPPED/BAD_MIC/empty only)"
             )
         samples = prep["samples"]
 
@@ -337,12 +349,19 @@ def transcribe_file(
             "embedding": str(d["embedding"]),
         },
         "no_kvm_adb": True,
-        "farfield_gain": bool(farfield_gain),
-        "farfield_per_turn": bool(farfield_per_turn),
+        "farfield_gain": bool(farfield_gain or phone_distance_eq),
+        "farfield_per_turn": bool(farfield_per_turn or phone_distance_eq),
+        "phone_distance_eq": bool(phone_distance_eq),
     }
     if ff_meta is not None:
         meta["farfield"] = ff_meta
-        if farfield_per_turn:
+        if phone_distance_eq:
+            meta["stack"] = (
+                "linux-sherpa-onnx-python Zipformer-ru + OfflineSpeakerDiarization; "
+                "Platform PhoneDistanceEq @ af71d91 (250–4500 Hz high-shelf on far islands; "
+                "near 3 m identity; gain frozen per-turn, no whole-file crush)"
+            )
+        elif farfield_per_turn:
             meta["stack"] = (
                 "linux-sherpa-onnx-python Zipformer-ru + OfflineSpeakerDiarization; "
                 "Platform FarFieldGain per-turn @ db3afe4 (quiet islands → 0.08 FS, near 0 dB, no crush)"
