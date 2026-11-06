@@ -15,7 +15,10 @@ unmapped hypothesis speakers are extra clusters with JER = 1.
 Speaker purity: duration-weighted max-ref overlap / hyp duration. Used when
 a full DER tool is unavailable; we still compute DER here.
 
-WER / tokenize match overnight scripts/eval_harness.py (Russian ё→е).
+WER tokenize: Hex.Team Q&A lock 2026-11-06 (Mikhail Grigorev).
+  * punctuation IS scored — do not strip ``,`` ``.`` ``?`` ``!``
+  * ё→е on both hyp and ref (е vs ё is not an error)
+  * comma gold = spoken intonation, not orthography (refs, not this function)
 """
 from __future__ import annotations
 
@@ -23,12 +26,32 @@ from typing import Iterable
 
 Utterance = dict
 
+HEX_TEAM_WER_LOCK = "2026-11-06 Mikhail Grigorev / Hex.Team Q&A"
+# Scored as their own tokens. Do not strip before compare.
+SCORING_PUNCT = frozenset(",.?!")
+
 
 def tokenize(text: str) -> list[str]:
-    t = text.lower().replace("ё", "е")
-    for ch in ".,!?;:«»\"'()[]":
-        t = t.replace(ch, " ")
-    return [w for w in t.split() if w]
+    """Lowercase, fold ё→е, keep comma/period/?/! as tokens, split the rest."""
+    t = (text or "").lower().replace("ё", "е").replace("Ё", "е")
+    tokens: list[str] = []
+    buf: list[str] = []
+
+    def flush() -> None:
+        if buf:
+            tokens.append("".join(buf))
+            buf.clear()
+
+    for ch in t:
+        if ch in SCORING_PUNCT:
+            flush()
+            tokens.append(ch)
+        elif ch.isalnum() or ch in "-":
+            buf.append(ch)
+        else:
+            flush()
+    flush()
+    return tokens
 
 
 def levenshtein(a: list[str], b: list[str]) -> int:
@@ -366,7 +389,10 @@ def diarization_scores(
         "mapping_hyp_to_ref": mapping,
         "n_ref_speakers": len(ref_ids),
         "n_hyp_speakers": len(hyp_ids),
-        "metric_impl": "scripts/eval_metrics.py (NIST-style DER, DIHARD-like JER, cluster purity); not pyannote.metrics",
+        "metric_impl": (
+            "scripts/eval_metrics.py (NIST-style DER, DIHARD-like JER, cluster purity); "
+            "WER Hex.Team 2026-11-06: keep ,.?!, fold ё→е; not pyannote.metrics"
+        ),
     }
 
 

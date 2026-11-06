@@ -154,7 +154,7 @@ def run_one(
         "json_valid": "",
         "notes": "",
         "blocked_reason": "",
-        "metric_impl": "scripts/eval_metrics.py DER+JER+purity; WER on mapped main speaker",
+        "metric_impl": "scripts/eval_metrics.py DER+JER+purity; WER Hex.Team keep ,.?!, fold ё→е",
         "stack": "linux-sherpa-onnx (no KVM/ADB)",
     }
 
