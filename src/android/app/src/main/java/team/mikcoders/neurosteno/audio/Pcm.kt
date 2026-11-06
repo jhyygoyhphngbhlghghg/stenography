@@ -1,5 +1,7 @@
 package team.mikcoders.neurosteno.audio
 
+import kotlin.math.roundToInt
+
 /** 16-bit PCM helpers. Pipeline consumes float32 in [-1, 1] at 16 kHz mono. */
 object Pcm {
     const val TARGET_HZ = 16_000
@@ -16,6 +18,20 @@ object Pcm {
             out[o] = s / 32768f
             i += 2
             o += 1
+        }
+        return out
+    }
+
+    fun floatToS16le(samples: FloatArray): ByteArray {
+        val out = ByteArray(samples.size * 2)
+        var i = 0
+        var o = 0
+        while (i < samples.size) {
+            val v = (samples[i].coerceIn(-1f, 1f) * 32767f).roundToInt().coerceIn(-32767, 32767)
+            out[o] = (v and 0xff).toByte()
+            out[o + 1] = ((v shr 8) and 0xff).toByte()
+            i++
+            o += 2
         }
         return out
     }

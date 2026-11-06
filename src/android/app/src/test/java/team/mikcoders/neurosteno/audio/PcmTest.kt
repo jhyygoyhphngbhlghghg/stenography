@@ -19,4 +19,15 @@ class PcmTest {
         val dst = Pcm.resampleLinear(src, srcHz = 16_000, dstHz = 8_000)
         assertEquals(4, dst.size)
     }
+
+    @Test
+    fun floatToS16leRoundTripPreservesQuietFarSample() {
+        val src = floatArrayOf(0.0f, 0.01f, -0.01f, 0.5f, -0.5f)
+        val bytes = Pcm.floatToS16le(src)
+        val back = Pcm.s16leToFloat(bytes)
+        assertEquals(src.size, back.size)
+        for (i in src.indices) {
+            assertEquals(src[i], back[i], 2f / 32768f)
+        }
+    }
 }
