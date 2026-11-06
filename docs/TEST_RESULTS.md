@@ -28,3 +28,5 @@
 | Diarization ≥2 speakers | pending on-device |
 | Airplane mode | pending on-device |
 | PresentConnect ≤20 streams | unit cap test; WS needs web BE |
+| PresentConnect Path B isolation | N streams = N buffers, no mix; stream 21 OVER_CAPACITY |
+| Path A mix vs Path B (H1 cite) | **not a harness row** — H1 reported Path A DER 0.95 1/20 FAIL; Path B 20/20 DER 0.235 main WER 0.087. Do not copy into `results.csv` without a real clip run. |

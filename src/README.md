@@ -12,7 +12,7 @@ src/android/
     pipeline/    # VAD → diarize → ASR → LLM post-pass
     llm/         # heuristic punctuation + GGUF TODO weights
     export/      # JSON (brief schema) + TXT
-    present/     # PresentConnectClient
+    present/     # Path B: PresentConnectClient, per-stream isolated PCM → Zipformer-ru
 ```
 
 Сборка: см. корневой `README.md` и `docs/INSTALL.md`.

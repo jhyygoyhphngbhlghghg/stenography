@@ -30,17 +30,20 @@ Audio (SAF import / AudioRecord)
   Dialogue JSON + Compose list + share/export
 ```
 
-PresentConnect (flavor `presentConnect`, network mode):
+PresentConnect (flavor `presentConnect`, network mode) is **Path B** (locked for demo):
 
 ```
-Browser mics (≤20) ──audio──► presentation BE ──WS/HTTP──► phone worker
-                                                              │
-                                                              ▼
-                                                         same pipeline
-                                                              │
-                                                              ▼
-                         presentation display ◄──transcript───┘
+Browser mic / stream_id s01 ──PCM──► isolated buffer s01 ──► Zipformer-ru + diar (this stream only)
+Browser mic / stream_id s02 ──PCM──► isolated buffer s02 ──► Zipformer-ru + diar (this stream only)
+ … up to 20 …
+Browser mic / stream_id s21 ──► OVER_CAPACITY (not accepted, no PCM)
+
+Web FE maps stream_id → seat/QR. speaker_id = diarization *inside* that stream.
 ```
+
+Hard cap 20. Each `stream_id` keeps its **own** PCM path into the on-device pipeline. **Do not mix PCM across streams** before ASR/diar (no cocktail / room-mic mixdown).
+
+**Path A rejected** (one mixed room mic / 20 talkers summed into one buffer → one ASR/diar). H1 reported (cite only, not recomputed): Path A mix DER 0.95, 1/20 FAIL; Path B 20/20, DER 0.235, main WER 0.087. Harness rows in `docs/TEST_RESULTS.md` stay `pending` until a real wav/ref/hyp run.
 
 Checkpoint polling (clients follow presenter) lives on the **web BE**, not in this app. See `docs/PRESENT_CONNECT.md`.
 
@@ -50,7 +53,8 @@ Checkpoint polling (clients follow presenter) lives on the **web BE**, not in th
 |---|---|---|
 | UI | Kotlin + Jetpack Compose, minSdk 28 | Brief 26–28; sherpa Java demo / AAR path uses 28 |
 | Flavors | `stenographer` / `presentConnect` | Один код, флаг `BuildConfig.PRESENT_CONNECT` |
-| Runtime | sherpa-onnx (JitPack AAR / JNI) | ASR + VAD + diarization в одном runtime |
+| Runtime | sherpa-onnx Android AAR v1.13.5 (GitHub Releases; not unpublished JitPack as the sole path) | ASR + VAD + diarization в одном runtime |
+| PresentConnect | **Path B**: ≤20 isolated PCM streams | Path A cocktail mix отклонён |
 | ASR primary | Zipformer-ru int8 (~74 MB listing) | RU-first, мобильный размер |
 | ASR backup | Whisper tiny multilingual (sherpa) | RU+EN; не whisper.cpp |
 | ASR emergency | Vosk small-ru | Если sherpa не встаёт на устройстве |

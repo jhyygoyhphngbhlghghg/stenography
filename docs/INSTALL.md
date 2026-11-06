@@ -35,4 +35,4 @@ APK: `src/android/app/build/outputs/apk/<flavor>/debug/`. Для сдачи ск
 
 ## PresentConnect
 
-Flavor `presentConnect`. Контракт: `docs/PRESENT_CONNECT.md`. Нужна сеть до презентационного BE, не до облачного ASR.
+Flavor `presentConnect`. **Path B:** ≤20 отдельных browser/mic потоков → локальный Zipformer-ru + diar; mixdown (Path A) не используется. Контракт: `docs/PRESENT_CONNECT.md`. Нужна сеть до презентационного BE, не до облачного ASR.

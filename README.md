@@ -2,7 +2,7 @@
 
 Team **MIK Coders** · Nuclear IT Hack · Hex.Team case «Нейро-стенографист».
 
-Android app that turns a conversation recording into a structured dialogue transcript **on device**: speakers, timestamps, text. Offline stenography path is airplane-mode. Present-connect path is a separate network mode for the presentation website (≤20 live streams).
+Android app that turns a conversation recording into a structured dialogue transcript **on device**: speakers, timestamps, text. Offline stenography path is airplane-mode. Present-connect path is a separate network mode for the presentation website: **Path B** — ≤20 **separate** browser/mic streams into local Zipformer-ru + diarization (not Path A cocktail mix).
 
 This Origin repo is the overnight build. Layout follows [hacathon_template](https://github.com/grigorevmp/hacathon_template) so it can later be mirrored to GitHub `stenography`.
 
@@ -84,6 +84,6 @@ CI-ish (no invented WER):
 ## Modes
 
 1. **Offline stenography** — import/record → VAD → diarize → ASR → LLM stub → list → export JSON. No network.
-2. **Present-connect** — phone is the on-device worker: receive ≤20 audio streams from the presentation site, return transcripts. Network required. See the contract doc.
+2. **Present-connect (Path B)** — phone is the on-device worker: receive ≤20 **separate** browser/mic streams, keep each `stream_id` on its own PCM path into Zipformer-ru + diar, return `transcript.partial` / `transcript.final`. Stream 21 → `OVER_CAPACITY`. Do not mix PCM across streams. Network required. See `docs/PRESENT_CONNECT.md` and `docs/ARCHITECTURE.md`.
 
 Presentation web FE/BE is a **separate** track (designer + Артём/Пётр). This repo owns the Android worker and the API contract they must implement against.
