@@ -141,7 +141,7 @@ def run_one(
 
     if not wav.is_file():
         notes.append("wav missing (run python3 scripts/generate_demo_stress_mix.py; full mix is gitignored)")
-        if run_host:
+        if run_host and not clip.get("per_stream"):
             status = "blocked"
             blocked_reason = f"wav missing: {wav}"
     if not ref_path.is_file():

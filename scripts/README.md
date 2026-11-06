@@ -8,6 +8,7 @@
 - `generate_demo_stress_mix.py` — REAL 20-talker cocktail mix from that corpus (+3 dB main, staggered offsets). `--engine espeak` is the superseded OOD baseline.
 - `diar_param_sweep.py` — Path A clustering grid on the one-room mix (diar only).
 - `test_path_b_regression.py` — Path B PresentConnect smoke: measured row, 20 speakers, brief JSON schema.
+- `generate_adversarial_path_b.py` — Path B EDGE_*/WORST_CASE demo-room degradations (reverb, true overlap+bleed, room noise, bad mic). Does not rewrite the CLEAN baseline.
 - `host_asr_diar.py` — Zipformer-ru + OfflineSpeakerDiarization on Linux Python.
 - `eval_demo_stress.py` — DER/JER/purity + main-speaker WER + RTF; pending/blocked if inference cannot run.
 - `eval_metrics.py` — metric implementations (not pyannote.metrics).
