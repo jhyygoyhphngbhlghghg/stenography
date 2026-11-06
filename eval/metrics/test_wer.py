@@ -178,6 +178,13 @@ class SkeletonTests(unittest.TestCase):
             self.assertEqual(gold, {"transcript": []})
             self.assertTrue((ROOT / "eval" / "clips" / "README.md").is_file())
 
+    def test_results_csv_has_no_measured_rows(self) -> None:
+        text = (ROOT / "artifacts" / "test-results" / "results.csv").read_text(encoding="utf-8")
+        lines = [line for line in text.splitlines() if line.strip()]
+        self.assertGreaterEqual(len(lines), 1)
+        self.assertEqual(lines[0], ",".join(HEADER))
+        self.assertTrue(all(line.startswith("#") for line in lines[1:]))
+
 
 def _run(*args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
