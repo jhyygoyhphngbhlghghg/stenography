@@ -13,11 +13,12 @@ import kotlin.math.sqrt
  * Path B pre-ASR gate: energy + mic-quality + spectral crush on **one stream's** pcm_s16le.
  *
  * Bound known seats (`s01`..`s20` after `bindStart`): near / below the RMS floor is
- * **SOFT_LOW** — still ASR. Hard `LOW_ENERGY` only for unbound/anonymous streams or
- * a true empty buffer (`n == 0`).
+ * **SOFT_LOW**; phone-EQ crush is **BAND_LIMITED** as a *soft* flag — still ASR.
+ * Bound main `s01` is never hard-dropped for energy or band-limit.
+ * Hard `LOW_ENERGY` / hard `BAND_LIMITED` only for unbound/anonymous streams.
+ * Empty (`n == 0`) may still skip. `CLIPPED` / `BAD_MIC` stay hard.
  *
- * Phone-mic crush often has no hard clip / DC: Goertzel HF/speech occupancy →
- * `BAND_LIMITED` (skip ASR). Thresholds: `python3 scripts/measure-stream-pcm-gate.py`.
+ * Thresholds: `python3 scripts/measure-stream-pcm-gate.py`.
  */
 object StreamPcmGate {
     const val SAMPLE_RATE_HZ = 16_000
@@ -180,7 +181,8 @@ object StreamPcmGate {
                 "dc_fs=${"%.3f".format(Locale.US, dcFs)} variance_fs=${"%.3g".format(Locale.US, varianceFs)}",
             ) to emptyList()
         }
-        if (n >= MIN_SAMPLES && isBandLimited(rmsFs, bands)) {
+        val crush = n >= MIN_SAMPLES && isBandLimited(rmsFs, bands)
+        if (crush && !boundSeat) {
             return StreamGateVerdict.Reject(
                 PresentConnectCodes.BAND_LIMITED,
                 "hf_ratio=${"%.4f".format(Locale.US, bands.hfRatio)} occ_speech=${bands.speechOccupancy} occ_hf=${bands.hfOccupancy}",
@@ -196,6 +198,7 @@ object StreamPcmGate {
         val soft = ArrayList<String>(4)
         if (clipRatio >= CLIP_SOFT) soft += "SOFT_CLIP"
         if (belowFloor || rmsFs < RMS_SOFT_FS) soft += "SOFT_LOW"
+        if (crush) soft += PresentConnectCodes.BAND_LIMITED
         if (abs(dcFs) >= DC_SOFT_FS) soft += "SOFT_DC"
         return StreamGateVerdict.Pass to soft
     }

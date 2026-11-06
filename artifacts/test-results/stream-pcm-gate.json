@@ -31,7 +31,7 @@
     "band_limited_hf_ratio": 0.08,
     "band_limited_speech_occupancy": 3,
     "band_limited_hf_occupancy": 0,
-    "bound_seat_hard_low_energy": "n==0 only; near-silence on bound s0N is SOFT_LOW"
+    "bound_seat_policy": "n==0 still LOW_ENERGY; near-silence SOFT_LOW; crush soft BAND_LIMITED; s01 never hard-dropped for energy/band-limit"
   },
   "eval_fixtures_untouched": true,
   "rows": [
