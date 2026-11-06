@@ -16,6 +16,7 @@ import team.mikcoders.neurosteno.audio.AudioDecoder
 import team.mikcoders.neurosteno.audio.MicRecorder
 import team.mikcoders.neurosteno.export.TranscriptFile
 import team.mikcoders.neurosteno.export.TranscriptJson
+import team.mikcoders.neurosteno.pipeline.DemoPcmPrep
 import team.mikcoders.neurosteno.pipeline.PipelineFactory
 import team.mikcoders.neurosteno.pipeline.PipelineProgress
 import team.mikcoders.neurosteno.pipeline.PipelineStage
@@ -212,7 +213,28 @@ class StenoViewModel(app: Application) : AndroidViewModel(app) {
                         )
                     }
                 }
-                val result = pipeline.transcribe(audio) { p ->
+                val prep = DemoPcmPrep.prepare(audio)
+                if (prep.skipAsr) {
+                    _state.update {
+                        it.copy(
+                            running = false,
+                            error = prep.skipCode,
+                            transcript = TranscriptFile(emptyList()),
+                            jsonPreview = null,
+                        )
+                    }
+                    return@launch
+                }
+                _state.update {
+                    it.copy(
+                        progress = PipelineProgress(
+                            PipelineStage.Decode,
+                            "far-field +${prep.gain.gainDb} dB",
+                            0.08f,
+                        ),
+                    )
+                }
+                val result = pipeline.transcribe(prep.audio) { p ->
                     _state.update { it.copy(progress = p) }
                 }
                 _state.update {
