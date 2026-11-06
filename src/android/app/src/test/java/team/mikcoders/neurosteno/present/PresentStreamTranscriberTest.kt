@@ -17,8 +17,9 @@ class PresentStreamTranscriberTest {
     fun nStreamsAreNPipelineCallsNeverMixedPcm() = runBlocking {
         val fake = RecordingPipeline()
         val t = PresentStreamTranscriber(fake, modelsMissing = false)
-        val a = s16leSine(nSamples = Pcm.TARGET_HZ / 2, freq = 180.0, amp = 0.35f)
-        val b = s16leSine(nSamples = Pcm.TARGET_HZ / 2, freq = 240.0, amp = 0.28f)
+        // 1 kHz clean tones (Platform StreamPcmSynth.sine): not BAND_LIMITED.
+        val a = s16leSine(nSamples = Pcm.TARGET_HZ / 2, freq = 1000.0, amp = 0.35f)
+        val b = s16leSine(nSamples = Pcm.TARGET_HZ / 2, freq = 1000.0, amp = 0.28f)
         val ra = t.transcribeIsolated("s01", a, speakerHint = "qr-1") as IsolatedResult.Ok
         val rb = t.transcribeIsolated("s02", b, speakerHint = "qr-2") as IsolatedResult.Ok
         assertEquals(2, fake.calls.size)
@@ -117,7 +118,7 @@ class PresentStreamTranscriberTest {
         val t = PresentStreamTranscriber(fake, modelsMissing = false)
         repeat(20) { i ->
             val id = "s%02d".format(i + 1)
-            val pcm = s16leSine(nSamples = Pcm.TARGET_HZ / 2, freq = 160.0 + i * 7, amp = 0.3f)
+            val pcm = s16leSine(nSamples = Pcm.TARGET_HZ / 2, freq = 1000.0, amp = 0.20f + i * 0.005f)
             t.transcribeIsolated(id, pcm)
         }
         assertEquals(20, fake.calls.size)
@@ -134,7 +135,7 @@ class PresentStreamTranscriberTest {
         val t = PresentStreamTranscriber(fake, modelsMissing = false)
         val r = t.transcribeIsolated(
             "s09",
-            s16leSine(nSamples = Pcm.TARGET_HZ / 2, freq = 190.0, amp = 0.3f),
+            s16leSine(nSamples = Pcm.TARGET_HZ / 2, freq = 1000.0, amp = 0.3f),
             speakerHint = "seat-9",
         ) as IsolatedResult.Ok
         assertEquals("speaker_2", r.file.transcript.single().speakerId)
