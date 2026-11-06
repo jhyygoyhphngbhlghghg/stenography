@@ -87,6 +87,14 @@ fun StenoApp(vm: StenoViewModel = viewModel()) {
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
+            Text(
+                if (state.jniLoaded) {
+                    "JNI libsherpa-onnx-jni.so: loaded"
+                } else {
+                    "JNI libsherpa-onnx-jni.so: FAIL ${state.jniError ?: "not probed"}"
+                },
+                style = MaterialTheme.typography.bodySmall,
+            )
             Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = { picker.launch(arrayOf("audio/*", "application/octet-stream")) }) {

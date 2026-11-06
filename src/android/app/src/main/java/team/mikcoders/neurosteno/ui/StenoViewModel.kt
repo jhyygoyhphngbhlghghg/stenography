@@ -19,6 +19,7 @@ import team.mikcoders.neurosteno.pipeline.PipelineFactory
 import team.mikcoders.neurosteno.pipeline.PipelineProgress
 import team.mikcoders.neurosteno.pipeline.PipelineStage
 import team.mikcoders.neurosteno.pipeline.PcmAudio
+import team.mikcoders.neurosteno.pipeline.SherpaJni
 import team.mikcoders.neurosteno.pipeline.StenoPipeline
 
 data class StenoUiState(
@@ -35,6 +36,8 @@ data class StenoUiState(
     val modelsReady: Boolean = false,
     val recording: Boolean = false,
     val heldPcm: PcmAudio? = null,
+    val jniLoaded: Boolean = false,
+    val jniError: String? = null,
 )
 
 class StenoViewModel(app: Application) : AndroidViewModel(app) {
@@ -47,6 +50,8 @@ class StenoViewModel(app: Application) : AndroidViewModel(app) {
             engineName = pipeline.displayName,
             stubPath = pipeline is team.mikcoders.neurosteno.pipeline.StubStenoPipeline,
             modelsReady = models.readyForOfflineDemo,
+            jniLoaded = SherpaJni.last.loaded,
+            jniError = SherpaJni.last.error,
         ),
     )
     val state: StateFlow<StenoUiState> = _state
