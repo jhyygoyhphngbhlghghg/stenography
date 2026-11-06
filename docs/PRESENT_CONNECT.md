@@ -5,7 +5,7 @@
 **Flavor:** `presentConnect` (`BuildConfig.PRESENT_CONNECT = true`).  
 **Not this:** checkpoint polling so slide-followers stay in sync — that is **web BE only**. Documented at the bottom so we do not collide.
 
-The phone is an **on-device ASR worker** (Zipformer-ru), not a browser. **Normative demo contract = Path B** (see below). Demo loop:
+The phone is an **on-device ASR worker** (Zipformer-ru), not a browser. **This contract is optional Path B. It is not the presentation claim.** Presentation = **DEMO_STAGE6** (6 RU speakers, one phone mic, 3–6 m, sequential + light end overlap, large room, medium noise). Scores for that scene are pending Eval. See `docs/ARCHITECTURE.md`. Optional-mode loop:
 
 ```
 QR on slide → one browser mic per seat (own stream_id) → web BE relays PCM
@@ -14,17 +14,17 @@ QR on slide → one browser mic per seat (own stream_id) → web BE relays PCM
 
 Hard cap: **≤ 20 concurrent audio streams** per phone worker. Stream 21 is rejected with `OVER_CAPACITY`.
 
-Offline stenography (file import / in-app record, airplane mode) is a **different mode** (one recording: VAD → diarize → ASR). Do not send present-connect audio through a cloud ASR. Do not run the 20-seat demo by mixing mics into that offline diarizer.
+Offline stenography (file import / in-app record, airplane mode) is the **DEMO_STAGE6** path (one far-field recording: VAD → diarize → ASR). Do not send present-connect audio through a cloud ASR. Do not mix mics into that offline path and call it either DEMO_STAGE6 or Path B.
 
 ---
 
-## 0. Demo contract — Path B (normative)
+## 0. Optional mode contract — Path B (not the presentation)
 
-PresentConnect demo = **≤20 separate mic/audio streams**. Each `stream_id` is processed **independently**:
+PresentConnect = **≤20 separate mic/audio streams**. Not DEMO_STAGE6. Each `stream_id` is processed **independently**:
 
 `PCM → VAD → ASR` (Zipformer-ru). Streams do not share a clustering pass.
 
-**Labeling (≤20-stream demo):** default **`speaker_id` ← `stream_id`**. If `stream.start.speaker_hint` is a non-null string, use that stable seat label as `speaker_id` instead. Either way the map is stream→speaker, not a room-wide cluster id.
+**Labeling (this optional ≤20-stream mode):** default **`speaker_id` ← `stream_id`**. If `stream.start.speaker_hint` is a non-null string, use that stable seat label as `speaker_id` instead. Either way the map is stream→speaker, not a room-wide cluster id.
 
 Optional diarization runs **inside one stream only** (`accepts_diarization: true` means that, not “mix the room”). When intra-stream diarization is off, or the stream is one seat, `speaker_id` stays the stream/seat label. Session transcript = per-stream utterances **merged by time**.
 
@@ -32,11 +32,11 @@ Worker pipeline is per stream. The 21st `stream.start` is `error` / `OVER_CAPACI
 
 ### Out of scope / known fail (Path A)
 
-One-room cocktail mix of 20 talkers into a **single** stream is **Path A** and **fails**. Eval-measured (H1 / Eval Owner, [PR #4](https://cursor.com/codebase/johann-schilling/neuro-stenographer/pull/4)): speakers recovered **1/20**, DER ≈ **0.95**, main WER **1.00**, RTF **0.18**. Web FE **must not** mix audience mics into one stream and present that as the multi-talker demo. Path A stays documented so we do not overclaim. Numbers are not to be reinvented; see `docs/TEST_RESULTS.md`.
+One-room cocktail mix of 20 talkers into a **single** stream is **Path A** and **fails**. Eval-measured (H1 / Eval Owner, [PR #4](https://cursor.com/codebase/johann-schilling/neuro-stenographer/pull/4)): speakers recovered **1/20**, DER ≈ **0.95**, main WER **1.00**, RTF **0.18**. Web FE **must not** mix audience mics into one stream and present that as DEMO_STAGE6 or as this mode. Path A stays documented so we do not overclaim. Numbers are not to be reinvented; see `docs/TEST_RESULTS.md`.
 
 ### Measured quality — claim lock
 
-**Path B under edge: stream tracking still 20/20** (hyp/ref). That is the only multi-talker claim that survives edge. **WER/DER under WORST_CASE are FAIL.** Eval [PR #4](https://cursor.com/codebase/johann-schilling/neuro-stenographer/pull/4) @ `9908353d`: WORST_CASE WER main **0.9130**, DER 250ms **1.2985** (slides: WER≈0.91, DER≈1.30). Do **not** claim clean WER/DER on WORST_CASE or EDGE_*.
+**Path B under edge: stream tracking still 20/20** (hyp/ref). That is the only claim of **this optional mode** that survives its edge. It is not the DEMO_STAGE6 claim. **WER/DER under WORST_CASE are FAIL.** Eval [PR #4](https://cursor.com/codebase/johann-schilling/neuro-stenographer/pull/4) @ `9908353d`: WORST_CASE WER main **0.9130**, DER 250ms **1.2985** (slides: WER≈0.91, DER≈1.30). Do **not** claim clean WER/DER on WORST_CASE or EDGE_*.
 
 **Killers:** overlap/bleed, noise false alarms, bad mic. Reverb alone does **not** collapse Path B (EDGE_reverb DER 0.0849, WER main 0.1304, still 20/20). Full table: `docs/LIMITATIONS.md`. Fixtures were not retuned after FAIL. Banned: "should be fine", "robust", "handles noisy rooms", "graceful under echo". **Do not claim in slides** clean WER/DER on edge.
 
@@ -196,7 +196,7 @@ Base: `https://{host}/v1`
 | `POST` | `/sessions/{sid}/transcribe` | BE (debug) | `multipart/audio` → brief JSON `{transcript:[...]}` **one file, not 20 streams** |
 | `GET` | `/sessions/{sid}/transcript` | display | current concatenated `{transcript:[...]}` |
 
-HTTP `transcribe` is one file for bringing-up the phone without WS. The ≤20-stream demo **must** use WebSocket, one `stream_id` per mic. This endpoint is not a Path A cocktail claim.
+HTTP `transcribe` is one file for bringing-up the phone without WS. This optional ≤20-stream mode **must** use WebSocket, one `stream_id` per mic. It is not DEMO_STAGE6 and not a Path A cocktail claim.
 
 ---
 
