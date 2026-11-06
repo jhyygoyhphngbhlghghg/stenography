@@ -168,10 +168,40 @@ class OkHttpPresentConnectClient(
                 for (frame in result.wireJson) {
                     ws.send(frame)
                 }
-                for (u in result.utterances) {
-                    _events.tryEmit(
-                        PresentConnectEvent.Final(id, u.speakerId, u.startMs, u.endMs, u.text),
-                    )
+                when (val verdict = result.quality.verdict) {
+                    is StreamGateVerdict.Reject -> {
+                        _events.tryEmit(PresentConnectEvent.Error(id, verdict.code, verdict.message))
+                        _events.tryEmit(
+                            PresentConnectEvent.MicQuality(
+                                streamId = id,
+                                speakerId = result.label.speakerId,
+                                code = verdict.code,
+                                hardReject = true,
+                            ),
+                        )
+                    }
+                    StreamGateVerdict.Pass -> {
+                        for (u in result.utterances) {
+                            _events.tryEmit(
+                                PresentConnectEvent.Final(id, u.speakerId, u.startMs, u.endMs, u.text),
+                            )
+                        }
+                        if (result.quality.softFlags.isNotEmpty()) {
+                            Log.i(
+                                TAG,
+                                "Path B soft mic $id ${result.quality.softFlags} rms_fs=${result.quality.rmsFs}",
+                            )
+                            _events.tryEmit(
+                                PresentConnectEvent.MicQuality(
+                                    streamId = id,
+                                    speakerId = result.label.speakerId,
+                                    code = result.quality.softFlags.first(),
+                                    hardReject = false,
+                                    flags = result.quality.softFlags,
+                                ),
+                            )
+                        }
+                    }
                 }
             } catch (t: Throwable) {
                 Log.e(TAG, "Path B ASR $id", t)

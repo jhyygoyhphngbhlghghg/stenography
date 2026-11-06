@@ -27,6 +27,7 @@ class PathBSession(
     private val labels = LinkedHashMap<String, StreamLabel>()
     private val absorbed = ArrayList<Utterance>()
     private val wireFinals = ArrayList<WireFinal>()
+    private val flags = LinkedHashMap<String, StreamMicFlag>()
 
     fun bindStart(streamId: String, speakerHint: String? = null, clockOffsetMs: Long? = null): StreamLabel {
         val label = labeler.bind(streamId, speakerHint, clockOffsetMs)
@@ -41,27 +42,62 @@ class PathBSession(
     fun labelOf(streamId: String): StreamLabel? = synchronized(lock) { labels[streamId] }
 
     /**
-     * ASR **this stream's PCM only**, force oracle speaker_id, optional clock shift.
-     * Cancel path must not call this.
+     * Gate this stream's PCM, then optionally ASR. Oracle speaker_id, optional clock shift.
+     * Cancel path must not call this. Rejects do not absorb into the brief.
      */
     suspend fun finish(streamId: String, pcmS16le: ByteArray): PathBFinish {
         val label = synchronized(lock) { labels[streamId] } ?: labeler.bind(streamId)
-        val samples = Pcm.s16leToFloat(pcmS16le)
-        val audio = PcmAudio(samples = samples, sampleRate = sampleRate, sourceName = streamId)
-        val raw = asr.transcribe(streamId, audio)
-        val labeled = relabel(label, raw)
-        synchronized(lock) {
-            absorbed.addAll(labeled)
-            for (u in labeled) {
-                wireFinals += WireFinal(streamId, u)
+        val quality = StreamPcmGate.inspect(pcmS16le, sampleRate)
+        when (val verdict = quality.verdict) {
+            is StreamGateVerdict.Reject -> {
+                val flag = StreamMicFlag(streamId, label.speakerId, verdict.code, hardReject = true)
+                synchronized(lock) { flags[streamId] = flag }
+                return PathBFinish(
+                    label = label,
+                    utterances = emptyList(),
+                    wireJson = listOf(PresentConnectWire.error(streamId, verdict.code, verdict.message)),
+                    quality = quality,
+                    asrInvoked = false,
+                )
+            }
+            StreamGateVerdict.Pass -> {
+                if (quality.softFlags.isNotEmpty()) {
+                    synchronized(lock) {
+                        flags[streamId] = StreamMicFlag(
+                            streamId = streamId,
+                            speakerId = label.speakerId,
+                            code = quality.softFlags.first(),
+                            hardReject = false,
+                            flags = quality.softFlags,
+                        )
+                    }
+                }
+                val samples = Pcm.s16leToFloat(pcmS16le)
+                val audio = PcmAudio(samples = samples, sampleRate = sampleRate, sourceName = streamId)
+                val raw = asr.transcribe(streamId, audio)
+                val labeled = relabel(label, raw)
+                synchronized(lock) {
+                    absorbed.addAll(labeled)
+                    for (u in labeled) {
+                        wireFinals += WireFinal(streamId, u)
+                    }
+                }
+                return PathBFinish(
+                    label = label,
+                    utterances = labeled,
+                    wireJson = labeled.map { PresentConnectWire.transcriptFinal(streamId, it) },
+                    quality = quality,
+                    asrInvoked = true,
+                )
             }
         }
-        return PathBFinish(label = label, utterances = labeled, wireJson = labeled.map { PresentConnectWire.transcriptFinal(streamId, it) })
     }
 
     fun brief(): TranscriptFile = synchronized(lock) { PresentConnectWire.brief(absorbed) }
 
     fun wireFinals(): List<WireFinal> = synchronized(lock) { wireFinals.toList() }
+
+    fun micFlags(): List<StreamMicFlag> = synchronized(lock) { flags.values.toList() }
 
     companion object {
         fun relabel(label: StreamLabel, utterances: List<Utterance>): List<Utterance> {
@@ -89,7 +125,12 @@ data class PathBFinish(
     val label: StreamLabel,
     val utterances: List<Utterance>,
     val wireJson: List<String>,
-)
+    val quality: StreamPcmStats,
+    val asrInvoked: Boolean,
+) {
+    val rejectCode: String?
+        get() = quality.rejectCode
+}
 
 data class WireFinal(
     val streamId: String,
@@ -126,4 +167,12 @@ object PresentConnectWire {
         )
 
     fun briefJson(utterances: List<Utterance>): String = TranscriptJson.encode(brief(utterances))
+
+    fun error(streamId: String, code: String, message: String): String =
+        buildJsonObject {
+            put("type", "error")
+            put("stream_id", streamId)
+            put("code", code)
+            put("message", message)
+        }.toString()
 }

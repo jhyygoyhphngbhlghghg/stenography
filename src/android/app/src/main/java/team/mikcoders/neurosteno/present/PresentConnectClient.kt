@@ -62,6 +62,15 @@ sealed class PresentConnectEvent {
     data class Error(val streamId: String?, val code: String, val message: String) :
         PresentConnectEvent()
 
+    /** Pre-ASR mic/energy gate. Hard reject skips ASR; soft flag still ASR (brief unchanged). */
+    data class MicQuality(
+        val streamId: String,
+        val speakerId: String,
+        val code: String,
+        val hardReject: Boolean,
+        val flags: List<String> = emptyList(),
+    ) : PresentConnectEvent()
+
     data object Disconnected : PresentConnectEvent()
 }
 
@@ -72,4 +81,7 @@ object PresentConnectCodes {
     const val UNKNOWN_STREAM = "UNKNOWN_STREAM"
     const val PIPELINE = "PIPELINE"
     const val MODELS_MISSING = "MODELS_MISSING"
+    const val LOW_ENERGY = "LOW_ENERGY"
+    const val CLIPPED = "CLIPPED"
+    const val BAD_MIC = "BAD_MIC"
 }
