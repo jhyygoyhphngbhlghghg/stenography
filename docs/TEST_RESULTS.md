@@ -93,6 +93,41 @@ On Platform **synth** sequential mix: near 3 m 0 dB; far 5 m **+16.8 dB**; far 6
 
 Measured (Hex WER): WER_agg **0.7794** (same hyp as baseline), DER **0.5231** / JER **0.6330**, hyp **5 / 6**, speaker_5 still missing, 4–6 m still WER 1.0. **Gain did not recover the room.**
 
+### DEMO_STAGE6_phone_eq — Platform PhoneDistanceEq @ `af71d91`
+
+Same **frozen** wav/gold @ `a8b39d5a`. Hex keep-punct tokenize @ `0824df64`. Host ingest mirrors Platform `PhoneDistanceEq` + `DemoPcmPrep` on `platform/derisk-sherpa-present` HEAD **`af71d91fce841e02d841afb0b093d16f51e5bddb`** (feat `5deb55a` intro, `040274d` 250–4500 Hz band). Files used (not cherry-picked onto this eval branch — Python mirror):
+
+- `src/android/.../audio/PhoneDistanceEq.kt`
+- `src/android/.../pipeline/DemoPcmPrep.kt`
+- `src/android/.../audio/FarFieldGain.kt` (`FarFieldSynth.phoneDistanceScene`)
+- `src/android/.../audio/PhoneDistanceEqTest.kt`
+- `scripts/measure-phone-distance-eq.py`
+
+Gain **stays frozen** (per-turn; whole-file crush not re-enabled). EQ: 1600 Hz 1-pole high-shelf up to +9 dB on **far** islands; near seat (active RMS ≥ 0.12 FS) is identity. CLIPPED/BAD_MIC/empty still hard. Soft-flag only. **Not a fixture retune.**
+
+On Platform **synth** (host `measure-phone-distance-eq.py --record`, numbers match Platform §8): isolated 3/4/5/6 m speech 250–4500 Hz lifted (e.g. 6 m 5.92e4 → 7.79e4); sequential mix near 3 m identity 0.137 → 0.137. On this **frozen STAGE6 mix**: 34 energy islands, **33 near-identity**; EQ applied only to the **80 ms lead-in** (+5.13 dB shelf, RMS 0.080 → 0.103). Mix RMS 0.1191 → 0.1192, `loud_crushed=false`, `near_crushed=false`. Far seats on this fixture are already ≥ 0.12 FS — not the quiet 0.01 FS synth scenes.
+
+Hex keep-punct WER vs baseline @ `0824df64` (same gold, same wav):
+
+| speaker | m | DEMO_STAGE6 Hex @ 0824df64 | DEMO_STAGE6_phone_eq |
+|---|---|---|---|
+| speaker_1 | 3.0 | **0.2857** | **0.2857** |
+| speaker_2 | 3.6 | **0.5833** | **0.5833** |
+| speaker_3 | 4.2 | **1.0000** | **1.0000** |
+| speaker_4 | 4.8 | **1.0000** | **1.0000** |
+| speaker_5 | 5.4 | **1.0000** (missing) | **1.0000** (missing) |
+| speaker_6 | 6.0 | **1.0000** | **1.0000** |
+| **aggregate** | — | **0.7794** (53/68) | **0.7794** (53/68) |
+
+| test_id | DER | JER | purity | WER_main | WER_agg | RTF | hyp/ref |
+|---|---|---|---|---|---|---|---|
+| DEMO_STAGE6 Hex @ 0824df64 | **0.5174** | **0.6280** | 1.0000 | **0.2857** | **0.7794** | **0.0929** | **5 / 6** |
+| DEMO_STAGE6_phone_eq @ af71d91 | **0.5208** | **0.6310** | 1.0000 | **0.2857** | **0.7794** | **0.0945** | **5 / 6** |
+
+ASR text is the same as baseline (s1 words unchanged; Zipformer still emits no punctuation). Only s1 diar edges moved (672–6511 ms → 723–6443 ms), which nudges DER/JER. speaker_5 still missing. 4–6 m still WER 1.0. Wall **3754 ms** / **39718 ms**.
+
+Honest: PhoneDistanceEq **did not recover the room** on this frozen mix. Do **not** cite WER_main 0 as the room result (that is the old strip-punct s1 score). Soft-flag only.
+
 ## Demo-stress (20 talkers) — SECONDARY regression, host Linux only
 
 Cloud agents / this VM have **no KVM and no ADB**.
