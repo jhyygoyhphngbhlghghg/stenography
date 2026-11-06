@@ -18,10 +18,10 @@ object PresentConnectLimits {
     fun rejectReason(active: Int, max: Int = MAX_STREAMS): String? =
         if (canAccept(active, max)) null else PresentConnectCodes.OVER_CAPACITY
 
-    fun errorJson(streamId: String, code: String, message: String): String =
+    fun errorJson(streamId: String?, code: String, message: String): String =
         buildJsonObject {
             put("type", "error")
-            put("stream_id", streamId)
+            if (streamId != null) put("stream_id", streamId)
             put("code", code)
             put("message", message)
         }.toString()
