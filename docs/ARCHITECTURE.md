@@ -1,10 +1,25 @@
 # Архитектура решения
 
-## DEMO LOCK (H1 overnight)
+## DEMO LOCK (H1) — DEMO_STAGE6
 
-**Демо-архитектура = Path B.** PresentConnect принимает ≤20 **отдельных** mic/audio-потоков и гоняет каждый в локальный Zipformer-ru (опционально — диаризация *внутри* одного потока). Это **не** один смешанный микрофон комнаты.
+**Презентационная заявка = DEMO_STAGE6. Это не Path B и не ≤20 потоков.**
 
-Path A (one-room cocktail: 20 говорящих в **один** поток, потом кластеризация) — **задокументированный hard fail**. В архитектуре и на слайдах **не** утверждать, что cocktail-диаризация одной комнаты работает для ≥20 говорящих.
+- **6** спикеров на сцене, речь **RU**.
+- **Один** микрофон телефона (demo phone). Каждый спикер **3–6 м** от микрофона.
+- Очередь **sequential** (по одному). Допустимо только **лёгкое** перекрытие или перебивание в конце реплики.
+- **Большая комната** и **средний** фон (babble/HVAC). **Не** студия.
+- Характер телефонного микрофона: band-limit, compression, затухание с расстоянием, reverb. **Не** чистый Common Voice.
+- Пайплайн: один канал, far-field — VAD → диаризация → Zipformer-ru ASR (офлайн-файл / on-device).
+
+Цель, которую задал johann: **ideal recognition** — ясные смены спикеров и пригодный текст. **WER/DER для DEMO_STAGE6 нет.** Фикстуру и цифры делает Eval ([PR #4](https://cursor.com/codebase/johann-schilling/neuro-stenographer/pull/4)). Пока замера нет: сцена и цель зафиксированы, **scores pending Eval**. Студийную подмену сцены не заявлять. Запрещены «should be fine», «robust», «handles noisy rooms», «graceful under echo».
+
+Path A (one-room cocktail ≥20 говорящих в один поток → 1) — measured FAIL (**1/20**, DER **0.95**, main WER **1.00**, RTF **0.18**). Не демо.
+
+**Path B PresentConnect** (≤20 отдельных потоков, `speaker_id` ← `stream_id`) — **опциональный** сетевой режим, не заявка презентации. Контракт: `docs/PRESENT_CONNECT.md`. Измеренные цифры Path B — в следующем разделе и в `docs/LIMITATIONS.md`.
+
+## Optional PresentConnect (Path B) — not the presentation claim
+
+Не DEMO LOCK. Не писать в слайдах «демо = Path B ≤20».
 
 Первая таблица — **ранний** Eval-measured прогон (H1 / Eval Owner, [PR #4](https://cursor.com/codebase/johann-schilling/neuro-stenographer/pull/4), real Common Voice 17 RU, host sherpa-onnx), clean per-stream и Path A. Новые числа не выдумывать. DER Path B в том замере также **0.235** (в таблице округление **0.24**). Эти WER/DER **не** переносить на WORST_CASE и EDGE_*.
 
@@ -16,9 +31,9 @@ Path A (one-room cocktail: 20 говорящих в **один** поток, п�
 
 Overnight-клипы без перекрытия (тот же замер): WER ~3.5% / 0% / 0%. Это тоже clean/no-overlap, не edge suite.
 
-**Claim lock (edge).** Под edge у Path B остаётся только **stream tracking 20/20** (hyp/ref). **WER/DER under WORST_CASE are FAIL.** Clean WER/DER (и 0.087 / 0.24 раннего прогона, и CLEAN-строка suite) на WORST_CASE и EDGE_* **не** заявлять. **Killers:** overlap/bleed, noise false alarms, bad mic. Reverb alone does **not** collapse Path B.
+**Claim lock (edge), optional Path B only.** Под edge у Path B остаётся только **stream tracking 20/20** (hyp/ref). Это не заявка DEMO_STAGE6. **WER/DER under WORST_CASE are FAIL.** Clean WER/DER (и 0.087 / 0.24 раннего прогона, и CLEAN-строка suite) на WORST_CASE и EDGE_* **не** заявлять. **Killers:** overlap/bleed, noise false alarms, bad mic. Reverb alone does **not** collapse Path B.
 
-Таблица ниже — Eval PR #4 @ `9908353d`, скопирована как замерена. Фикстуры **не** подкручивали после FAIL. Слайды: WORST_CASE WER≈0.91, DER≈1.30 FAIL.
+Таблица ниже — Eval PR #4 @ `9908353d`, скопирована как замерена. Фикстуры **не** подкручивали после FAIL. Для optional Path B, не для слайдов DEMO_STAGE6: WORST_CASE WER≈0.91, DER≈1.30 FAIL.
 
 | test_id | DER 250ms | JER | WER main | RTF | hyp/ref |
 |---|---|---|---|---|---|
@@ -31,15 +46,15 @@ Overnight-клипы без перекрытия (тот же замер): WER ~
 
 Overlap real: max 12 concurrent; 91% of speech frames ≥2 speakers. Main vs bleed: +3.0 dB (EDGE_overlap) / +1.5 dB (WORST_CASE). WORST_CASE main hyp collapses to one ~18s blob (`хочу говорить`). DER>1 = false-alarm time > ref speech. Запрещены «should be fine», «robust», «handles noisy rooms», «graceful under echo». **Do not claim in slides** clean WER/DER на edge.
 
-**STOP — hard `BAND_LIMITED` on bound seats is REJECTED** (toxic measured). Gate v2 @ Eval PR #4 `bed868b3` (note `ffe53ba4`) hard-drops bound `s01`..`s20`: EDGE_noise drops main **s01** (hyp **19/20**); EDGE_badmic **6/20**; WORST_CASE **0/20**, empty `{transcript:[]}`. Those hyp counts are not the claim. Bound seats **soft-flag only** (still ASR), same spirit as `SOFT_LOW`. Never hard-drop main/`s01`. Hard `BAND_LIMITED` only for unbound/anonymous (Platform, PR #3). **Ungated** stream tracking **20/20** @ `9908353d` stands. Ungated WORST_CASE stays WER main **0.9130** / DER **1.2985**. Do not claim gated_v2 hyps or clean WER/DER on WORST_CASE. Fixtures not retuned. Hold merge; #2 first.
+**STOP — hard `BAND_LIMITED` on bound seats is REJECTED** (toxic measured). Gate v2 @ Eval PR #4 `bed868b3` (note `ffe53ba4`) hard-drops bound `s01`..`s20`: EDGE_noise drops main **s01** (hyp **19/20**); EDGE_badmic **6/20**; WORST_CASE **0/20**, empty `{transcript:[]}`. Those hyp counts are not the claim. Bound seats **soft-flag only** (still ASR), same spirit as `SOFT_LOW`. Never hard-drop main/`s01`. Hard `BAND_LIMITED` only for unbound/anonymous (Platform, PR #3). **Ungated** Path B stream tracking **20/20** @ `9908353d` stands for this optional mode only. Ungated WORST_CASE stays WER main **0.9130** / DER **1.2985**. Do not claim gated_v2 hyps or clean WER/DER on WORST_CASE. Fixtures not retuned. Hold merge; #2 first.
 
 **Контракт Path B.** Каждый `stream_id` обрабатывается **независимо**: PCM → VAD → ASR. Метка по умолчанию: **`speaker_id` ← `stream_id`** (или стабильная карта stream→speaker / `speaker_hint`). Диаризация опциональна и только *внутри* одного потока — не mix-then-cluster по комнате. Реплики сессии склеиваются по времени. Жёсткий потолок — **20** одновременных потоков; 21-й отклоняется (`OVER_CAPACITY`).
 
-Офлайн-путь (файл или микрофон приложения, **одна** запись) остаётся: VAD → `OfflineSpeakerDiarization` → ASR. Это не PresentConnect и не замена Path B.
+Офлайн-путь (файл или микрофон приложения, **одна** запись): VAD → `OfflineSpeakerDiarization` → ASR. Это пайплайн **DEMO_STAGE6**. PresentConnect Path B его не заменяет.
 
 ## Контекст
 
-Hex.Team case «Нейро-стенографист»: Android-приложение локально превращает аудиозапись разговора в структурированную расшифровку (кто сказал, когда, что). Облачный ASR запрещён. Демо офлайн-пути — в авиарежиме. Отдельный сетевой режим **PresentConnect** — демо Path B: до 20 **отдельных** потоков на локальный Zipformer-ru. Под edge заявка только **20/20** stream tracking. **WORST_CASE FAIL:** WER main **0.9130**, DER **1.2985** (PR #4 @ `9908353d`). Clean WER/DER на WORST_CASE и EDGE_* не заявлять. Это не подмена офлайн-ASR и не one-room cocktail.
+Hex.Team case «Нейро-стенографист»: Android-приложение локально превращает аудиозапись разговора в структурированную расшифровку (кто сказал, когда, что). Облачный ASR запрещён. Демо офлайн-пути — в авиарежиме. Презентация — **DEMO_STAGE6** (6 RU, один микрофон телефона, 3–6 м). **PresentConnect / Path B** — опциональный сетевой режим, не эта заявка. Под edge Path B: только stream tracking **20/20**; **WORST_CASE FAIL** WER main **0.9130**, DER **1.2985** (PR #4 @ `9908353d`). Clean WER/DER на WORST_CASE и EDGE_* не заявлять. Это не подмена офлайн-ASR и не one-room cocktail. DEMO_STAGE6 WER/DER — **scores pending Eval**.
 
 Команда: **MIK Coders**. Этот репозиторий — Android-«backend» (обработка на телефоне) + контракт API для web FE/BE.
 
@@ -69,7 +84,7 @@ Audio (SAF import / AudioRecord)
   Dialogue JSON + Compose list + share/export
 ```
 
-PresentConnect (flavor `presentConnect`, network mode) — **Path B, не «same pipeline»**:
+PresentConnect (flavor `presentConnect`, **optional** network mode, не DEMO_STAGE6) — **Path B, не «same pipeline»**:
 
 ```
 Browser mics (≤20 отдельных stream_id; не один room-mix)
@@ -101,7 +116,7 @@ presentation BE ──WS/HTTP──► phone worker
 | ASR backup | Whisper tiny multilingual (sherpa) | RU+EN; не whisper.cpp |
 | ASR emergency | Vosk small-ru | Если sherpa не встаёт на устройстве |
 | VAD | Silero via sherpa | Нарезка до ASR; обязательна на длинном аудио |
-| Diarization | sherpa `OfflineSpeakerDiarization` | Только офлайн-файл (одна запись) или опционально *внутри* одного PresentConnect-потока. Path A (cocktail ≥20 в один поток) — FAIL, см. DEMO LOCK |
+| Diarization | sherpa `OfflineSpeakerDiarization` | DEMO_STAGE6: одна far-field запись (VAD → diar → ASR). Path B: опционально внутри одного потока. Path A (cocktail ≥20 в один поток) — FAIL |
 | LLM | Модуль `LocalLlmPostPass` | Чекбокс брифа; веса TODO, identity-stub до поставки GGUF |
 | I/O | MediaExtractor/MediaCodec → PCM; SAF import; AudioRecord | M4A/MP3/WAV + запись в приложении |
 | Export | JSON schema брифа; TXT как бонус | `docs/JSON.md` |
