@@ -25,7 +25,8 @@ Track B / platform de-risk (seat P1.linq, branch `platform/derisk-sherpa-present
 | Gradle AAR resolve `com.github.k2-fsa.sherpa-onnx:sherpa-onnx:v2.0.1` | **PASS** — JitPack HTTP 200, 49441341 bytes, 444 ms; Gradle `dependencies` exit 0 in 51 s |
 | Gradle assemble debug APK | **PASS** — both flavors. stenographer 143621712 bytes, presentConnect 143621716 bytes |
 | JNI packaged (`libsherpa-onnx-jni.so`) | **PASS** — 4 ABIs in APK |
-| JNI `UnsatisfiedLinkError` on device | **BLOCKED** — no emulator/device in this VM. Load is wired in `NeuroStenoApp` / `SherpaJni.probe()`. |
+| Host-side JNI smoke (no emulator) | see §4 — symbols/NEEDED measured; **does not** replace on-device ULE |
+| JNI `UnsatisfiedLinkError` on device | **BLOCKED** — see **Platform gap**. No device probe ran. |
 | Import → stub list → JSON (no models) | pending (needs a phone) |
 | Zipformer-ru on-device | pending models-on-device (weights downloaded on the builder, not pushed) |
 | Diarization ≥2 speakers | pending |
@@ -77,7 +78,7 @@ export ANDROID_HOME=$HOME/android-sdk ANDROID_SDK_ROOT=$HOME/android-sdk
 | `assembleStenographerDebug` | PASS | 31 s incremental (after API fix) | APK 143621712 bytes |
 | `assemblePresentConnectDebug` | PASS | same command | APK 143621716 bytes |
 | JNI `.so` in APK | PASS | — | `libsherpa-onnx-jni.so` arm64/armeabi-v7a/x86/x86_64 |
-| `UnsatisfiedLinkError` | BLOCKED | — | no emulator; probe exists |
+| `UnsatisfiedLinkError` on device | BLOCKED | — | **no device probe ran**; see Platform gap |
 
 `gradlew` originally died with `ClassNotFoundException: "-Xmx64m"` (quoted `DEFAULT_JVM_OPTS`). Fixed. Pipeline used Java `.builder()`; v2.0.1 AAR is Kotlin data classes — wired to named constructors so compile could finish.
 
@@ -100,3 +101,33 @@ cd src/android && ./gradlew --no-daemon :app:testStenographerDebugUnitTest
 `PresentConnectStreamTableTest.acceptsTwentyAndRejectsTwentyFirst`: accepted `s01`..`s20`, rejected `s21`. Concurrent 64 starts: 20 accepted, 44 rejected, `activeCount()==20`.
 
 Evidence: `artifacts/test-results/present-connect-capacity.json`.
+
+## Platform gap (JNI / emulator / Nothing Phone)
+
+**No on-device JNI probe was run in this cloud-agent session.** Prior PASS numbers for models / JitPack AAR / APK assemble / PresentConnect ≤20 stand; they are not a substitute for `UnsatisfiedLinkError` on a phone.
+
+Measured on this VM (2026-11-06, same Track B run):
+
+| Check | Result |
+|---|---|
+| `adb devices` | empty (`List of devices attached` then nothing) |
+| Android emulator package / system-images | **not installed** (`$ANDROID_SDK_ROOT/emulator` missing; no `emulator` binary) |
+| `/dev/kvm` | present (`crw-rw---- root:103`) but agent user `ubuntu` is **not** in group `kvm` — cannot open KVM |
+| `cursor-cloud list-self-hosted-workers` | **empty** (`workers: []`, `totalCount: 0`, no pools) |
+| ADB / sideload / ListMachines tools in **this** agent | **none** (catalog search for ListMachines/adb/deviceLocal returned no tools) |
+
+Operational consequence (H1 / P1.linq):
+
+- Cursor cloud VMs here are **not a usable Android emulator path** for on-device JNI (no AVD, no KVM access for this uid, no connected device).
+- No private Cloud Agent workers were connected (`agent worker start` list empty).
+- Captain: johann's Nothing Phone (3a) shows up in Grok Bot ListMachines as android/connected, but that bot only has calendar/contacts/alarm/location `deviceLocalTools` — **no ADB/sideload**. This agent cannot see or drive that phone.
+- Therefore a real JNI device probe and the demo-scenario mic test need **one of**:
+  1. johann runs `./scripts/device-sideload-probe.sh` locally with USB/wireless debugging to the Nothing Phone (3a), or
+  2. a self-hosted worker with Android SDK + a device or emulator, or
+  3. a KVM-capable runner **with** emulator/system-images **and** kvm group access.
+
+Host-side `scripts/host-jni-smoke.sh` only inspects the AAR `.so` on Linux x86_64. It does **not** replace the on-device `UnsatisfiedLinkError` probe.
+
+## 4. Host JNI smoke (no emulator)
+
+See `artifacts/test-results/host-jni-smoke.json` after `./scripts/host-jni-smoke.sh` (filled in the same Track B push; command + wall time in that file).

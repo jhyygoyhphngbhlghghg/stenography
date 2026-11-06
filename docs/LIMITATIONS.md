@@ -16,6 +16,7 @@
 - LLM post-pass: модуль есть, **веса не приложены** (TODO Gemma/Qwen/Phi via llama.cpp или MediaPipe). Сейчас identity / лёгкая пунктуация, честно в UI.
 - Модели не в git (~74 MB+ ASR, плюс VAD/diar). Без `download-models.sh` / adb push приложение соберётся, но pipeline уйдёт в stub.
 - NNAPI на OEM плавает; default provider = CPU.
+- **JNI / emulator (platform gap):** Cursor cloud agent cannot run an on-device `UnsatisfiedLinkError` probe (no AVD, no `adb` device, self-hosted workers empty). Need johann's Nothing Phone (3a) via `scripts/device-sideload-probe.sh`, or a worker/runner with a device or emulator. Host `scripts/host-jni-smoke.sh` is not a substitute. Details: `docs/TEST_RESULTS.md` § Platform gap.
 - Длинное аудио без VAD-chunking деградирует (особенно если позже включим GigaAM). VAD обязателен.
 - PresentConnect не заменяет офлайн-проверку судей. Судьи ставят APK, импорт трёх клипов, экспорт JSON.
 
