@@ -31,6 +31,8 @@ Overnight-клипы без перекрытия (тот же замер): WER ~
 
 Overlap real: max 12 concurrent; 91% of speech frames ≥2 speakers. Main vs bleed: +3.0 dB (EDGE_overlap) / +1.5 dB (WORST_CASE). WORST_CASE main hyp collapses to one ~18s blob (`хочу говорить`). DER>1 = false-alarm time > ref speech. Запрещены «should be fine», «robust», «handles noisy rooms», «graceful under echo». **Do not claim in slides** clean WER/DER на edge.
 
+**STOP — hard `BAND_LIMITED` on bound seats is REJECTED** (toxic measured). Gate v2 @ Eval PR #4 `bed868b3` (note `ffe53ba4`) hard-drops bound `s01`..`s20`: EDGE_noise drops main **s01** (hyp **19/20**); EDGE_badmic **6/20**; WORST_CASE **0/20**, empty `{transcript:[]}`. Those hyp counts are not the claim. Bound seats **soft-flag only** (still ASR), same spirit as `SOFT_LOW`. Never hard-drop main/`s01`. Hard `BAND_LIMITED` only for unbound/anonymous (Platform, PR #3). **Ungated** stream tracking **20/20** @ `9908353d` stands. Ungated WORST_CASE stays WER main **0.9130** / DER **1.2985**. Do not claim gated_v2 hyps or clean WER/DER on WORST_CASE. Fixtures not retuned. Hold merge; #2 first.
+
 **Контракт Path B.** Каждый `stream_id` обрабатывается **независимо**: PCM → VAD → ASR. Метка по умолчанию: **`speaker_id` ← `stream_id`** (или стабильная карта stream→speaker / `speaker_hint`). Диаризация опциональна и только *внутри* одного потока — не mix-then-cluster по комнате. Реплики сессии склеиваются по времени. Жёсткий потолок — **20** одновременных потоков; 21-й отклоняется (`OVER_CAPACITY`).
 
 Офлайн-путь (файл или микрофон приложения, **одна** запись) остаётся: VAD → `OfflineSpeakerDiarization` → ASR. Это не PresentConnect и не замена Path B.
