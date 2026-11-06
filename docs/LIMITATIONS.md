@@ -6,13 +6,15 @@
 - Вход: локальный файл (WAV/M4A/MP3 через SAF) или запись микрофоном приложения.
 - Выход: JSON брифа + просмотр списка реплик.
 - Офлайн-стенография: авиарежим после того, как модели лежат в filesDir/assets.
-- PresentConnect: отдельный сетевой режим, до 20 одновременных потоков.
+- PresentConnect: побочный сетевой codepath, до 20 потоков; **не** live-demo.
+- Live demo: DEMO_STAGE6, один mic 3–6 м. Whole-file AGC не используем (cite Eval e0e64b85: 0.73→0.70, s5 missing).
 
 ## Известные ограничения
 
 - **WER / RTF не публикуем**, пока нет прогона на тестовых «котиках». Не выдумывать цифры.
 - Zipformer-ru — RU-first; английский best-effort (для EN — Whisper tiny, не default).
-- Перекрывающаяся речь и сильный шум смазывают диаризацию; демо — с явной сменой реплик.
+- Перекрывающаяся речь и сильный шум смазывают диаризацию; DEMO_STAGE6 — 6 sequential RU с лёгким end-overlap.
+- Cite-only STAGE6 @ `a8b39d5a`: agg WER **0.73**; 3.0 m **0**; 3.6 m **0.55**; 4.2–6.0 m **≈1.0** (s5 missing). Whole-file AGC @ `e0e64b85`: **0.70**, s5 still missing. No invented numbers on this PR.
 - LLM post-pass: модуль есть, **веса не приложены** (TODO Gemma/Qwen/Phi via llama.cpp или MediaPipe). Сейчас identity / лёгкая пунктуация, честно в UI.
 - Модели не в git (~74 MB+ ASR, плюс VAD/diar). Без `download-models.sh` / adb push приложение соберётся, но pipeline уйдёт в stub.
 - NNAPI на OEM плавает; default provider = CPU.

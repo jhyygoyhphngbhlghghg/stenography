@@ -75,9 +75,9 @@ fun StenoApp(vm: StenoViewModel = viewModel()) {
         ) {
             Text(
                 if (state.presentConnect) {
-                    "Режим PresentConnect (сеть, ≤20 потоков). Офлайн-стенография — flavor stenographer."
+                    "PresentConnect Path B ≤20 — побочный codepath, не слайд. Live demo = DEMO_STAGE6: один телефонный mic."
                 } else {
-                    "Офлайн-стенография. Авиарежим после загрузки моделей. PresentConnect — другой flavor."
+                    "Live demo = DEMO_STAGE6: один mic, 6 говорящих по-русски, 3–6 м. Per-turn gain (не whole-file AGC). Path B ≤20 — не сцена защиты."
                 },
                 style = MaterialTheme.typography.bodyMedium,
             )
