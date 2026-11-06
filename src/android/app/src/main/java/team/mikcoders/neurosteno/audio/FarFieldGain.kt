@@ -9,11 +9,14 @@ import kotlin.math.sqrt
 import kotlin.math.tanh
 
 /**
- * Single-mic DEMO_STAGE6 far-field staging: boost 3–6 m speech onto a usable
- * ASR RMS without hard-clipping. Clip guard caps peak at [PEAK_LIMIT].
+ * Single-mic DEMO_STAGE6 far-field staging.
  *
- * Digital silence (RMS < [MIN_RMS_FOR_GAIN]) is not boosted into hiss.
- * Thresholds from `python3 scripts/measure-farfield-gain.py --record`.
+ * Whole-file RMS AGC is wrong: a loud near seat (Eval ffgain mix 0.119 FS)
+ * pulls gain **down** (−3.46 dB) and 4–6 m turns stay below ASR. This path
+ * uses **per-turn energy windows**: each quiet segment independently targets
+ * [TARGET_RMS_FS]; loud turns are never attenuated (gain ≥ 0 dB).
+ *
+ * Thresholds: `python3 scripts/measure-farfield-gain.py --record`.
  */
 object FarFieldGain {
     const val TARGET_RMS_FS = 0.08
@@ -22,78 +25,249 @@ object FarFieldGain {
     const val MIN_RMS_FOR_GAIN = 1e-5
     const val FRAME_MS = 20
     const val VAD_RMS_FS = 0.008
+    /** Below 6 m sine RMS (~0.0059), above digital silence. */
+    const val SEGMENT_ONSET_FS = 0.0025
+    const val HANGOVER_FRAMES = 3
+    const val MIN_SEGMENT_FRAMES = 4
+    const val DIP_RATIO = 0.4
+    const val DIP_FRAMES = 3
     const val SAMPLE_RATE_HZ = Pcm.TARGET_HZ
 
     val maxGainLinear: Double
         get() = dbToLinear(MAX_GAIN_DB)
 
-    fun stage(samples: FloatArray): FarFieldGainResult {
+    fun stage(samples: FloatArray): FarFieldGainResult = stagePerSegment(samples)
+
+    /**
+     * Per-turn gain. Never apply gain &lt; 1 (does not crush a loud near seat).
+     * Quiet islands independently target [TARGET_RMS_FS].
+     */
+    fun stagePerSegment(samples: FloatArray, sampleRateHz: Int = SAMPLE_RATE_HZ): FarFieldGainResult {
         val n = samples.size
-        if (n == 0) {
-            return FarFieldGainResult(
-                samples = samples,
-                gainLinear = 1.0,
-                gainDb = 0.0,
-                rmsBefore = 0.0,
-                rmsAfter = 0.0,
-                peakBefore = 0.0,
-                peakAfter = 0.0,
-                clipGuard = false,
-                boosted = false,
-                vadFireRateBefore = 0.0,
-                vadFireRateAfter = 0.0,
-            )
-        }
         val rmsBefore = rms(samples)
         val peakBefore = peak(samples)
-        val vadBefore = energyVadFireRate(samples)
-        if (rmsBefore < MIN_RMS_FOR_GAIN) {
-            return FarFieldGainResult(
-                samples = samples.copyOf(),
-                gainLinear = 1.0,
-                gainDb = 0.0,
-                rmsBefore = rmsBefore,
-                rmsAfter = rmsBefore,
-                peakBefore = peakBefore,
-                peakAfter = peakBefore,
-                clipGuard = false,
-                boosted = false,
-                vadFireRateBefore = vadBefore,
-                vadFireRateAfter = vadBefore,
+        val vadBefore = energyVadFireRate(samples, sampleRateHz)
+        if (n == 0) {
+            return emptyResult(samples)
+        }
+        val out = samples.copyOf()
+        val frame = ((sampleRateHz * FRAME_MS) / 1000).coerceAtLeast(1)
+        val ranges = findSegments(samples, sampleRateHz)
+        val segs = ArrayList<SegmentGain>(ranges.size)
+        var anyBoost = false
+        var anyClip = false
+        var maxG = 1.0
+        val lim = PEAK_LIMIT.toFloat()
+        for (range in ranges) {
+            val slice = samples.copyOfRange(range.first, range.last + 1)
+            val r0 = activeRms(samples, range, frame)
+            val p0 = peak(slice)
+            val g = gainForSegment(r0, p0)
+            if (g > maxG) maxG = g
+            val desiredBoost = r0 >= MIN_RMS_FOR_GAIN && r0 < TARGET_RMS_FS
+            val clipGuard = desiredBoost && g + 1e-12 < TARGET_RMS_FS / r0.coerceAtLeast(1e-12)
+            if (clipGuard) anyClip = true
+            if (g > 1.0 + 1e-9) anyBoost = true
+            var i = range.first
+            val gf = g.toFloat()
+            while (i <= range.last) {
+                out[i] = (samples[i] * gf).coerceIn(-lim, lim)
+                i++
+            }
+            val after = out.copyOfRange(range.first, range.last + 1)
+            segs += SegmentGain(
+                start = range.first,
+                endInclusive = range.last,
+                rmsBefore = r0,
+                rmsAfter = rms(after),
+                peakBefore = p0,
+                gainLinear = g,
+                gainDb = linearToDb(g),
+                boosted = g > 1.0 + 1e-9,
+                clipGuard = clipGuard,
             )
         }
-        val desired = TARGET_RMS_FS / rmsBefore
-        val peakCap = PEAK_LIMIT / peakBefore.coerceAtLeast(1e-12)
-        val gain = min(desired, min(peakCap, maxGainLinear))
-        val clipGuard = gain + 1e-12 < desired
-        val out = FloatArray(n)
-        var i = 0
-        var peakAfter = 0.0
-        var sumSq = 0.0
-        val g = gain.toFloat()
-        val lim = PEAK_LIMIT.toFloat()
-        while (i < n) {
-            val y = (samples[i] * g).coerceIn(-lim, lim)
-            out[i] = y
-            val a = abs(y.toDouble())
-            if (a > peakAfter) peakAfter = a
-            sumSq += y.toDouble() * y
-            i++
-        }
-        val rmsAfter = sqrt(sumSq / n)
         return FarFieldGainResult(
             samples = out,
-            gainLinear = gain,
-            gainDb = linearToDb(gain),
+            gainLinear = maxG,
+            gainDb = linearToDb(maxG),
             rmsBefore = rmsBefore,
-            rmsAfter = rmsAfter,
+            rmsAfter = rms(out),
             peakBefore = peakBefore,
-            peakAfter = peakAfter,
-            clipGuard = clipGuard,
-            boosted = gain > 1.0 + 1e-9,
+            peakAfter = peak(out),
+            clipGuard = anyClip,
+            boosted = anyBoost,
             vadFireRateBefore = vadBefore,
-            vadFireRateAfter = energyVadFireRate(out),
+            vadFireRateAfter = energyVadFireRate(out, sampleRateHz),
+            segments = segs,
         )
+    }
+
+    /** Gain for one turn: never below 0 dB (no crush). */
+    fun gainForSegment(rmsFs: Double, peakFs: Double): Double {
+        if (rmsFs < MIN_RMS_FOR_GAIN) return 1.0
+        if (rmsFs >= TARGET_RMS_FS) return 1.0
+        val desired = TARGET_RMS_FS / rmsFs
+        val peakCap = PEAK_LIMIT / peakFs.coerceAtLeast(1e-12)
+        val capped = min(desired, min(peakCap, maxGainLinear))
+        return if (capped < 1.0) 1.0 else capped
+    }
+
+    fun findSegments(samples: FloatArray, sampleRateHz: Int = SAMPLE_RATE_HZ): List<IntRange> {
+        val frame = ((sampleRateHz * FRAME_MS) / 1000).coerceAtLeast(1)
+        if (samples.size < frame) {
+            return if (rms(samples) >= SEGMENT_ONSET_FS) listOf(samples.indices) else emptyList()
+        }
+        val nFrames = samples.size / frame
+        val rmsF = DoubleArray(nFrames)
+        var f = 0
+        while (f < nFrames) {
+            val start = f * frame
+            rmsF[f] = rmsRange(samples, start, start + frame)
+            f++
+        }
+        val mask = BooleanArray(nFrames)
+        var hold = 0
+        f = 0
+        while (f < nFrames) {
+            if (rmsF[f] >= SEGMENT_ONSET_FS) {
+                mask[f] = true
+                hold = HANGOVER_FRAMES
+            } else if (hold > 0) {
+                mask[f] = true
+                hold--
+            }
+            f++
+        }
+        val raw = ArrayList<IntRange>()
+        f = 0
+        while (f < nFrames) {
+            if (!mask[f]) {
+                f++
+                continue
+            }
+            val a = f
+            while (f < nFrames && mask[f]) f++
+            val b = f - 1
+            if (b - a + 1 >= MIN_SEGMENT_FRAMES) {
+                raw += (a * frame) until ((b + 1) * frame).coerceAtMost(samples.size)
+            }
+        }
+        return splitDips(samples, raw, frame)
+    }
+
+    private fun emptyResult(samples: FloatArray): FarFieldGainResult =
+        FarFieldGainResult(
+            samples = samples,
+            gainLinear = 1.0,
+            gainDb = 0.0,
+            rmsBefore = 0.0,
+            rmsAfter = 0.0,
+            peakBefore = 0.0,
+            peakAfter = 0.0,
+            clipGuard = false,
+            boosted = false,
+            vadFireRateBefore = 0.0,
+            vadFireRateAfter = 0.0,
+            segments = emptyList(),
+        )
+
+    /** RMS of frames at/above onset so hangover zeros do not inflate gain. */
+    private fun activeRms(samples: FloatArray, range: IntRange, frame: Int): Double {
+        var acc = 0.0
+        var n = 0
+        var i = range.first
+        val end = range.last + 1
+        while (i + frame <= end) {
+            val r = rmsRange(samples, i, i + frame)
+            if (r >= SEGMENT_ONSET_FS) {
+                var k = i
+                val stop = i + frame
+                while (k < stop) {
+                    val s = samples[k]
+                    acc += s.toDouble() * s
+                    k++
+                }
+                n += frame
+            }
+            i += frame
+        }
+        return if (n == 0) rmsRange(samples, range.first, end) else sqrt(acc / n)
+    }
+
+    private fun rmsRange(samples: FloatArray, start: Int, endExclusive: Int): Double {
+        val n = (endExclusive - start).coerceAtLeast(0)
+        if (n <= 0) return 0.0
+        var acc = 0.0
+        var i = start
+        while (i < endExclusive) {
+            val s = samples[i]
+            acc += s.toDouble() * s
+            i++
+        }
+        return sqrt(acc / n)
+    }
+
+    private fun splitDips(
+        samples: FloatArray,
+        islands: List<IntRange>,
+        frame: Int,
+    ): List<IntRange> {
+        val out = ArrayList<IntRange>()
+        for (isl in islands) {
+            val nFrames = ((isl.last - isl.first + 1) / frame).coerceAtLeast(1)
+            if (nFrames < MIN_SEGMENT_FRAMES * 2) {
+                out += isl
+                continue
+            }
+            val rmsF = DoubleArray(nFrames)
+            var peakF = 0.0
+            var f = 0
+            while (f < nFrames) {
+                val a = isl.first + f * frame
+                rmsF[f] = rmsRange(samples, a, (a + frame).coerceAtMost(isl.last + 1))
+                if (rmsF[f] > peakF) peakF = rmsF[f]
+                f++
+            }
+            val dip = peakF * DIP_RATIO
+            val cuts = ArrayList<Int>()
+            f = MIN_SEGMENT_FRAMES
+            while (f < nFrames - MIN_SEGMENT_FRAMES) {
+                var k = 0
+                var ok = true
+                while (k < DIP_FRAMES && f + k < nFrames) {
+                    if (rmsF[f + k] >= dip) {
+                        ok = false
+                        break
+                    }
+                    k++
+                }
+                if (ok) {
+                    cuts += f
+                    f += DIP_FRAMES
+                } else {
+                    f++
+                }
+            }
+            if (cuts.isEmpty()) {
+                out += isl
+            } else {
+                var prev = 0
+                for (c in cuts) {
+                    if (c - prev >= MIN_SEGMENT_FRAMES) {
+                        val a = isl.first + prev * frame
+                        val b = (isl.first + c * frame - 1).coerceAtMost(isl.last)
+                        out += a..b
+                    }
+                    prev = c + DIP_FRAMES
+                }
+                if (nFrames - prev >= MIN_SEGMENT_FRAMES) {
+                    val a = isl.first + prev * frame
+                    out += a..isl.last
+                }
+            }
+        }
+        return out.ifEmpty { islands }
     }
 
     fun rms(samples: FloatArray): Double {
@@ -146,6 +320,18 @@ object FarFieldGain {
     fun linearToDb(g: Double): Double = if (g <= 0.0) Double.NEGATIVE_INFINITY else 20.0 * ln(g) / ln(10.0)
 }
 
+data class SegmentGain(
+    val start: Int,
+    val endInclusive: Int,
+    val rmsBefore: Double,
+    val rmsAfter: Double,
+    val peakBefore: Double,
+    val gainLinear: Double,
+    val gainDb: Double,
+    val boosted: Boolean,
+    val clipGuard: Boolean,
+)
+
 data class FarFieldGainResult(
     val samples: FloatArray,
     val gainLinear: Double,
@@ -158,7 +344,11 @@ data class FarFieldGainResult(
     val boosted: Boolean,
     val vadFireRateBefore: Double,
     val vadFireRateAfter: Double,
-)
+    val segments: List<SegmentGain> = emptyList(),
+) {
+    val loudCrushed: Boolean
+        get() = segments.any { it.gainLinear < 1.0 - 1e-9 }
+}
 
 /** Synthetic far-field phone-mic scenes for host tests. Not Eval DEMO_STAGE6 wavs. */
 object FarFieldSynth {
@@ -262,5 +452,50 @@ object FarFieldSynth {
     fun scene(distanceM: Double, n: Int = N_400MS): FloatArray {
         val far = atDistance(closeTalkSine(n), distanceM)
         return mix(phoneMic(far), hvac(n))
+    }
+
+    /**
+     * Near seat hot enough that a sequential mix (this + quiet 5–6 m + gaps)
+     * sits ~0.12 FS overall — Eval ffgain mix was 0.119 FS, so whole-file AGC
+     * would attenuate (~−3.5 dB) instead of lifting distant turns.
+     */
+    fun loudNearTurn(n: Int = N_400MS): FloatArray = closeTalkSine(n = n, amplitude = 0.34)
+
+    fun gap(n: Int = 3_200): FloatArray = FloatArray(n)
+
+    fun concat(parts: List<FloatArray>): FloatArray {
+        val n = parts.sumOf { it.size }
+        val out = FloatArray(n)
+        var o = 0
+        for (p in parts) {
+            p.copyInto(out, o)
+            o += p.size
+        }
+        return out
+    }
+
+    data class MixTurn(val name: String, val distanceM: Double, val range: IntRange)
+
+    /** Sequential DEMO_STAGE6-like file: loud 3 m, then quiet 5 m and 6 m. */
+    fun sequentialMix(): Pair<FloatArray, List<MixTurn>> {
+        val near = loudNearTurn()
+        val g1 = gap()
+        val far5 = scene(5.0)
+        val g2 = gap()
+        val far6 = scene(6.0)
+        var o = 0
+        fun take(p: FloatArray): IntRange {
+            val a = o
+            o += p.size
+            return a until o
+        }
+        val turns = listOf(
+            MixTurn("near_3m", 3.0, take(near)),
+            MixTurn("gap1", 0.0, take(g1)),
+            MixTurn("far_5m", 5.0, take(far5)),
+            MixTurn("gap2", 0.0, take(g2)),
+            MixTurn("far_6m", 6.0, take(far6)),
+        )
+        return concat(listOf(near, g1, far5, g2, far6)) to turns
     }
 }

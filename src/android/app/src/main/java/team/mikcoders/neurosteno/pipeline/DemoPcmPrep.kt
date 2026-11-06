@@ -9,9 +9,10 @@ import team.mikcoders.neurosteno.present.StreamPcmStats
 
 /**
  * Single-channel **DEMO_STAGE6** prep (offline ViewModel path only — not Path B).
- * CLIPPED/BAD_MIC/empty on **raw** PCM (hard), then far-field gain so 4–6 m
- * speech clears the ASR energy floor, then inspect as bound main:
- * SOFT_LOW / soft BAND_LIMITED, **never hard-drop distant talkers**.
+ * CLIPPED/BAD_MIC/empty on **raw** PCM (hard), then **per-turn** far-field
+ * gain so quiet 4–6 m islands clear the ASR floor without attenuating a loud
+ * near seat, then inspect as bound main: SOFT_LOW / soft BAND_LIMITED,
+ * **never hard-drop distant talkers**.
  */
 object DemoPcmPrep {
     fun prepare(audio: PcmAudio, boundMain: Boolean = true): PreparedDemoPcm {
