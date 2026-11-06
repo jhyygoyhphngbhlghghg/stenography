@@ -424,3 +424,77 @@ def sequential_mix() -> tuple[np.ndarray, list[dict[str, Any]]]:
         o += int(np.asarray(p).size)
         turns.append({"name": name, "distance_m": dist, "start": a, "end": o})
     return concat([near, g1, far5, g2, far6]), turns
+
+
+# FarFieldSynth extras @ Platform af71d91 (PhoneDistanceEq / phoneDistanceScene).
+SPEECH_STACK_FREQS = (
+    250.0, 400.0, 800.0, 1_200.0, 1_600.0, 2_000.0,
+    2_400.0, 2_800.0, 3_200.0, 3_600.0, 4_000.0, 4_400.0,
+)
+SPEECH_STACK_REL = (
+    0.85, 1.0, 0.75, 0.55, 0.40, 0.32,
+    0.25, 0.20, 0.16, 0.12, 0.10, 0.08,
+)
+
+
+def speech_stack(
+    n: int = N_400MS,
+    peak_amp: float = 0.22,
+    sample_rate_hz: int = SAMPLE_RATE_HZ,
+) -> np.ndarray:
+    """Harmonic stack so 250–4500 Hz band energy is measurable (not a 1 kHz sine)."""
+    i = np.arange(n, dtype=np.float64)
+    acc = np.zeros(n, dtype=np.float64)
+    two_pi = 2.0 * math.pi
+    for hz, rel in zip(SPEECH_STACK_FREQS, SPEECH_STACK_REL):
+        acc += rel * np.sin(two_pi * hz * i / sample_rate_hz)
+    pk = float(np.max(np.abs(acc))) if acc.size else 0.0
+    g = peak_amp / (pk if pk else 1e-12)
+    return (acc * g).astype(np.float32)
+
+
+def distance_muffle(
+    samples,
+    distance_m: float,
+    sample_rate_hz: int = SAMPLE_RATE_HZ,
+) -> np.ndarray:
+    """Extra air / distance muffling on top of phone_mic (synth only)."""
+    fc = min(4_000.0, max(900.0, 3_200.0 * 3.0 / distance_m))
+    a = 1.0 - math.exp(-2.0 * math.pi * fc / sample_rate_hz)
+    xs = np.asarray(samples, dtype=np.float64).reshape(-1).copy()
+    for _ in range(2):
+        y = 0.0
+        out = np.empty_like(xs)
+        for i, val in enumerate(xs):
+            y += a * (val - y)
+            out[i] = y
+        xs = out
+    return xs.astype(np.float32)
+
+
+def phone_distance_scene(distance_m: float, n: int = N_400MS) -> np.ndarray:
+    """Phone-mic + 1/r + extra muffling + HVAC. For EQ measure; not Eval wavs."""
+    far = distance_muffle(at_distance(speech_stack(n), distance_m), distance_m)
+    return mix(phone_mic(far), hvac(n))
+
+
+def sequential_phone_mix() -> tuple[np.ndarray, list[dict[str, Any]]]:
+    """Hot near speech (no phone crush) + muffled 5 m / 6 m phone scenes."""
+    near = speech_stack(peak_amp=0.36)
+    g1 = gap()
+    far5 = phone_distance_scene(5.0)
+    g2 = gap()
+    far6 = phone_distance_scene(6.0)
+    o = 0
+    turns = []
+    for name, dist, p in (
+        ("near_3m", 3.0, near),
+        ("gap1", 0.0, g1),
+        ("far_5m", 5.0, far5),
+        ("gap2", 0.0, g2),
+        ("far_6m", 6.0, far6),
+    ):
+        a = o
+        o += int(np.asarray(p).size)
+        turns.append({"name": name, "distance_m": dist, "start": a, "end": o})
+    return concat([near, g1, far5, g2, far6]), turns

@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
-"""Python mirror of Platform DemoPcmPrep.kt @ ae86903 / db3afe4.
+"""Python mirror of Platform DemoPcmPrep.kt @ af71d91.
 
 Single-channel DEMO_STAGE6 prep (offline ViewModel path — not Path B workers).
-CLIPPED / BAD_MIC / empty on raw PCM (hard), then **per-turn** far-field gain
-so quiet 4–6 m islands clear the ASR floor without attenuating a loud near
-seat. Bound-main inspect: SOFT_LOW / soft BAND_LIMITED, never hard-drop
-distant talkers for energy.
+CLIPPED / BAD_MIC / empty on raw PCM (hard), then **frozen per-turn** far-field
+gain (do not retune / do not re-enable whole-file crush), then **phone-distance
+EQ** on far islands only (near seat identity). Bound-main inspect: SOFT_LOW /
+soft BAND_LIMITED, never hard-drop distant talkers for energy.
 
 `per_turn=False` keeps historical whole-file AGC for DEMO_STAGE6_ffgain.
+`phone_eq=True` forces per-turn gain (frozen) then PhoneDistanceEq @ af71d91.
 """
 from __future__ import annotations
 
@@ -16,10 +17,13 @@ from typing import Any
 import numpy as np
 
 import farfield_gain as FF
+import phone_distance_eq as EQ
 import stream_pcm_gate as PCM_GATE
 
 PLATFORM_FFGAIN_FEAT_SHA = FF.PLATFORM_FFGAIN_FEAT_SHA
 PLATFORM_FFGAIN_DOCS_SHA = FF.PLATFORM_FFGAIN_DOCS_SHA
+PLATFORM_PHONE_EQ_HEAD = EQ.PLATFORM_PHONE_EQ_HEAD
+PLATFORM_PHONE_EQ_FEAT_SHA = EQ.PLATFORM_PHONE_EQ_FEAT_SHA
 
 HARD_SKIP = ("CLIPPED", "BAD_MIC")
 
@@ -39,14 +43,19 @@ def prepare(
     *,
     bound_main: bool = True,
     per_turn: bool = True,
+    phone_eq: bool = False,
 ) -> dict[str, Any]:
     x = np.asarray(samples, dtype=np.float32).reshape(-1)
+    if phone_eq:
+        # Gain stays frozen: never whole-file crush when EQ is on.
+        per_turn = True
     raw_gate = PCM_GATE.inspect_float(
         x, sample_rate_hz=sample_rate_hz, bound_seat=bound_main, version=3
     )
     hard = _hard_skip_code(raw_gate)
     if hard is not None:
         empty = FF.stage(np.zeros(0, dtype=np.float32), per_turn=per_turn)
+        empty_eq = EQ.apply(np.zeros(0, dtype=np.float32), sample_rate_hz)
         return {
             "samples": x.copy(),
             "skip_asr": True,
@@ -54,23 +63,39 @@ def prepare(
             "raw_gate": raw_gate,
             "after_gate": raw_gate,
             "gain": empty,
+            "eq": empty_eq,
             "per_turn": bool(per_turn),
+            "phone_eq": bool(phone_eq),
         }
     gain = FF.stage(x, per_turn=per_turn)
+    staged = gain["samples"]
+    if phone_eq:
+        eq = EQ.apply(staged, sample_rate_hz)
+        out = eq["samples"]
+    else:
+        eq = {
+            "samples": staged,
+            "applied": False,
+            "near_crushed": False,
+            "segments": [],
+        }
+        out = staged
     after_gate = PCM_GATE.inspect_float(
-        gain["samples"],
+        out,
         sample_rate_hz=sample_rate_hz,
         bound_seat=bound_main,
         version=3,
     )
     return {
-        "samples": gain["samples"],
+        "samples": out,
         "skip_asr": False,
         "skip_code": None,
         "raw_gate": raw_gate,
         "after_gate": after_gate,
         "gain": gain,
+        "eq": eq,
         "per_turn": bool(per_turn),
+        "phone_eq": bool(phone_eq),
     }
 
 
@@ -91,15 +116,21 @@ def gain_meta(prep: dict[str, Any]) -> dict[str, Any]:
         for s in segs
     ]
     per_turn = bool(prep.get("per_turn", g.get("mode") == "per_turn"))
-    platform = (
-        "db3afe4 / ae86903 FarFieldGain per-turn + DemoPcmPrep"
-        if per_turn
-        else "b66581c / 5bfc582 FarFieldGain whole-file + DemoPcmPrep"
-    )
-    return {
+    phone_eq = bool(prep.get("phone_eq"))
+    if phone_eq:
+        platform = (
+            f"{EQ.PLATFORM_PHONE_EQ_HEAD[:7]} / {EQ.PLATFORM_PHONE_EQ_FEAT_SHA[:7]} "
+            "PhoneDistanceEq 250–4500 Hz + frozen per-turn FarFieldGain + DemoPcmPrep"
+        )
+    elif per_turn:
+        platform = "db3afe4 / ae86903 FarFieldGain per-turn + DemoPcmPrep"
+    else:
+        platform = "b66581c / 5bfc582 FarFieldGain whole-file + DemoPcmPrep"
+    meta = {
         "platform": platform,
         "mode": g.get("mode"),
         "per_turn": per_turn,
+        "phone_eq": phone_eq,
         "skip_asr": prep["skip_asr"],
         "skip_code": prep["skip_code"],
         "gain_db": g.get("gain_db"),
@@ -132,3 +163,11 @@ def gain_meta(prep: dict[str, Any]) -> dict[str, Any]:
             "n": ag.get("n"),
         },
     }
+    if phone_eq:
+        eqm = EQ.eq_meta(prep.get("eq"))
+        meta["eq"] = eqm
+        meta["eq_applied"] = eqm.get("applied")
+        meta["eq_near_crushed"] = eqm.get("near_crushed")
+        meta["eq_n_applied"] = eqm.get("n_applied")
+        meta["eq_n_near_identity"] = eqm.get("n_near_identity")
+    return meta

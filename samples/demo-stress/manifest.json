@@ -63,6 +63,22 @@
       "notes": "Platform per-turn FarFieldGain post-db3afe4: same frozen DEMO_STAGE6 wav/gold. Quiet energy windows independently target 0.08 FS (max +24 dB); loud near seat stays 0 dB (no crush). Soft-flag only. Do not retune fixture."
     },
     {
+      "test_id": "DEMO_STAGE6_phone_eq",
+      "file": "samples/demo-stress/stage6/DEMO_STAGE6.wav",
+      "reference_json": "samples/demo-stress/stage6/ref/DEMO_STAGE6.json",
+      "main_speaker_id": "speaker_1",
+      "num_clusters": 6,
+      "cluster_threshold": 0.5,
+      "wer_per_speaker": true,
+      "primary_demo": true,
+      "farfield_gain": true,
+      "farfield_per_turn": true,
+      "phone_distance_eq": true,
+      "min_duration_on": 0.15,
+      "min_duration_off": 0.30,
+      "notes": "Platform PhoneDistanceEq @ af71d91 (040274d / 5deb55a): 250–4500 Hz high-shelf on far islands; near 3 m identity; gain frozen (no whole-file crush). Same frozen DEMO_STAGE6 wav/gold @ a8b39d5a. Hex keep-punct WER @ 0824df64. Soft-flag only. Do not retune fixture."
+    },
+    {
       "test_id": "mix_20talker",
       "file": "samples/demo-stress/mix_20talker.wav",
       "reference_json": "samples/demo-stress/ref/mix_20talker.json",
