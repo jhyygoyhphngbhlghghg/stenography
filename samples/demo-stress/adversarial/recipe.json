@@ -1,0 +1,401 @@
+{
+  "label": "ADVERSARIAL",
+  "johann_hard_requirement": "worst-case demo room, not clean CV; expect FAIL; do not tune fixtures",
+  "path": "B_per_stream",
+  "n_talkers_cap": 20,
+  "clean_baseline": "mix_20talker_per_stream (not rewritten)",
+  "speech_corpus": {
+    "name": "Mozilla Common Voice 17.0 Russian test split",
+    "license": "CC0-1.0",
+    "gold": "corpus sentence field"
+  },
+  "synthetic_fx_license": "All IR/HVAC/chair/door/phone/white generated in this script; no third-party audio",
+  "main_snr_db_edge_bleed": 3.0,
+  "main_snr_db_worst_bleed": 1.5,
+  "host_linux_only": true,
+  "invented_metrics": false,
+  "overlap_clean_note": "CLEAN Path B stagger is 90 ms; EDGE_overlap/WORST_CASE use clustered concurrent onsets",
+  "overlap_stats_shared_by_EDGE_overlap_and_WORST_CASE": {
+    "max_active_speakers": 12,
+    "frac_speech_frames_2plus": 0.9099,
+    "frac_speech_frames_5plus": 0.842,
+    "mean_active_on_speech": 8.28
+  },
+  "conditions": [
+    {
+      "test_id": "EDGE_reverb",
+      "duration_ms": 18736,
+      "n_streams": 20,
+      "n_ref_utt": 22,
+      "notes": "EDGE: SYNTHETIC echo-y room on CLEAN Path B dry streams. No bleed/noise/mic crush.",
+      "dsp": {
+        "reverb": true,
+        "noise": false,
+        "badmic": false,
+        "bleed_snr_db": null,
+        "reverb_rt60_s": 0.82,
+        "reverb_wet": 0.64,
+        "reverb_license": "SYNTHETIC taps+tail in generate_adversarial_path_b.py (not a recorded IR)"
+      },
+      "channels": null
+    },
+    {
+      "test_id": "EDGE_overlap",
+      "duration_ms": 18076,
+      "n_streams": 20,
+      "n_ref_utt": 22,
+      "notes": "EDGE: true overlap (two clusters, not 90 ms stagger) + mic bleed, main ~+3 dB vs bleed on s01.",
+      "dsp": {
+        "reverb": false,
+        "noise": false,
+        "badmic": false,
+        "bleed_snr_db": 3.0,
+        "bleed": {
+          "target_snr_db": 3.0,
+          "snr_before_scale_db": 4.98,
+          "snr_after_scale_db": 3.0,
+          "bleed_scale": 1.256,
+          "isolation_main_to_spk2": 0.5947,
+          "note": "main stream SNR vs sum of other talkers on main-active frames; do not boost main"
+        },
+        "overlap": {
+          "max_active_speakers": 12,
+          "frac_speech_frames_2plus": 0.9099,
+          "frac_speech_frames_5plus": 0.842,
+          "mean_active_on_speech": 8.28
+        }
+      },
+      "channels": [
+        {
+          "stream_id": "s01",
+          "speaker_id": "speaker_1",
+          "offset_ms": 120,
+          "role": "main"
+        },
+        {
+          "stream_id": "s02",
+          "speaker_id": "speaker_2",
+          "offset_ms": 40,
+          "role": "babble_cluster_a"
+        },
+        {
+          "stream_id": "s03",
+          "speaker_id": "speaker_3",
+          "offset_ms": 210,
+          "role": "babble_cluster_a"
+        },
+        {
+          "stream_id": "s04",
+          "speaker_id": "speaker_4",
+          "offset_ms": 380,
+          "role": "babble_cluster_a"
+        },
+        {
+          "stream_id": "s05",
+          "speaker_id": "speaker_5",
+          "offset_ms": 550,
+          "role": "babble_cluster_a"
+        },
+        {
+          "stream_id": "s06",
+          "speaker_id": "speaker_6",
+          "offset_ms": 720,
+          "role": "babble_cluster_a"
+        },
+        {
+          "stream_id": "s07",
+          "speaker_id": "speaker_7",
+          "offset_ms": 890,
+          "role": "babble_cluster_a"
+        },
+        {
+          "stream_id": "s08",
+          "speaker_id": "speaker_8",
+          "offset_ms": 1060,
+          "role": "babble_cluster_a"
+        },
+        {
+          "stream_id": "s09",
+          "speaker_id": "speaker_9",
+          "offset_ms": 1230,
+          "role": "babble_cluster_a"
+        },
+        {
+          "stream_id": "s10",
+          "speaker_id": "speaker_10",
+          "offset_ms": 1400,
+          "role": "babble_cluster_a"
+        },
+        {
+          "stream_id": "s11",
+          "speaker_id": "speaker_11",
+          "offset_ms": 1570,
+          "role": "babble_cluster_a"
+        },
+        {
+          "stream_id": "s12",
+          "speaker_id": "speaker_12",
+          "offset_ms": 6748,
+          "role": "babble_cluster_b"
+        },
+        {
+          "stream_id": "s13",
+          "speaker_id": "speaker_13",
+          "offset_ms": 6938,
+          "role": "babble_cluster_b"
+        },
+        {
+          "stream_id": "s14",
+          "speaker_id": "speaker_14",
+          "offset_ms": 7128,
+          "role": "babble_cluster_b"
+        },
+        {
+          "stream_id": "s15",
+          "speaker_id": "speaker_15",
+          "offset_ms": 7318,
+          "role": "babble_cluster_b"
+        },
+        {
+          "stream_id": "s16",
+          "speaker_id": "speaker_16",
+          "offset_ms": 7508,
+          "role": "babble_cluster_b"
+        },
+        {
+          "stream_id": "s17",
+          "speaker_id": "speaker_17",
+          "offset_ms": 7698,
+          "role": "babble_cluster_b"
+        },
+        {
+          "stream_id": "s18",
+          "speaker_id": "speaker_18",
+          "offset_ms": 7888,
+          "role": "babble_cluster_b"
+        },
+        {
+          "stream_id": "s19",
+          "speaker_id": "speaker_19",
+          "offset_ms": 8078,
+          "role": "babble_cluster_b"
+        },
+        {
+          "stream_id": "s20",
+          "speaker_id": "speaker_20",
+          "offset_ms": 8268,
+          "role": "babble_cluster_b"
+        }
+      ]
+    },
+    {
+      "test_id": "EDGE_noise",
+      "duration_ms": 18736,
+      "n_streams": 20,
+      "n_ref_utt": 22,
+      "notes": "EDGE: SYNTHETIC white+HVAC+chair+door+phone on CLEAN Path B streams.",
+      "dsp": {
+        "reverb": false,
+        "noise": true,
+        "badmic": false,
+        "bleed_snr_db": null,
+        "noise_license": "SYNTHETIC HVAC/white/chair/door/phone (not field recordings)"
+      },
+      "channels": null
+    },
+    {
+      "test_id": "EDGE_badmic",
+      "duration_ms": 18736,
+      "n_streams": 20,
+      "n_ref_utt": 22,
+      "notes": "EDGE: bad phone-mic (band-limit, clip, compress, EQ, crush) on CLEAN Path B streams.",
+      "dsp": {
+        "reverb": false,
+        "noise": false,
+        "badmic": "band-limit 300-3400 Hz, 2 kHz EQ bump, compressor, clip ±0.38, mu-law crush, hiss",
+        "bleed_snr_db": null
+      },
+      "channels": null
+    },
+    {
+      "test_id": "WORST_CASE",
+      "duration_ms": 18076,
+      "n_streams": 20,
+      "n_ref_utt": 22,
+      "notes": "WORST_CASE Path B: true overlap+bleed (main ~+1.5 dB vs interferers on s01) + SYNTHETIC reverb + room noises + bad mic. Expect FAIL. Not tuned to look good.",
+      "dsp": {
+        "reverb": true,
+        "noise": true,
+        "badmic": "band-limit 300-3400 Hz, 2 kHz EQ bump, compressor, clip ±0.38, mu-law crush, hiss",
+        "bleed_snr_db": 1.5,
+        "bleed": {
+          "target_snr_db": 1.5,
+          "snr_before_scale_db": 4.98,
+          "snr_after_scale_db": 1.5,
+          "bleed_scale": 1.4927,
+          "isolation_main_to_spk2": 0.5947,
+          "note": "main stream SNR vs sum of other talkers on main-active frames; do not boost main"
+        },
+        "reverb_rt60_s": 0.82,
+        "reverb_wet": 0.64,
+        "reverb_license": "SYNTHETIC taps+tail in generate_adversarial_path_b.py (not a recorded IR)",
+        "noise_license": "SYNTHETIC HVAC/white/chair/door/phone (not field recordings)",
+        "overlap": {
+          "max_active_speakers": 12,
+          "frac_speech_frames_2plus": 0.9099,
+          "frac_speech_frames_5plus": 0.842,
+          "mean_active_on_speech": 8.28
+        }
+      },
+      "channels": [
+        {
+          "stream_id": "s01",
+          "speaker_id": "speaker_1",
+          "offset_ms": 120,
+          "role": "main"
+        },
+        {
+          "stream_id": "s02",
+          "speaker_id": "speaker_2",
+          "offset_ms": 40,
+          "role": "babble_cluster_a"
+        },
+        {
+          "stream_id": "s03",
+          "speaker_id": "speaker_3",
+          "offset_ms": 210,
+          "role": "babble_cluster_a"
+        },
+        {
+          "stream_id": "s04",
+          "speaker_id": "speaker_4",
+          "offset_ms": 380,
+          "role": "babble_cluster_a"
+        },
+        {
+          "stream_id": "s05",
+          "speaker_id": "speaker_5",
+          "offset_ms": 550,
+          "role": "babble_cluster_a"
+        },
+        {
+          "stream_id": "s06",
+          "speaker_id": "speaker_6",
+          "offset_ms": 720,
+          "role": "babble_cluster_a"
+        },
+        {
+          "stream_id": "s07",
+          "speaker_id": "speaker_7",
+          "offset_ms": 890,
+          "role": "babble_cluster_a"
+        },
+        {
+          "stream_id": "s08",
+          "speaker_id": "speaker_8",
+          "offset_ms": 1060,
+          "role": "babble_cluster_a"
+        },
+        {
+          "stream_id": "s09",
+          "speaker_id": "speaker_9",
+          "offset_ms": 1230,
+          "role": "babble_cluster_a"
+        },
+        {
+          "stream_id": "s10",
+          "speaker_id": "speaker_10",
+          "offset_ms": 1400,
+          "role": "babble_cluster_a"
+        },
+        {
+          "stream_id": "s11",
+          "speaker_id": "speaker_11",
+          "offset_ms": 1570,
+          "role": "babble_cluster_a"
+        },
+        {
+          "stream_id": "s12",
+          "speaker_id": "speaker_12",
+          "offset_ms": 6748,
+          "role": "babble_cluster_b"
+        },
+        {
+          "stream_id": "s13",
+          "speaker_id": "speaker_13",
+          "offset_ms": 6938,
+          "role": "babble_cluster_b"
+        },
+        {
+          "stream_id": "s14",
+          "speaker_id": "speaker_14",
+          "offset_ms": 7128,
+          "role": "babble_cluster_b"
+        },
+        {
+          "stream_id": "s15",
+          "speaker_id": "speaker_15",
+          "offset_ms": 7318,
+          "role": "babble_cluster_b"
+        },
+        {
+          "stream_id": "s16",
+          "speaker_id": "speaker_16",
+          "offset_ms": 7508,
+          "role": "babble_cluster_b"
+        },
+        {
+          "stream_id": "s17",
+          "speaker_id": "speaker_17",
+          "offset_ms": 7698,
+          "role": "babble_cluster_b"
+        },
+        {
+          "stream_id": "s18",
+          "speaker_id": "speaker_18",
+          "offset_ms": 7888,
+          "role": "babble_cluster_b"
+        },
+        {
+          "stream_id": "s19",
+          "speaker_id": "speaker_19",
+          "offset_ms": 8078,
+          "role": "babble_cluster_b"
+        },
+        {
+          "stream_id": "s20",
+          "speaker_id": "speaker_20",
+          "offset_ms": 8268,
+          "role": "babble_cluster_b"
+        }
+      ]
+    }
+  ],
+  "smoke_worst": {
+    "test_id": "smoke_worst",
+    "duration_ms": 770,
+    "n_streams": 4,
+    "n_ref_utt": 4,
+    "notes": "Tiny committed WORST_CASE smoke (4 talkers, cropped). Not headline.",
+    "dsp": {
+      "reverb": true,
+      "noise": true,
+      "badmic": "band-limit 300-3400 Hz, 2 kHz EQ bump, compressor, clip ±0.38, mu-law crush, hiss",
+      "bleed_snr_db": 1.5,
+      "bleed": {
+        "target_snr_db": 1.5,
+        "snr_before_scale_db": 15.044,
+        "snr_after_scale_db": 1.5,
+        "bleed_scale": 4.7558,
+        "isolation_main_to_spk2": 0.0919,
+        "note": "main stream SNR vs sum of other talkers on main-active frames; do not boost main"
+      },
+      "reverb_rt60_s": 0.82,
+      "reverb_wet": 0.64,
+      "reverb_license": "SYNTHETIC taps+tail in generate_adversarial_path_b.py (not a recorded IR)",
+      "noise_license": "SYNTHETIC HVAC/white/chair/door/phone (not field recordings)"
+    }
+  },
+  "json_schema": "transcript[].{speaker_id,start_ms,end_ms,text}",
+  "oracle": "s0N↔speaker_N, main=s01/speaker_1"
+}
