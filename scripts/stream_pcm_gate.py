@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Python mirror of Platform StreamPcmGate v2 @ b12a2bb (5b32058).
+"""Python mirror of StreamPcmGate.kt v2.
+
+Source artifact (byte-identical Kotlin):
+  Implementer PR #6 e3ad9085b58b563a4feff5932396909c09e18fe2
+  == Platform b12a2bbbf3c5b7770063c21a2e36d2c63b88d5c5
+  path: src/android/app/src/main/java/team/mikcoders/neurosteno/present/StreamPcmGate.kt
+  sha256: 3caa3a6a2d4aaf0ed9ed0592847ab7c9aadfbe8b5916eb95136745c293d26c51
 
 Path B pre-ASR gate on one stream's pcm_s16le.
 Bound known seats (s01..s20): near/below RMS floor is SOFT_LOW — still ASR.
@@ -12,6 +18,10 @@ from __future__ import annotations
 
 import math
 from typing import Any
+
+IMPLEMENTER_GATE_V2_SHA = "e3ad9085b58b563a4feff5932396909c09e18fe2"
+PLATFORM_GATE_V2_SHA = "b12a2bbbf3c5b7770063c21a2e36d2c63b88d5c5"
+STREAM_PCM_GATE_KT_SHA256 = "3caa3a6a2d4aaf0ed9ed0592847ab7c9aadfbe8b5916eb95136745c293d26c51"
 
 SAMPLE_RATE_HZ = 16_000
 FULL_SCALE = 32768.0
@@ -165,7 +175,7 @@ def decide(
     bands: dict[str, Any] | None,
     bound_seat: bool,
 ) -> tuple[str, str | None, str, list[str]]:
-    """Match StreamPcmGate.decide @ b12a2bb."""
+    """Match StreamPcmGate.decide @ e3ad908 / b12a2bb (sha256 STREAM_PCM_GATE_KT_SHA256)."""
     bands = bands or {
         "hf_ratio": 0.0,
         "speech_ratio": 0.0,
@@ -360,12 +370,31 @@ def inspect_float(
 
 
 def tone_stack_s16(freqs, amplitude: float = 0.08, n: int = 6400, sr: int = SAMPLE_RATE_HZ) -> list[int]:
+    """Match StreamPcmSynth.toneStack @ e3ad908."""
     xs = [0.0] * n
     for hz in freqs:
         for i in range(n):
             xs[i] += amplitude * math.sin(2.0 * math.pi * hz * i / sr)
-    out = []
-    for x in xs:
-        v = int(round(x * 32767.0))
-        out.append(max(-32767, min(32767, v)))
-    return out
+    return [max(-32767, min(32767, int(round(x * 32767.0)))) for x in xs]
+
+
+def phone_crush_lpf_s16(
+    freqs=BROADBAND_HZ,
+    amplitude: float = 0.08,
+    fc: float = 2400.0,
+    stages: int = 4,
+    n: int = 6400,
+    sr: int = SAMPLE_RATE_HZ,
+) -> list[int]:
+    """Match StreamPcmSynth.phoneCrushLpf @ e3ad908."""
+    xs = [0.0] * n
+    for hz in freqs:
+        for i in range(n):
+            xs[i] += amplitude * math.sin(2.0 * math.pi * hz * i / sr)
+    a = 1.0 - math.exp(-2.0 * math.pi * fc / sr)
+    for _ in range(stages):
+        y = 0.0
+        for i in range(n):
+            y += a * (xs[i] - y)
+            xs[i] = y
+    return [max(-32767, min(32767, int(round(x * 32767.0)))) for x in xs]

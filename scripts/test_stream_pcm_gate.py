@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""StreamPcmGate v2 Python mirror vs Platform b12a2bb / 5b32058."""
+"""StreamPcmGate v2 Python mirror vs Implementer e3ad908 (sha256 == Platform b12a2bb)."""
 from __future__ import annotations
 
 import math
@@ -34,6 +34,14 @@ def _tiny_noise(n: int = 6400, seed: int = 1) -> list[int]:
 
 
 class Thresholds(unittest.TestCase):
+    def test_pinned_to_implementer_e3ad908(self):
+        self.assertEqual(G.IMPLEMENTER_GATE_V2_SHA, "e3ad9085b58b563a4feff5932396909c09e18fe2")
+        self.assertEqual(G.PLATFORM_GATE_V2_SHA, "b12a2bbbf3c5b7770063c21a2e36d2c63b88d5c5")
+        self.assertEqual(
+            G.STREAM_PCM_GATE_KT_SHA256,
+            "3caa3a6a2d4aaf0ed9ed0592847ab7c9aadfbe8b5916eb95136745c293d26c51",
+        )
+
     def test_v2_constants(self):
         self.assertEqual(G.RMS_REJECT_FS, 0.008)
         self.assertEqual(G.PEAK_REJECT_FS, 0.012)
@@ -93,6 +101,11 @@ class Verdicts(unittest.TestCase):
         self.assertLess(stack["hf_ratio"], G.BAND_LIMITED_HF_RATIO)
         self.assertGreaterEqual(stack["speech_occupancy"], G.BAND_LIMITED_SPEECH_OCC)
         self.assertEqual(stack["hf_occupancy"], 0)
+        lpf = G.inspect_s16(G.phone_crush_lpf_s16())
+        self.assertEqual(lpf["code"], "BAND_LIMITED")
+        self.assertEqual(lpf["clip_ratio"], 0.0)
+        self.assertLess(abs(lpf["dc_fs"]), G.DC_REJECT_FS)
+        self.assertLess(lpf["hf_ratio"], G.BAND_LIMITED_HF_RATIO)
 
     def test_broadband_and_clean_tone_not_band_limited(self):
         broad = G.inspect_s16(G.tone_stack_s16(G.BROADBAND_HZ))

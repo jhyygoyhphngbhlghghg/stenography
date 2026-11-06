@@ -413,7 +413,7 @@ def transcribe_per_stream(
     drop the stream. pcm_gate_no_hush (b142a4d): do **not** wipe a quiet on-mic
     seat because padded-file RMS is LOW_ENERGY; apply inspect() to each ASR crop.
 
-    pcm_gate_v2: StreamPcmGate v2 @ b12a2bb. Bound seats s01–s20: SOFT_LOW still
+    pcm_gate_v2: StreamPcmGate v2 Implementer e3ad908 (sha256 == Platform b12a2bb). Bound seats s01–s20: SOFT_LOW still
     ASR; BAND_LIMITED / CLIPPED / BAD_MIC / empty still hard-reject. Headline
     ingest; no crop skip. Fixtures are not rewritten.
     """
@@ -616,7 +616,7 @@ def transcribe_per_stream(
         "pcm_gate_no_hush": pcm_gate_no_hush and not pcm_gate_v2,
         "pcm_gate_v2": pcm_gate_v2,
         "pcm_gate_source": (
-            "StreamPcmGate.kt v2 @ b12a2bb (BAND_LIMITED + boundSeat SOFT_LOW)"
+            "StreamPcmGate.kt v2 @ e3ad908 (sha256 == Platform b12a2bb; BAND_LIMITED + boundSeat SOFT_LOW)"
             if pcm_gate_v2
             else "StreamPcmGate.kt thresholds f5ff5e2; no-hush ingest b142a4d"
         ),

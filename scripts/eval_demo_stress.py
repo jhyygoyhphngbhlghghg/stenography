@@ -209,14 +209,9 @@ def run_one(
             wall_path.write_text(str(meta["wall_ms"]) + "\n", encoding="utf-8")
             meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
             extra = ""
-            if meta.get("pcm_gate"):
+            if meta.get("pcm_gate") or meta.get("pcm_gate_v2"):
                 extra = (
                     f" pcm_gate passed={meta.get('streams_passed')} "
-                    f"dropped={meta.get('streams_dropped')} codes={meta.get('pcm_gate_codes')}"
-                )
-                notes.append(
-                    f"pcm_gate passed={meta.get('streams_passed')}/"
-                    f"{int(meta.get('streams_passed') or 0) + int(meta.get('streams_dropped') or 0)} "
                     f"dropped={meta.get('streams_dropped')} codes={meta.get('pcm_gate_codes')}"
                 )
             log(f"    segments={meta['n_segments']} wall_ms={meta['wall_ms']}{extra}")
@@ -289,6 +284,19 @@ def run_one(
             notes.append("collared DER undefined (250 ms collar ate all frames); see der_no_collar")
 
     row["status"] = status
+    if meta_path.is_file():
+        try:
+            meta_doc = json.loads(meta_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError, json.JSONDecodeError):
+            meta_doc = {}
+        if meta_doc.get("pcm_gate") or meta_doc.get("pcm_gate_v2"):
+            gate_note = (
+                f"pcm_gate passed={meta_doc.get('streams_passed')}/"
+                f"{int(meta_doc.get('streams_passed') or 0) + int(meta_doc.get('streams_dropped') or 0)} "
+                f"dropped={meta_doc.get('streams_dropped')} codes={meta_doc.get('pcm_gate_codes')}"
+            )
+            if gate_note not in notes:
+                notes.append(gate_note)
     clip_note = clip.get("notes") or ""
     if notes and clip_note and clip_note not in notes:
         notes.append(clip_note)

@@ -9,8 +9,8 @@
 - `diar_param_sweep.py` — Path A clustering grid on the one-room mix (diar only).
 - `test_path_b_regression.py` — frozen Path B gate (CLEAN + EDGE_* + WORST_CASE): measured 20/20 speakers, schema. Does not require low WER/DER. See docs/GATE.md.
 - `generate_adversarial_path_b.py` — Path B EDGE_*/WORST_CASE demo-room degradations (reverb, true overlap+bleed, room noise, bad mic). Does not rewrite the CLEAN baseline.
-- `stream_pcm_gate.py` — Python mirror of Platform StreamPcmGate.kt v2 @ b12a2bb (BAND_LIMITED Goertzel + boundSeat SOFT_LOW). v1 inspect (`version=1`) kept for historical `*_gated` / `*_gated_b142a4d` rows.
-- `measure-stream-pcm-gate.py` — synthetic PCM stats for those thresholds (does not touch Eval wavs). Copied from Platform `b12a2bb`.
+- `stream_pcm_gate.py` — Python mirror of StreamPcmGate.kt v2 @ Implementer `e3ad908` (sha256 == Platform `b12a2bb`; BAND_LIMITED Goertzel + boundSeat SOFT_LOW). v1 inspect (`version=1`) kept for historical `*_gated` / `*_gated_b142a4d` rows.
+- `measure-stream-pcm-gate.py` — synthetic PCM stats for those thresholds (does not touch Eval wavs). Byte-identical to Implementer `e3ad908` / Platform `b12a2bb`.
 - `test_stream_pcm_gate.py` — v2 verdicts: bound silence SOFT_LOW, phone crush BAND_LIMITED, broadband Pass.
 - `host_asr_diar.py` — Zipformer-ru + OfflineSpeakerDiarization on Linux Python.
 - `eval_demo_stress.py` — DER/JER/purity + main-speaker WER + RTF; pending/blocked if inference cannot run.
