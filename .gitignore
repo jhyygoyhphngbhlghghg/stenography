@@ -77,6 +77,8 @@ samples/demo-stress/corpus/
 !samples/demo-stress/smoke.wav
 samples/demo-stress/adversarial/**/*.wav
 !samples/demo-stress/adversarial/smoke_worst.wav
+samples/demo-stress/stage6/**/*.wav
+!samples/demo-stress/stage6/smoke.wav
 !artifacts/eval/demo-stress/*.log
 !artifacts/eval/demo-stress/run.log
 apk/*.apk

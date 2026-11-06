@@ -1,5 +1,7 @@
 {
-  "description": "20-talker cocktail-party stress (REAL Common Voice 17 RU, CC0). Host Linux sherpa-onnx only. Do not invent metrics. Path B gate FROZEN (docs/GATE.md): mix_20talker_per_stream + EDGE_* + WORST_CASE. Lead sign-off to change fixtures. Do not retune to look pretty.",
+  "description": "DEMO_STAGE6 is the PRIMARY one-mic 6-talker demo fixture. 20-stream Path B CLEAN+EDGE+WORST / gated_* is SECONDARY regression only (docs/GATE.md). REAL Common Voice 17 RU CC0. Host Linux sherpa-onnx. Do not invent metrics. Do not retune gold.",
+  "primary_demo_fixture": "DEMO_STAGE6",
+  "secondary_regression": "20-stream Path B mix_20talker_per_stream + EDGE_* + WORST_CASE + gated_*",
   "frozen_path_b_gate": [
     "mix_20talker_per_stream",
     "EDGE_reverb",
@@ -8,7 +10,7 @@
     "EDGE_badmic",
     "WORST_CASE"
   ],
-  "frozen_claim": "20/20 stream tracking holds under edge; do NOT claim clean WER/DER on WORST_CASE.",
+  "frozen_claim": "20/20 stream tracking holds under edge; do NOT claim clean WER/DER on WORST_CASE. Secondary regression — not the presentation target.",
   "sample_rate_hz": 16000,
   "n_talkers": 20,
   "main_speaker_id": "speaker_1",
@@ -17,6 +19,19 @@
   "corpus": "Mozilla Common Voice 17.0 ru test split",
   "license": "CC0-1.0",
   "clips": [
+    {
+      "test_id": "DEMO_STAGE6",
+      "file": "samples/demo-stress/stage6/DEMO_STAGE6.wav",
+      "reference_json": "samples/demo-stress/stage6/ref/DEMO_STAGE6.json",
+      "main_speaker_id": "speaker_1",
+      "num_clusters": 6,
+      "cluster_threshold": 0.5,
+      "wer_per_speaker": true,
+      "primary_demo": true,
+      "min_duration_on": 0.15,
+      "min_duration_off": 0.30,
+      "notes": "PRIMARY demo fixture: 6 RU CV17 talkers, one-mic mix, turn-taking + 200 ms end overlap, large-room IR, medium HVAC+babble, Nothing-class phone mic, 3–6 m. Path A diar+ASR. 20-stream suite is secondary regression."
+    },
     {
       "test_id": "mix_20talker",
       "file": "samples/demo-stress/mix_20talker.wav",

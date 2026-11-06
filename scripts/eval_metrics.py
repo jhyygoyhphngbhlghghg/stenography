@@ -383,3 +383,44 @@ def main_speaker_wer(
     rows = hyp_doc.get("transcript") or []
     hyp_txt = " ".join(str(u.get("text", "")) for u in rows if u.get("speaker_id") in hyp_ids)
     return wer(ref_txt, hyp_txt)
+
+
+def speaker_wers(
+    ref_doc: dict,
+    hyp_doc: dict,
+    mapping: dict[str, str] | None = None,
+) -> dict:
+    """WER per reference speaker after Hungarian mapping, plus micro-average.
+
+    Aggregate = total Levenshtein edits / total reference tokens (not a mean of
+    per-speaker WERs). Does not invent scores.
+    """
+    if mapping is None:
+        mapping = map_speakers(ref_doc, hyp_doc)
+    ref_ids = sorted(
+        {str(u.get("speaker_id")) for u in (ref_doc.get("transcript") or []) if u.get("speaker_id")}
+    )
+    per: dict[str, float | None] = {}
+    total_edits = 0
+    total_words = 0
+    hyp_rows = hyp_doc.get("transcript") or []
+    for rid in ref_ids:
+        ref_txt = utterance_text(ref_doc, rid)
+        hyp_ids = [h for h, r in mapping.items() if r == rid]
+        hyp_txt = " ".join(str(u.get("text", "")) for u in hyp_rows if u.get("speaker_id") in hyp_ids)
+        rtok = tokenize(ref_txt)
+        htok = tokenize(hyp_txt)
+        if not rtok:
+            per[rid] = None
+            continue
+        edits = levenshtein(rtok, htok)
+        per[rid] = edits / len(rtok)
+        total_edits += edits
+        total_words += len(rtok)
+    return {
+        "per_speaker": per,
+        "wer_aggregate": (total_edits / total_words) if total_words else None,
+        "n_ref_words": total_words,
+        "n_edits": total_edits,
+        "mapping_hyp_to_ref": mapping,
+    }

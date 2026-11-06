@@ -69,6 +69,24 @@ class DiarTests(unittest.TestCase):
         )
         self.assertEqual(M.main_speaker_wer(ref, hyp, main_id="speaker_1"), 0.0)
 
+    def test_speaker_wers_aggregate(self):
+        ref = doc(
+            [
+                u("speaker_1", 0, 500, "привет мир"),
+                u("speaker_2", 500, 900, "один"),
+            ]
+        )
+        hyp = doc(
+            [
+                u("speaker_7", 0, 500, "привет мир"),
+                u("speaker_8", 500, 900, "два"),
+            ]
+        )
+        s = M.speaker_wers(ref, hyp)
+        self.assertEqual(s["per_speaker"]["speaker_1"], 0.0)
+        self.assertEqual(s["per_speaker"]["speaker_2"], 1.0)
+        self.assertEqual(s["wer_aggregate"], 1 / 3)
+
 
 if __name__ == "__main__":
     raise SystemExit(unittest.main(verbosity=2))

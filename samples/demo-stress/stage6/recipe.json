@@ -1,0 +1,110 @@
+{
+  "test_id": "DEMO_STAGE6",
+  "role": "primary_demo_fixture",
+  "secondary": "20-stream Path B CLEAN+EDGE+WORST / gated_* is regression only",
+  "label": "REAL",
+  "corpus": "Mozilla Common Voice 17.0 ru test split",
+  "license": "CC0-1.0",
+  "seed": 20261106,
+  "n_talkers": 6,
+  "one_voice_channel": true,
+  "duration_ms": 39718,
+  "overlap": {
+    "max_active_speakers": 2,
+    "frac_speech_frames_2plus": 0.0256,
+    "frac_speech_frames_5plus": 0.0,
+    "mean_active_on_speech": 1.026
+  },
+  "channels": [
+    {
+      "speaker_id": "speaker_1",
+      "client_id": "50228d02790b054af1d849979146d7aa77737c42fabbe9267b82638a67e7f0db5d0fb20bd670ebb1330f02e1de607aabe1acc15b7fb00f512e0812b780f2522a",
+      "distance_m": 3.0,
+      "gain_vs_3m": 1.0,
+      "start_ms": 250,
+      "end_ms": 7018,
+      "duration_ms": 6768,
+      "path": "common_voice_ru_37303728.mp3"
+    },
+    {
+      "speaker_id": "speaker_2",
+      "client_id": "562fa31f74b3ca16702456f506bfe49d6b4f55a2fa8c76f3f88d39e4f410050a23fa582682886256700ae292c0d385d9e4455c729b24983445b81f1644901b5f",
+      "distance_m": 3.6,
+      "gain_vs_3m": 0.8333,
+      "start_ms": 6818,
+      "end_ms": 15650,
+      "duration_ms": 8832,
+      "path": "common_voice_ru_19237378.mp3"
+    },
+    {
+      "speaker_id": "speaker_3",
+      "client_id": "5c0b8701574d1024c4324a209b6b02225f1dbd383f8a66fcc177d7cf2fd263ebfcf76b420f6b931675f66fb62232dba7720910b99d6ab83f1c16a15d9c4eaabc",
+      "distance_m": 4.2,
+      "gain_vs_3m": 0.7143,
+      "start_ms": 15450,
+      "end_ms": 22554,
+      "duration_ms": 7104,
+      "path": "common_voice_ru_18981650.mp3"
+    },
+    {
+      "speaker_id": "speaker_4",
+      "client_id": "2d974b0799be0ba84a8ca0251accde8a7f201b751706a55f274c53620174b3e85de9bc3073c2dcab4b395d27733249f118680c499447fa6dd32dffac0a403fe5",
+      "distance_m": 4.8,
+      "gain_vs_3m": 0.625,
+      "start_ms": 22354,
+      "end_ms": 29170,
+      "duration_ms": 6816,
+      "path": "common_voice_ru_20386928.mp3"
+    },
+    {
+      "speaker_id": "speaker_5",
+      "client_id": "ebc655331098e43516909a1e48df12a5c1a962a5f2740f576dccad70175c22ba672a66e1aea55376a928ad688b4ac1064ccd8cc74a7963cf229497599ea3346a",
+      "distance_m": 5.4,
+      "gain_vs_3m": 0.5556,
+      "start_ms": 28970,
+      "end_ms": 33650,
+      "duration_ms": 4680,
+      "path": "common_voice_ru_29568971.mp3"
+    },
+    {
+      "speaker_id": "speaker_6",
+      "client_id": "2e8c15618085d5722bf09402a2606b8110eef64e6f51a9cf7e6c46ea57b9794b96f657347bce1093821177df1c79755179c2eb5d361e13e2cbffda2817836a9f",
+      "distance_m": 6.0,
+      "gain_vs_3m": 0.5,
+      "start_ms": 33450,
+      "end_ms": 39318,
+      "duration_ms": 5868,
+      "path": "common_voice_ru_24599764.mp3"
+    }
+  ],
+  "dsp": {
+    "path": "A_one_mic",
+    "n_talkers": 6,
+    "overlap_ms_at_replica_ends": 200,
+    "distances_m": [
+      3.0,
+      3.6,
+      4.2,
+      4.8,
+      5.4,
+      6.0
+    ],
+    "rt60_s": 1.4,
+    "reverb_license": "SYNTHETIC taps+tail (not a recorded IR)",
+    "phone_mic": "Nothing-class: 250–4500 Hz roll-off, light compression ratio 3.5, hiss; NOT EDGE_badmic crush",
+    "hvac_snr_db_target": 14.0,
+    "babble_snr_db_target": 18.0
+  },
+  "beds": {
+    "hvac_snr_db_target": 14.0,
+    "hvac_license": "SYNTHETIC lowpassed pink (not a field recording)",
+    "babble_talkers": [
+      "speaker_7",
+      "speaker_8",
+      "speaker_9"
+    ],
+    "babble_license": "looped unused CV17 CC0 clips, −18 dB vs speech (unintelligible bed)"
+  },
+  "gold": "corpus sentence field (not eSpeak, not ASR)",
+  "notes": "Turn-taking with 200 ms end overlap. Do not retune gold to fake low WER."
+}
