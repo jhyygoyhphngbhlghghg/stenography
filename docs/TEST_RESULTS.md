@@ -42,7 +42,7 @@ Same Common Voice 17 RU talkers as demo-stress (CC0). Turn-taking, **no overlap*
 | clip_02 | measured | **0.0000** | **0.1219** | 18336 | 2236 |
 | clip_03 | measured | **0.0000** | **0.1291** | 23904 | 3086 |
 
-JSON: `artifacts/eval/hyp/clip_0{1,2,3}.json` validates. CSV: `artifacts/test-results/results.csv`. Stack: Python `sherpa-onnx==2.0.1` Zipformer-ru + OfflineSpeakerDiarization, `num_clusters` 2/2/3.
+JSON: `artifacts/eval/hyp/clip_0{1,2,3}.json` validates. CSV: `artifacts/test-results/results.csv`. Stack: Python `sherpa-onnx==2.0.1` Zipformer-ru + OfflineSpeakerDiarization, `num_clusters` 2/2/3. Morning handoff: `docs/overnight_clips_handoff.md`.
 
 ## Demo-stress (20 talkers) — host Linux only
 
