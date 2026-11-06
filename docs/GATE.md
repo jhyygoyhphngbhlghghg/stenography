@@ -35,3 +35,5 @@ Harden-claim remeasures use **new** test_ids on the **same** frozen wavs. They d
 - `*_gated_v3` — StreamPcmGate v3 Implementer `a5b7aed` (sha256 == Platform `686ac4a`). Bound `s01`–`s20`: `BAND_LIMITED` is a **soft** flag + still ASR. CLIPPED/BAD_MIC stay hard. Headline ingest. Does not replace frozen baseline or prior gated history.
 
 `*_gated_v3` @ `a5b7aed` / `686ac4a`: bound `BAND_LIMITED` is a soft flag. **Secondary regression.** DEMO_STAGE6 is the primary demo fixture. 20-stream EDGE_* stay green; do not retune those frozen wavs.
+
+DEMO_STAGE6 fixture (wav/gold/recipe) is **frozen** @ `a8b39d5a`. Platform far-field gain+soft VAD (`b66581c`) is remeasured as **`DEMO_STAGE6_ffgain`** on the same wavs. Do not replace the baseline row. Impl far-field still in flight — this row is Platform-only.
