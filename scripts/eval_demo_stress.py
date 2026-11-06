@@ -6,6 +6,14 @@ Default: score existing hyp JSON (pending if missing).
 
 Cloud agents have no KVM/ADB — this suite is host Linux only.
 
+FROZEN Path B gate (docs/GATE.md, H1 accepted WORST_CASE @ 9908353):
+  mix_20talker_per_stream, EDGE_reverb, EDGE_overlap, EDGE_noise,
+  EDGE_badmic, WORST_CASE.
+Fixtures change only with Lead sign-off. Do not retune to look pretty.
+Re-run --run-host on frozen ids only when a harden fix is claimed.
+Lock: 20/20 stream tracking holds under edge; do NOT claim clean WER/DER
+on WORST_CASE.
+
 Usage:
   python3 scripts/eval_demo_stress.py
   python3 scripts/eval_demo_stress.py --run-host
@@ -32,6 +40,15 @@ import host_asr_diar  # noqa: E402
 MANIFEST = ROOT / "samples" / "demo-stress" / "manifest.json"
 OUT_DIR = ROOT / "artifacts" / "eval" / "demo-stress"
 VERIFY = SCRIPT_DIR / "verify-transcript-json.py"
+# Frozen Path B regression suite. Do not drop these rows; do not retune fixtures.
+FROZEN_PATH_B_GATE = (
+    "mix_20talker_per_stream",
+    "EDGE_reverb",
+    "EDGE_overlap",
+    "EDGE_noise",
+    "EDGE_badmic",
+    "WORST_CASE",
+)
 
 
 def _git_commit() -> str:

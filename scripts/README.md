@@ -7,7 +7,7 @@
 - `fetch_cv17_ru.py` — download Common Voice 17 RU test clips (CC0) for 20 distinct talkers.
 - `generate_demo_stress_mix.py` — REAL 20-talker cocktail mix from that corpus (+3 dB main, staggered offsets). `--engine espeak` is the superseded OOD baseline.
 - `diar_param_sweep.py` — Path A clustering grid on the one-room mix (diar only).
-- `test_path_b_regression.py` — Path B PresentConnect smoke: measured row, 20 speakers, brief JSON schema.
+- `test_path_b_regression.py` — frozen Path B gate (CLEAN + EDGE_* + WORST_CASE): measured 20/20 speakers, schema. Does not require low WER/DER. See docs/GATE.md.
 - `generate_adversarial_path_b.py` — Path B EDGE_*/WORST_CASE demo-room degradations (reverb, true overlap+bleed, room noise, bad mic). Does not rewrite the CLEAN baseline.
 - `host_asr_diar.py` — Zipformer-ru + OfflineSpeakerDiarization on Linux Python.
 - `eval_demo_stress.py` — DER/JER/purity + main-speaker WER + RTF; pending/blocked if inference cannot run.

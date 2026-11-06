@@ -100,9 +100,17 @@ Forcing `num_clusters=20` still yields **one** cluster: pyannote segmentation se
 
 Demo implication: the 20-mic PresentConnect path is the one that can track talkers; a single room mic with 20 overlapping voices is still a measured fail.
 
+### Path B regression gate — FROZEN (H1 accepted WORST_CASE @ 9908353)
+
+These six Path B rows are **frozen**. They change only with Lead sign-off. Do **not** retune fixtures, VAD, or refs to make numbers pretty. Re-run host inference only when Implementer/Platform claim a harden fix. Policy: `docs/GATE.md`.
+
+**Lock claim: 20/20 stream tracking holds under edge; do NOT claim clean WER/DER on WORST_CASE.**
+
+Frozen ids: `mix_20talker_per_stream` (CLEAN), `EDGE_reverb`, `EDGE_overlap`, `EDGE_noise`, `EDGE_badmic`, `WORST_CASE`. All six stay in `artifacts/eval/demo-stress/metrics.csv` / `metrics.json` / this table.
+
 ### Johann hard requirement — adversarial Path B (worst-case demo room)
 
-CLEAN Path B (`mix_20talker_per_stream`) is **optimistic**: isolated dry CV clips, 90 ms stagger, no bleed, no room. H1/Johann: measure the **real demo room**, expect FAIL, **do not tune fixtures to look good**.
+CLEAN Path B (`mix_20talker_per_stream`) is **optimistic**: isolated dry CV clips, 90 ms stagger, no bleed, no room. H1/Johann: measure the **real demo room**, expect FAIL, **do not tune fixtures to look good**. H1 accepted this WORST_CASE table at `9908353`.
 
 Same Path B stack (20 streams, RMS VAD + Zipformer, oracle `s0N`↔`speaker_N`). Speech still CV17 CC0. All IR / HVAC / chair / door / phone / white are **SYNTHETIC** (`scripts/generate_adversarial_path_b.py`). Overlap timeline: max **12** concurrent talkers; **90.99%** of speech frames have ≥2 speakers; mean **8.28** active. Bleed on s01 measured **+3.00 dB** (EDGE_overlap) / **+1.50 dB** (WORST_CASE) vs other talkers on main-active frames. Recipe: `samples/demo-stress/adversarial/`.
 
@@ -128,6 +136,14 @@ Honest read (not spun):
 - **WORST_CASE** (all stacked, main +1.5 dB on s01): DER **1.30**, JER **0.60**, WER_main **0.91**. Hyp main is one 18 s blob whose text is `хочу говорить`. This is the demo-room row.
 
 JSON validates (four fields). No invented numbers. Fixtures were not relaxed after seeing FAIL.
+
+#### Ablation (interpretive — no new run)
+
+Read off the frozen table above, not a new measurement. Single-factor vs CLEAN Path B (DER 0.0913 / WER_main 0.0870):
+
+- **WER** is dominated by **badmic** (1.0000). Overlap is next (0.7391). Reverb is mild (0.1304). Noise barely moves WER (0.1739, same order as dry-main 0.1739).
+- **DER** is dominated by **noise** false alarms (1.7005, DER can exceed 1). Overlap collapses time alignment (0.9936). Badmic is moderate (0.6569). Reverb does not hurt DER (0.0849).
+- **WORST_CASE** is the stack (DER 1.2985, WER_main 0.9130): overlap+bleed plus badmic WER, with noise FA in the mix. Do not cite CLEAN WER/DER as the demo-room result.
 
 ### Superseded eSpeak SYNTHETIC baseline (historical)
 

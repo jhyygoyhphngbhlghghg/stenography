@@ -2,6 +2,10 @@
 
 Johann / H1 hard requirement: **do not** treat clean Common Voice Path B as the demo-room edge. This suite is **hostile on purpose**. Expect FAIL numbers. Fixtures were **not** tuned to look good.
 
+**FROZEN** (H1 accepted WORST_CASE @ 9908353). Policy: `docs/GATE.md`. Fixtures change only with Lead sign-off. Do not retune to make numbers pretty. Re-run host inference only when a harden fix is claimed.
+
+**Lock claim:** 20/20 stream tracking holds under edge; do NOT claim clean WER/DER on WORST_CASE.
+
 Path B still means: ≤20 PresentConnect dry streams, per-stream RMS VAD + Zipformer, oracle `s0N`↔`speaker_N`, merge by time, JSON `{speaker_id,start_ms,end_ms,text}` only. Main is only slightly louder than interferers on `s01` (~+3 dB EDGE_overlap, ~+1.5 dB WORST_CASE).
 
 CLEAN baseline stays `mix_20talker_per_stream` (not rewritten here).
