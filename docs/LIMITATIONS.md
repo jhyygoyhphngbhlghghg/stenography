@@ -10,7 +10,7 @@
 
 ## Известные ограничения
 
-- **WER / RTF не публикуем**, пока нет прогона на тестовых «котиках». Не выдумывать цифры.
+- **Судейский «котики» набор** — WER/RTF не публикуем, пока нет того прогона. Собственные clip_01..03 и demo-stress — только измеренные цифры в `docs/TEST_RESULTS.md`.
 - Zipformer-ru — RU-first; английский best-effort (для EN — Whisper tiny, не default).
 - Перекрывающаяся речь и сильный шум смазывают диаризацию; демо — с явной сменой реплик. The 20-talker cocktail-party mix (`samples/demo-stress/`) is a **host-Linux stress** (no KVM/ADB); DER/WER there are expected to be poor and must be measured, never invented.
 - LLM post-pass: модуль есть, **веса не приложены** (TODO Gemma/Qwen/Phi via llama.cpp или MediaPipe). Сейчас identity / лёгкая пунктуация, честно в UI.

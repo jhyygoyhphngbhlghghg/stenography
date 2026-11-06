@@ -22,6 +22,7 @@ import argparse
 import csv
 import json
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -176,11 +177,17 @@ def main() -> int:
                 wall = int(wall_path.read_text().strip())
             except ValueError:
                 wall = None
+        try:
+            import subprocess as _sp
+
+            commit = _sp.check_output(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, text=True).strip()
+        except Exception:
+            commit = ""
         rows.append(
             {
                 "test_id": test_id,
-                "timestamp_utc": "",
-                "commit": "",
+                "timestamp_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "commit": commit,
                 "file_name": clip["file"],
                 "duration_ms": "" if dur is None else str(dur),
                 "wall_ms": "" if wall is None else str(wall),
