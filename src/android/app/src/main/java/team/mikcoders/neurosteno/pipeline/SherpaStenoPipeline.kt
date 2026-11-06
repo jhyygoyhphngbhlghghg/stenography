@@ -15,25 +15,30 @@ import com.k2fsa.sherpa.onnx.SileroVadModelConfig
 import com.k2fsa.sherpa.onnx.SpeakerEmbeddingExtractorConfig
 import com.k2fsa.sherpa.onnx.Vad
 import com.k2fsa.sherpa.onnx.VadModelConfig
+import team.mikcoders.neurosteno.audio.FarFieldGain
+import team.mikcoders.neurosteno.audio.FarFieldVad
 import team.mikcoders.neurosteno.audio.Pcm
+import team.mikcoders.neurosteno.audio.PerTurnGain
 import team.mikcoders.neurosteno.export.TranscriptFile
 import team.mikcoders.neurosteno.export.Utterance
 import team.mikcoders.neurosteno.llm.IdentityLlmPostPass
 import team.mikcoders.neurosteno.llm.LocalLlmPostPass
 
 /**
- * VAD → OfflineSpeakerDiarization → Zipformer-ru (or Whisper tiny) per crop → LLM stub.
+ * Soft VAD → per-turn gain → OfflineSpeakerDiarization → Zipformer-ru per crop.
  *
- * Wired to the sherpa-onnx **Kotlin** Android AAR (data classes, not Java builders).
- * Models live on disk (filesDir), so AssetManager is null → newFromFile.
- * If native load fails, caller should fall back to [StubStenoPipeline].
+ * DEMO_STAGE6: no whole-file AGC (Eval e0e64b85 still missed s5). PresentConnect
+ * scene keeps overnight clustering. Native load failure → [StubStenoPipeline].
  */
 class SherpaStenoPipeline(
     private val paths: ModelPaths,
     private val llm: LocalLlmPostPass = IdentityLlmPostPass(),
+    private val scene: FarFieldScene = FarFieldScene.stage6,
 ) : StenoPipeline {
     override val displayName: String =
         when {
+            paths.hasPrimaryAsr && scene.expectedSpeakers > 0 ->
+                "sherpa zipformer-ru-int8 far-field ${scene.expectedSpeakers}spk"
             paths.hasPrimaryAsr -> "sherpa zipformer-ru-int8"
             paths.hasBackupAsr -> "sherpa whisper-tiny"
             else -> "sherpa (incomplete models)"
@@ -46,14 +51,33 @@ class SherpaStenoPipeline(
         require(audio.sampleRate == Pcm.TARGET_HZ) { "need 16 kHz PCM" }
         onProgress(PipelineProgress(PipelineStage.Decode, "PCM ${audio.samples.size} samples", 0.05f))
 
+        val hz = audio.sampleRate
+        val energy = FarFieldVad.speechRegions(audio.samples, hz)
+        onProgress(PipelineProgress(PipelineStage.Vad, "soft energy-VAD ${energy.size} regions", 0.12f))
+        val silero = if (paths.hasVad) collectSilero(audio) else emptyList()
+        val regions = FarFieldVad.union(energy, silero)
+        val work = if (scene.expectedSpeakers > 0) {
+            val gained = PerTurnGain.apply(audio.samples, regions, hz)
+            onProgress(
+                PipelineProgress(
+                    PipelineStage.Vad,
+                    "per-turn gain ${gained.turns.count { it.boosted }}/${gained.turns.size} boosted",
+                    0.18f,
+                ),
+            )
+            audio.copy(samples = gained.samples)
+        } else {
+            audio
+        }
+
         val recognizer = createRecognizer()
         try {
             val raw = if (paths.hasDiar) {
-                onProgress(PipelineProgress(PipelineStage.Diarize, "OfflineSpeakerDiarization", 0.2f))
-                diarizeThenAsr(audio, recognizer, onProgress)
+                onProgress(PipelineProgress(PipelineStage.Diarize, "OfflineSpeakerDiarization K=${scene.expectedSpeakers}", 0.25f))
+                diarizeThenAsr(work, regions, recognizer, onProgress)
             } else {
-                onProgress(PipelineProgress(PipelineStage.Vad, "Silero VAD chunks", 0.2f))
-                vadThenAsr(audio, recognizer, onProgress)
+                onProgress(PipelineProgress(PipelineStage.Vad, "Silero VAD chunks", 0.25f))
+                vadThenAsr(work, recognizer, onProgress)
             }
             onProgress(
                 PipelineProgress(
@@ -72,30 +96,39 @@ class SherpaStenoPipeline(
 
     private fun diarizeThenAsr(
         audio: PcmAudio,
+        vadRegions: List<SpeechRegion>,
         recognizer: OfflineRecognizer,
         onProgress: (PipelineProgress) -> Unit,
     ): List<Utterance> {
         val diar = createDiarizer()
         try {
             val segs = diar.process(audio.samples)
-            val out = ArrayList<Utterance>(segs.size)
-            segs.forEachIndexed { i, seg ->
+            val mapped = segs.map { s ->
+                DiarSeg(
+                    speakerIndex = s.speaker,
+                    startMs = (s.start * 1000).toLong(),
+                    endMs = (s.end * 1000).toLong(),
+                )
+            }
+            val reconciled = VadDiarReconcile.run(vadRegions, mapped, audio.sampleRate, scene)
+            val out = ArrayList<Utterance>(reconciled.size)
+            reconciled.forEachIndexed { i, seg ->
                 onProgress(
                     PipelineProgress(
                         PipelineStage.Asr,
-                        "ASR ${i + 1}/${segs.size} speaker_${seg.speaker + 1}",
-                        0.3f + 0.6f * (i + 1) / segs.size.coerceAtLeast(1),
+                        "ASR ${i + 1}/${reconciled.size} ${seg.speakerId}",
+                        0.3f + 0.6f * (i + 1) / reconciled.size.coerceAtLeast(1),
                     ),
                 )
-                val startMs = (seg.start * 1000).toLong()
-                val endMs = (seg.end * 1000).toLong()
-                val crop = crop(audio.samples, audio.sampleRate, startMs, endMs)
-                val text = asr(recognizer, crop, audio.sampleRate)
+                val pad = scene.asrCropPadMs
+                val crop = crop(audio.samples, audio.sampleRate, seg.startMs - pad, seg.endMs + pad)
+                val staged = FarFieldGain.stageTurn(crop)
+                val text = asr(recognizer, staged.samples, audio.sampleRate)
                 if (text.isNotBlank()) {
                     out += Utterance(
-                        speakerId = "speaker_${seg.speaker + 1}",
-                        startMs = startMs,
-                        endMs = endMs,
+                        speakerId = seg.speakerId,
+                        startMs = seg.startMs,
+                        endMs = seg.endMs,
                         text = text,
                     )
                 }
@@ -103,6 +136,39 @@ class SherpaStenoPipeline(
             return out
         } finally {
             diar.release()
+        }
+    }
+
+    private fun collectSilero(audio: PcmAudio): List<SpeechRegion> {
+        val vad = createVad()
+        try {
+            val window = 512
+            var offset = 0
+            val samples = audio.samples
+            val out = ArrayList<SpeechRegion>()
+            while (offset + window <= samples.size) {
+                vad.acceptWaveform(samples.copyOfRange(offset, offset + window))
+                offset += window
+                drainSilero(vad, out)
+            }
+            vad.flush()
+            drainSilero(vad, out)
+            return out
+        } finally {
+            vad.release()
+        }
+    }
+
+    private fun drainSilero(
+        vad: Vad,
+        out: ArrayList<SpeechRegion>,
+    ) {
+        while (!vad.empty()) {
+            val seg = vad.front()
+            vad.pop()
+            val start = seg.start
+            val end = start + seg.samples.size
+            if (end > start) out += SpeechRegion(start, end)
         }
     }
 
@@ -133,7 +199,7 @@ class SherpaStenoPipeline(
                     val startMs = (seg.start.toDouble() / audio.sampleRate * 1000).toLong()
                     val durMs = (seg.samples.size.toLong() * 1000) / audio.sampleRate
                     onProgress(PipelineProgress(PipelineStage.Asr, "VAD chunk ${++idx}", 0.4f))
-                    val text = asr(recognizer, seg.samples, audio.sampleRate)
+                    val text = asr(recognizer, FarFieldGain.stageTurn(seg.samples).samples, audio.sampleRate)
                     if (text.isNotBlank()) {
                         out += Utterance("speaker_1", startMs, startMs + durMs, text)
                     }
@@ -145,7 +211,7 @@ class SherpaStenoPipeline(
                 vad.pop()
                 val startMs = (seg.start.toDouble() / audio.sampleRate * 1000).toLong()
                 val durMs = (seg.samples.size.toLong() * 1000) / audio.sampleRate
-                val text = asr(recognizer, seg.samples, audio.sampleRate)
+                val text = asr(recognizer, FarFieldGain.stageTurn(seg.samples).samples, audio.sampleRate)
                 if (text.isNotBlank()) {
                     out += Utterance("speaker_1", startMs, startMs + durMs, text)
                 }
@@ -237,9 +303,12 @@ class SherpaStenoPipeline(
                 debug = false,
                 provider = "cpu",
             ),
-            clustering = FastClusteringConfig(numClusters = -1, threshold = 0.5f),
-            minDurationOn = 0.2f,
-            minDurationOff = 0.5f,
+            clustering = FastClusteringConfig(
+                numClusters = scene.expectedSpeakers,
+                threshold = scene.diarClusterThreshold,
+            ),
+            minDurationOn = scene.diarMinDurationOnSec,
+            minDurationOff = scene.diarMinDurationOffSec,
         )
         return OfflineSpeakerDiarization(assetManager = null, config = cfg)
     }
@@ -248,10 +317,11 @@ class SherpaStenoPipeline(
         val cfg = VadModelConfig(
             sileroVadModelConfig = SileroVadModelConfig(
                 model = paths.sileroVad!!.absolutePath,
-                minSilenceDuration = 0.25f,
-                minSpeechDuration = 0.25f,
+                threshold = scene.vadThreshold,
+                minSilenceDuration = scene.vadMinSilenceSec,
+                minSpeechDuration = scene.vadMinSpeechSec,
                 windowSize = 512,
-                maxSpeechDuration = 20f,
+                maxSpeechDuration = scene.vadMaxSpeechSec,
             ),
             sampleRate = 16_000,
             numThreads = 1,
