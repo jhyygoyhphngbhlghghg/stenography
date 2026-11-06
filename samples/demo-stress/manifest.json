@@ -1,0 +1,35 @@
+{
+  "description": "20-talker cocktail-party stress (SYNTHETIC). Host Linux sherpa-onnx only. Do not invent metrics.",
+  "sample_rate_hz": 16000,
+  "n_talkers": 20,
+  "main_speaker_id": "speaker_1",
+  "target_snr_db": 3.0,
+  "label": "SYNTHETIC",
+  "clips": [
+    {
+      "test_id": "mix_20talker",
+      "file": "samples/demo-stress/mix_20talker.wav",
+      "reference_json": "samples/demo-stress/ref/mix_20talker.json",
+      "main_speaker_id": "speaker_1",
+      "num_clusters": 20,
+      "notes": "Full 20-talker room mix; main +3 dB vs babble sum; staggered PresentConnect offsets."
+    },
+    {
+      "test_id": "mix_20talker_main_dry",
+      "file": "samples/demo-stress/dry/spk_01.wav",
+      "reference_json": "samples/demo-stress/ref/mix_20talker_main.json",
+      "main_speaker_id": "speaker_1",
+      "num_clusters": 1,
+      "asr_only": true,
+      "notes": "Oracle PresentConnect s01 (dry main, no babble). Zipformer only; measures whether eSpeak is readable without cocktail overlap."
+    },
+    {
+      "test_id": "smoke",
+      "file": "samples/demo-stress/smoke.wav",
+      "reference_json": "samples/demo-stress/ref/smoke.json",
+      "main_speaker_id": "speaker_1",
+      "num_clusters": 20,
+      "notes": "Tiny committed mix so the harness has a wav without generating the full file."
+    }
+  ]
+}

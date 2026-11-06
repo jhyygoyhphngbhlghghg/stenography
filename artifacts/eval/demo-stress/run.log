@@ -1,0 +1,8 @@
+demo-stress eval  commit=84b255c  utc=2026-11-06T18:02:22.167837+00:00
+Cloud agents have no KVM/ADB — host Linux sherpa-onnx only.
+run_host=False models=/agent/repos/neuro-stenographer/models
+ROW mix_20talker status=measured der=0.9500 jer=0.9503 purity=0.9947 wer_main=1.0000 rtf=0.1592 blocked='' notes='diarization collapsed to 1 speaker (ref 20); Full 20-talker room mix; main +3 dB vs babble sum; staggered PresentConnect offsets.'
+ROW mix_20talker_main_dry status=measured der=0.0217 jer=0.0933 purity=0.9067 wer_main=1.0000 rtf=0.0591 blocked='' notes='Oracle PresentConnect s01 (dry main, no babble). Zipformer only; measures whether eSpeak is readable without cocktail overlap.'
+ROW smoke status=measured der= jer=0.9731 purity=0.2692 wer_main=1.0000 rtf=0.8661 blocked='' notes='collared DER undefined (250 ms collar ate all frames); see der_no_collar; Tiny committed mix so the harness has a wav without generating the full file.'
+copied mix_20talker.json -> hyp.json
+wrote /agent/repos/neuro-stenographer/artifacts/eval/demo-stress/metrics.csv and /agent/repos/neuro-stenographer/artifacts/eval/demo-stress/metrics.json

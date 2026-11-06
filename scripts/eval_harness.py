@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Eval skeleton: 3 fixed clips, WER + RTF.
+"""Eval skeleton: 3 fixed clips (WER + RTF) plus optional demo-stress suite.
 
 Does NOT invent numbers. If a wav/reference/hypothesis is missing, the row
 stays pending. Fill artifacts/test-results/results.csv only after a real run.
@@ -7,6 +7,11 @@ stays pending. Fill artifacts/test-results/results.csv only after a real run.
 Usage:
   python3 scripts/eval_harness.py
   python3 scripts/eval_harness.py --hyp-dir artifacts/eval/hyp
+  python3 scripts/eval_harness.py --suite demo-stress
+  python3 scripts/eval_harness.py --suite demo-stress --run-host
+
+Default suite is clip_01..03 (overnight skeleton). demo-stress is host Linux
+sherpa-onnx only — cloud agents have no KVM/ADB.
 
 Hypothesis files (optional): artifacts/eval/hyp/clip_01.json matching brief schema.
 Wall time (optional): artifacts/eval/hyp/clip_01.wall_ms  (integer milliseconds).
@@ -93,7 +98,26 @@ def main() -> int:
     p = argparse.ArgumentParser()
     p.add_argument("--hyp-dir", type=Path, default=ROOT / "artifacts" / "eval" / "hyp")
     p.add_argument("--write-csv", action="store_true", help="overwrite results.csv (only with real numbers)")
+    p.add_argument(
+        "--suite",
+        choices=("clips", "demo-stress", "all"),
+        default="clips",
+        help="clips = overnight clip_01..03; demo-stress = 20-talker cocktail mix",
+    )
+    p.add_argument(
+        "--run-host",
+        action="store_true",
+        help="Linux sherpa-onnx inference for demo-stress (ignored for clips)",
+    )
     args = p.parse_args()
+    rc = 0
+    if args.suite in ("demo-stress", "all"):
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from eval_demo_stress import run_demo_stress
+
+        rc = run_demo_stress(run_host=args.run_host)
+        if args.suite == "demo-stress":
+            return rc
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     rows = []
     print("test_id\tstatus\twer\trtf\tnotes")
@@ -164,7 +188,7 @@ def main() -> int:
             for r in rows:
                 w.writerow(r)
         print(f"wrote {RESULTS} (empty metrics unless hyp+ref+wav existed)", file=sys.stderr)
-    return 0
+    return rc
 
 
 if __name__ == "__main__":
