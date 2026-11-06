@@ -2,6 +2,7 @@ package team.mikcoders.neurosteno.present
 
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import team.mikcoders.neurosteno.audio.AudioQualityGate
 import team.mikcoders.neurosteno.audio.Pcm
 import team.mikcoders.neurosteno.export.TranscriptFile
 import team.mikcoders.neurosteno.export.Utterance
@@ -35,8 +36,15 @@ class PresentStreamTranscriber(
         if (pcmS16le.isEmpty()) {
             return IsolatedResult.Empty(streamId)
         }
+        val samples = Pcm.s16leToFloat(pcmS16le)
+        when (val q = AudioQualityGate.inspect(samples)) {
+            is AudioQualityGate.Quality.Fail -> {
+                return IsolatedResult.Rejected(streamId, q.code, q.message)
+            }
+            AudioQualityGate.Quality.Ok -> Unit
+        }
         val audio = PcmAudio(
-            samples = Pcm.s16leToFloat(pcmS16le),
+            samples = samples,
             sampleRate = Pcm.TARGET_HZ,
             sourceName = "present:$streamId",
         )
@@ -63,6 +71,13 @@ sealed class IsolatedResult {
     data class ModelsMissing(override val streamId: String) : IsolatedResult()
 
     data class Empty(override val streamId: String) : IsolatedResult()
+
+    /** Bad mic / clip — fail loud, do not emit a hallucinated transcript. */
+    data class Rejected(
+        override val streamId: String,
+        val code: String,
+        val message: String,
+    ) : IsolatedResult()
 
     val utterances: List<Utterance>
         get() = (this as? Ok)?.file?.transcript.orEmpty()

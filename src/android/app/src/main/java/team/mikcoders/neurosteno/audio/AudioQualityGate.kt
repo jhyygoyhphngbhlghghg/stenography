@@ -20,6 +20,8 @@ object AudioQualityGate {
         data class Fail(val code: String, val message: String) : Quality()
     }
 
+    class Rejected(val code: String, override val message: String) : RuntimeException(message)
+
     fun inspect(samples: FloatArray): Quality {
         if (samples.isEmpty()) return Quality.Ok
         var clip = 0

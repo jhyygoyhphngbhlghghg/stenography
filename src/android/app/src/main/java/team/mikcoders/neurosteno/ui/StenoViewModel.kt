@@ -182,6 +182,12 @@ class StenoViewModel(app: Application) : AndroidViewModel(app) {
                         }
                     }
                     is IsolatedResult.Empty -> _state.update { it.copy(running = false) }
+                    is IsolatedResult.Rejected -> {
+                        present?.sendError(streamId, result.code, result.message)
+                        _state.update {
+                            it.copy(running = false, error = "${result.code}: ${result.message}")
+                        }
+                    }
                     is IsolatedResult.Ok -> {
                         if (final) {
                             present?.sendTranscriptFinal(streamId, result.file)

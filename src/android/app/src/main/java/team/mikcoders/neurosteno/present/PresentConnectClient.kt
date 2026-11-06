@@ -92,4 +92,5 @@ object PresentConnectCodes {
     const val UNKNOWN_STREAM = "UNKNOWN_STREAM"
     const val PIPELINE = "PIPELINE"
     const val MODELS_MISSING = "MODELS_MISSING"
+    const val BAD_AUDIO = "BAD_AUDIO"
 }
