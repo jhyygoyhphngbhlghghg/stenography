@@ -322,6 +322,60 @@ def transcribe_file(
     return doc, meta
 
 
+def rms_speech_regions(
+    samples,
+    sr: int,
+    *,
+    frame_ms: int = 20,
+    rel_thresh: float = 0.12,
+    pad_ms: int = 80,
+    min_ms: int = 150,
+    merge_gap_ms: int = 250,
+) -> list[tuple[float, float]]:
+    """Energy VAD for a single-speaker dry track. Returns (start_s, end_s)."""
+    import numpy as np
+
+    x = np.asarray(samples, dtype=np.float32)
+    if x.size == 0:
+        return []
+    frame = max(1, int(sr * frame_ms / 1000))
+    n = (x.size + frame - 1) // frame
+    pad = np.zeros(n * frame, dtype=np.float32)
+    pad[: x.size] = x
+    frames = pad.reshape(n, frame)
+    e = np.sqrt(np.mean(np.square(frames), axis=1))
+    peak = float(np.max(e)) or 1.0
+    speech = e > (rel_thresh * peak)
+    regions: list[list[int]] = []
+    i = 0
+    while i < n:
+        if not speech[i]:
+            i += 1
+            continue
+        j = i
+        while j < n and speech[j]:
+            j += 1
+        regions.append([i, j])
+        i = j
+    merge_f = max(1, merge_gap_ms // frame_ms)
+    merged: list[list[int]] = []
+    for a, b in regions:
+        if merged and a - merged[-1][1] <= merge_f:
+            merged[-1][1] = b
+        else:
+            merged.append([a, b])
+    pad_f = max(0, pad_ms // frame_ms)
+    min_f = max(1, min_ms // frame_ms)
+    out = []
+    for a, b in merged:
+        a = max(0, a - pad_f)
+        b = min(n, b + pad_f)
+        if b - a < min_f:
+            continue
+        out.append((a * frame / sr, min(x.size, b * frame) / sr))
+    return out
+
+
 def transcribe_per_stream(
     dry_dir: Path,
     models: Path,
@@ -329,32 +383,112 @@ def transcribe_per_stream(
     n_talkers: int = 20,
     num_clusters: int = 1,
     num_threads: int = 2,
+    vad: str = "rms",
+    pad_ms: int = 80,
+    min_duration_on: float = 0.15,
+    min_duration_off: float = 0.25,
 ) -> tuple[dict, dict]:
     """Path B: one dry track per PresentConnect stream, then merge.
 
-    Each file is a single known talker (oracle stream→speaker_id). Diarization
-    with num_clusters=1 finds speech regions; ASR fills text. Timestamps stay
-    on the shared mix timeline (stagger already baked into the dry wavs).
+    Oracle stream→speaker_id (s0N ↔ speaker_N). Default RMS VAD + edge pad,
+    then Zipformer per region. OfflineSpeakerDiarization is the fallback if
+    VAD finds nothing. Timestamps stay on the shared mix timeline.
     """
     dry_dir = Path(dry_dir)
     t0 = time.perf_counter()
     merged: list[dict] = []
     per = []
     duration_ms = 0
+    recognizer = None
+
+    def get_recognizer():
+        nonlocal recognizer
+        if recognizer is None:
+            z = find_zipformer(Path(models))
+            try:
+                import sherpa_onnx
+            except ImportError as e:
+                raise HostBlocked("python package sherpa-onnx is not installed") from e
+            recognizer = sherpa_onnx.OfflineRecognizer.from_transducer(
+                encoder=str(z["encoder"]),
+                decoder=str(z["decoder"]),
+                joiner=str(z["joiner"]),
+                tokens=str(z["tokens"]),
+                num_threads=num_threads,
+                sample_rate=16000,
+                feature_dim=80,
+                decoding_method="greedy_search",
+                provider="cpu",
+                model_type="transducer",
+            )
+        return recognizer
+
     for i in range(1, n_talkers + 1):
         wav = dry_dir / f"spk_{i:02d}.wav"
         if not wav.is_file():
             raise HostBlocked(f"dry track missing: {wav}")
-        doc, meta = transcribe_file(
-            wav,
-            models,
-            num_clusters=num_clusters,
-            num_threads=num_threads,
-            speaker_id_override=f"speaker_{i}",
-        )
-        duration_ms = max(duration_ms, int(meta.get("duration_ms") or 0))
-        per.append({"file": str(wav), "n_segments": meta["n_segments"], "wall_ms": meta["wall_ms"]})
-        merged.extend(doc["transcript"])
+        samples, sr = load_wav_mono16k(wav)
+        duration_ms = max(duration_ms, int(round(samples.size * 1000.0 / sr)))
+        sid = f"speaker_{i}"
+        t1 = time.perf_counter()
+        regions: list[tuple[float, float]] = []
+        method = vad
+        if vad == "rms":
+            regions = rms_speech_regions(
+                samples,
+                sr,
+                pad_ms=pad_ms,
+                min_ms=int(min_duration_on * 1000),
+                merge_gap_ms=int(min_duration_off * 1000),
+            )
+        if not regions:
+            method = "diar_fallback"
+            doc, meta = transcribe_file(
+                wav,
+                models,
+                num_clusters=num_clusters,
+                num_threads=num_threads,
+                min_duration_on=min_duration_on,
+                min_duration_off=min_duration_off,
+                speaker_id_override=sid,
+            )
+            for u in doc["transcript"]:
+                if pad_ms:
+                    u["start_ms"] = max(0, int(u["start_ms"]) - pad_ms)
+                    u["end_ms"] = int(u["end_ms"]) + pad_ms
+            per.append(
+                {
+                    "file": str(wav),
+                    "n_segments": len(doc["transcript"]),
+                    "wall_ms": meta["wall_ms"],
+                    "vad": method,
+                }
+            )
+            merged.extend(doc["transcript"])
+            continue
+        rec = get_recognizer()
+        rows = []
+        for start, end in regions:
+            a = max(0, int(start * sr))
+            b = min(samples.size, int(end * sr))
+            crop = samples[a:b]
+            text = ""
+            if crop.size:
+                stream = rec.create_stream()
+                stream.accept_waveform(sr, crop)
+                rec.decode_stream(stream)
+                text = (stream.result.text or "").strip()
+            rows.append(
+                {
+                    "speaker_id": sid,
+                    "start_ms": int(round(start * 1000.0)),
+                    "end_ms": int(round(end * 1000.0)),
+                    "text": text,
+                }
+            )
+        wall_i = int(round((time.perf_counter() - t1) * 1000.0))
+        per.append({"file": str(wav), "n_segments": len(rows), "wall_ms": wall_i, "vad": method})
+        merged.extend(rows)
     merged.sort(key=lambda u: (u["start_ms"], u["speaker_id"]))
     wall_ms = int(round((time.perf_counter() - t0) * 1000.0))
     out_doc = {"transcript": merged}
@@ -366,9 +500,14 @@ def transcribe_per_stream(
         "n_hyp_speakers": len({u["speaker_id"] for u in merged}),
         "n_streams": n_talkers,
         "path": "B_per_stream",
-        "stack": "linux-sherpa-onnx per-stream diar+ASR (oracle stream id), merge by time",
+        "vad": vad,
+        "pad_ms": pad_ms,
+        "min_duration_on": min_duration_on,
+        "min_duration_off": min_duration_off,
+        "stack": "linux-sherpa-onnx per-stream RMS-VAD+ASR (oracle stream id), merge by time",
         "streams": per,
         "no_kvm_adb": True,
+        "json_schema": "transcript[].{speaker_id,start_ms,end_ms,text}",
     }
     if duration_ms > 0:
         out_meta["rtf"] = wall_ms / duration_ms

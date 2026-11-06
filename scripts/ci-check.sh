@@ -17,6 +17,10 @@ fi
 if [[ -f artifacts/eval/demo-stress/hyp.json ]]; then
   python3 scripts/verify-transcript-json.py artifacts/eval/demo-stress/hyp.json
 fi
+if [[ -f artifacts/eval/demo-stress/mix_20talker_per_stream.json ]]; then
+  python3 scripts/verify-transcript-json.py artifacts/eval/demo-stress/mix_20talker_per_stream.json
+  python3 scripts/test_path_b_regression.py
+fi
 
 if [[ -f src/android/local.properties ]] || [[ -n "${ANDROID_HOME:-}" ]]; then
   (cd src/android && ./gradlew :app:testStenographerDebugUnitTest :app:assembleStenographerDebug --quiet)

@@ -164,7 +164,16 @@ def run_one(
             if clip.get("per_stream"):
                 dry = ROOT / clip.get("dry_dir", "samples/demo-stress/dry")
                 n = int(clip.get("n_talkers") or clip.get("num_clusters") or 20)
-                doc, meta = host_asr_diar.transcribe_per_stream(dry, models, n_talkers=n)
+                doc, meta = host_asr_diar.transcribe_per_stream(
+                    dry,
+                    models,
+                    n_talkers=n,
+                    num_clusters=int(clip.get("num_clusters", 1)),
+                    vad=str(clip.get("vad", "rms")),
+                    pad_ms=int(clip.get("pad_ms", 80)),
+                    min_duration_on=float(clip.get("min_duration_on", 0.15)),
+                    min_duration_off=float(clip.get("min_duration_off", 0.25)),
+                )
             else:
                 doc, meta = host_asr_diar.transcribe_file(
                     wav,
@@ -278,6 +287,7 @@ def run_demo_stress(
     run_host: bool = False,
     models: Path | None = None,
     out_dir: Path | None = None,
+    only: list[str] | None = None,
 ) -> int:
     out_dir = out_dir or OUT_DIR
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -286,12 +296,13 @@ def run_demo_stress(
     try:
         log(f"demo-stress eval  commit={_git_commit()}  utc={datetime.now(timezone.utc).isoformat()}")
         log("Cloud agents have no KVM/ADB — host Linux sherpa-onnx only.")
-        log(f"run_host={run_host} models={models}")
+        log(f"run_host={run_host} only={only} models={models}")
         manifest = _load_manifest()
         rows = []
         print("test_id\tstatus\tder\tjer\tpurity\twer_main\trtf\tnotes")
         for clip in manifest["clips"]:
-            row = run_one(clip, run_host=run_host, models=models, out_dir=out_dir, log=log)
+            do_host = run_host and (not only or clip["test_id"] in only)
+            row = run_one(clip, run_host=do_host, models=models, out_dir=out_dir, log=log)
             rows.append(row)
             der_show = row["der"] or (f"uncollared:{row['der_no_collar']}" if row["der_no_collar"] else "-")
             print(
@@ -362,8 +373,11 @@ def main() -> int:
     p.add_argument("--run-host", action="store_true", help="run Linux sherpa-onnx (not Android)")
     p.add_argument("--models", type=Path, default=ROOT / "models")
     p.add_argument("--out-dir", type=Path, default=OUT_DIR)
+    p.add_argument("--only", action="append", default=None, help="limit --run-host to these test_id values (repeatable)")
     args = p.parse_args()
-    return run_demo_stress(run_host=args.run_host, models=args.models, out_dir=args.out_dir)
+    return run_demo_stress(
+        run_host=args.run_host, models=args.models, out_dir=args.out_dir, only=args.only
+    )
 
 
 if __name__ == "__main__":

@@ -29,12 +29,16 @@
       "test_id": "mix_20talker_per_stream",
       "file": "samples/demo-stress/mix_20talker.wav",
       "dry_dir": "samples/demo-stress/dry",
-      "reference_json": "samples/demo-stress/ref/mix_20talker.json",
+      "reference_json": "samples/demo-stress/ref/mix_20talker_per_stream.json",
       "main_speaker_id": "speaker_1",
       "num_clusters": 1,
       "n_talkers": 20,
       "per_stream": true,
-      "notes": "Path B: diar+ASR each dry track (oracle stream id), merge by time. PresentConnect-style separate mics."
+      "min_duration_on": 0.15,
+      "min_duration_off": 0.25,
+      "pad_ms": 80,
+      "vad": "rms",
+      "notes": "Path B tech demo: per-stream RMS VAD + ASR, oracle s0N↔speaker_N, unlooped dry tracks."
     },
     {
       "test_id": "smoke",
