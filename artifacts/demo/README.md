@@ -2,9 +2,9 @@
 
 Добавить сюда или дать ссылки:
 
-- видео: импорт → расшифровка в авиарежиме;
-- исходный аудиоклип (2 спикера, RU) и экспортированный JSON;
+- **DEMO_STAGE6** (заявка слайдов): 6 спикеров RU, один микрофон телефона, 3–6 м, очередь с лёгким перекрытием в конце реплики, большая комната, средний babble/HVAC. Видео импорта → расшифровка. WER/DER пока нет (Eval, PR #4). Не студия.
+- исходный аудиоклип и экспортированный JSON;
 - скрин списка реплик;
-- (опционально) PresentConnect **Path B**: QR → отдельный браузерный mic на каждый `stream_id` (≤20) → текст на слайде. Не один смешанный микрофон комнаты: Path A (cocktail, 20→1) — measured FAIL. Под edge только **20/20** stream tracking. **WORST_CASE FAIL:** WER main **0.9130**, DER **1.2985** (PR #4 @ `9908353d`). Clean WER/DER на edge не заявлять. **Do not claim in slides.** См. `docs/ARCHITECTURE.md`.
+- (опционально, не заявка) PresentConnect **Path B**: QR → отдельный браузерный mic на каждый `stream_id` (≤20). Path A (cocktail, 20→1) — measured FAIL. Под edge только **20/20** stream tracking. **WORST_CASE FAIL:** WER main **0.9130**, DER **1.2985** (PR #4 @ `9908353d`). Не ставить эти цифры как DEMO_STAGE6. См. `docs/ARCHITECTURE.md`.
 
 Крупные `.wav`/`.mp4` в git не кладём.
