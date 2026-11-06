@@ -12,7 +12,7 @@ import team.mikcoders.neurosteno.export.Utterance
 
 class StreamPcmGateTest {
     @Test
-    fun silenceIsLowEnergy() {
+    fun unboundSilenceIsLowEnergy() {
         val q = StreamPcmGate.inspect(StreamPcmSynth.silence())
         assertEquals(PresentConnectCodes.LOW_ENERGY, q.rejectCode)
         assertFalse(q.asrAllowed)
@@ -20,7 +20,26 @@ class StreamPcmGateTest {
     }
 
     @Test
-    fun tinyNoiseIsLowEnergy() {
+    fun boundNearSilenceIsSoftLowStillAsr() {
+        val q = StreamPcmGate.inspect(StreamPcmSynth.silence(), boundSeat = true)
+        assertTrue(q.asrAllowed)
+        assertEquals(null, q.rejectCode)
+        assertTrue(q.softFlags.contains("SOFT_LOW"))
+        val tiny = StreamPcmGate.inspect(StreamPcmSynth.tinyNoise(), boundSeat = true)
+        assertTrue(tiny.asrAllowed)
+        assertTrue(tiny.softFlags.contains("SOFT_LOW"))
+    }
+
+    @Test
+    fun emptyBufferHardLowEnergyEvenWhenBound() {
+        val q = StreamPcmGate.inspect(StreamPcmSynth.empty(), boundSeat = true)
+        assertEquals(PresentConnectCodes.LOW_ENERGY, q.rejectCode)
+        assertFalse(q.asrAllowed)
+        assertEquals(0, q.n)
+    }
+
+    @Test
+    fun unboundTinyNoiseIsLowEnergy() {
         val q = StreamPcmGate.inspect(StreamPcmSynth.tinyNoise())
         assertEquals(PresentConnectCodes.LOW_ENERGY, q.rejectCode)
         assertTrue(q.rmsFs < StreamPcmGate.RMS_REJECT_FS)
@@ -44,16 +63,60 @@ class StreamPcmGateTest {
     }
 
     @Test
-    fun cleanTonePasses() {
-        val q = StreamPcmGate.inspect(StreamPcmSynth.sine())
-        assertTrue(q.asrAllowed)
-        assertEquals(null, q.rejectCode)
-        assertTrue(q.rmsFs > StreamPcmGate.RMS_SOFT_FS)
-        assertEquals(0.0, q.clipRatio, 1e-12)
+    fun phoneCrushWithoutClipIsBandLimited() {
+        val stack = StreamPcmGate.inspect(StreamPcmSynth.toneStack(StreamPcmSynth.PHONE_HZ))
+        assertEquals(PresentConnectCodes.BAND_LIMITED, stack.rejectCode)
+        assertEquals(0.0, stack.clipRatio, 1e-9)
+        assertTrue(absDc(stack) < StreamPcmGate.DC_REJECT_FS)
+        assertTrue(stack.hfRatio < StreamPcmGate.BAND_LIMITED_HF_RATIO)
+        assertTrue(stack.speechOccupancy >= StreamPcmGate.BAND_LIMITED_SPEECH_OCC)
+        assertEquals(0, stack.hfOccupancy)
+
+        val lpf = StreamPcmGate.inspect(StreamPcmSynth.phoneCrushLpf())
+        assertEquals(PresentConnectCodes.BAND_LIMITED, lpf.rejectCode)
+        assertEquals(0.0, lpf.clipRatio, 1e-9)
+        assertTrue(absDc(lpf) < StreamPcmGate.DC_REJECT_FS)
+        assertTrue(lpf.hfRatio < StreamPcmGate.BAND_LIMITED_HF_RATIO)
     }
 
     @Test
-    fun sessionSilenceSkipsAsrAndEmitsLowEnergy() = runBlocking {
+    fun broadbandStackAndCleanToneAreNotBandLimited() {
+        val broad = StreamPcmGate.inspect(StreamPcmSynth.toneStack(StreamPcmSynth.BROADBAND_HZ))
+        assertTrue(broad.asrAllowed)
+        assertTrue(broad.hfRatio > StreamPcmGate.BAND_LIMITED_HF_RATIO)
+        val tone = StreamPcmGate.inspect(StreamPcmSynth.sine())
+        assertTrue(tone.asrAllowed)
+        assertEquals(null, tone.rejectCode)
+        assertEquals(1, tone.speechOccupancy)
+        assertEquals(0.0, tone.clipRatio, 1e-12)
+    }
+
+    @Test
+    fun sessionBoundNearSilenceInvokesAsrSoftLow() = runBlocking {
+        var asrCalls = 0
+        val session = PathBSession(
+            asr = PathBAsr { _, _ ->
+                asrCalls++
+                listOf(Utterance("cluster", 0, 1, "kept"))
+            },
+        )
+        session.bindStart("s04")
+        assertTrue(StreamLabeler.isKnownSeat("s04"))
+        val out = session.finish("s04", StreamPcmSynth.silence())
+        assertEquals(1, asrCalls)
+        assertTrue(out.asrInvoked)
+        assertEquals(null, out.rejectCode)
+        assertTrue(out.quality.softFlags.contains("SOFT_LOW"))
+        assertEquals("speaker_4", out.utterances.single().speakerId)
+        assertEquals("SOFT_LOW", session.micFlags().single().code)
+        assertFalse(session.micFlags().single().hardReject)
+        val encoded = PresentConnectWire.briefJson(session.brief().transcript)
+        val item = Json.parseToJsonElement(encoded).jsonObject["transcript"]!!.jsonArray.single().jsonObject
+        assertEquals(setOf("speaker_id", "start_ms", "end_ms", "text"), item.keys)
+    }
+
+    @Test
+    fun sessionEmptyBoundSkipsAsr() = runBlocking {
         var asrCalls = 0
         val session = PathBSession(
             asr = PathBAsr { _, _ ->
@@ -61,16 +124,27 @@ class StreamPcmGateTest {
                 listOf(Utterance("cluster", 0, 1, "nope"))
             },
         )
-        session.bindStart("s04")
-        val out = session.finish("s04", StreamPcmSynth.silence())
+        session.bindStart("s01")
+        val out = session.finish("s01", StreamPcmSynth.empty())
         assertEquals(0, asrCalls)
-        assertFalse(out.asrInvoked)
         assertEquals(PresentConnectCodes.LOW_ENERGY, out.rejectCode)
-        assertTrue(out.utterances.isEmpty())
         assertTrue(session.brief().transcript.isEmpty())
         assertTrue(out.wireJson.single().contains("\"code\":\"LOW_ENERGY\""))
-        assertTrue(out.wireJson.single().contains("\"stream_id\":\"s04\""))
-        assertEquals(PresentConnectCodes.LOW_ENERGY, session.micFlags().single().code)
+    }
+
+    @Test
+    fun sessionUnboundSilenceSkipsAsr() = runBlocking {
+        var asrCalls = 0
+        val session = PathBSession(
+            asr = PathBAsr { _, _ ->
+                asrCalls++
+                listOf(Utterance("cluster", 0, 1, "nope"))
+            },
+        )
+        val out = session.finish("mic-a", StreamPcmSynth.silence())
+        assertEquals(0, asrCalls)
+        assertEquals(PresentConnectCodes.LOW_ENERGY, out.rejectCode)
+        assertFalse(StreamLabeler.isKnownSeat("mic-a"))
     }
 
     @Test
@@ -86,6 +160,23 @@ class StreamPcmGateTest {
         val out = session.finish("s07", StreamPcmSynth.clippedSquare())
         assertEquals(0, asrCalls)
         assertEquals(PresentConnectCodes.CLIPPED, out.rejectCode)
+        assertTrue(session.brief().transcript.isEmpty())
+    }
+
+    @Test
+    fun sessionPhoneCrushSkipsAsrBandLimited() = runBlocking {
+        var asrCalls = 0
+        val session = PathBSession(
+            asr = PathBAsr { _, _ ->
+                asrCalls++
+                listOf(Utterance("cluster", 0, 1, "nope"))
+            },
+        )
+        session.bindStart("s09")
+        val out = session.finish("s09", StreamPcmSynth.phoneCrushLpf())
+        assertEquals(0, asrCalls)
+        assertEquals(PresentConnectCodes.BAND_LIMITED, out.rejectCode)
+        assertTrue(out.wireJson.single().contains("\"stream_id\":\"s09\""))
         assertTrue(session.brief().transcript.isEmpty())
     }
 
@@ -114,4 +205,6 @@ class StreamPcmGateTest {
         assertFalse(item.containsKey("quality"))
         assertFalse(item.containsKey("code"))
     }
+
+    private fun absDc(q: StreamPcmStats): Double = kotlin.math.abs(q.dcFs)
 }
