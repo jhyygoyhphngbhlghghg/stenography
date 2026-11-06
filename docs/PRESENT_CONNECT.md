@@ -222,3 +222,21 @@ Implementation talks OkHttp WebSocket. Pipeline on the phone is the same as file
 - Airplane-mode file path
 
 Need from web team: reachable `wss://` on the LAN/demo Wi-Fi, QR → join page with mic permission, display of `transcript.final`.
+
+---
+
+## 8. Tonight for Артём / Петя (web BE)
+
+Android worker is OkHttp WebSocket. Do this on the BE, nothing else:
+
+1. **Listen** `wss://{host}/v1/present-connect?session={session_id}&role=worker&device={device_id}`.
+2. **Parse** worker `hello` (`protocol: present-connect/1`, `max_streams: 20`, `encoding: pcm_s16le`, `models: ["zipformer-ru-int8"]`). Reply `hello.ok` with `session_id` + `worker_id`.
+3. **Relay** browser mics as `stream.start` → `audio.pcm16` (base64 s16le 16 kHz mono, 100–200 ms) → `stream.end`. Do **not** send AAC/Opus.
+4. **Cap**: if the phone already has 20 open streams it replies `error` / `OVER_CAPACITY` and drops that `stream_id`. Do not retry-storm; show the seat as rejected.
+5. **Display** `transcript.final.utterance` using the **same four fields** as the brief JSON (`speaker_id`, `start_ms`, `end_ms`, `text`). Map `stream_id` → QR/seat on your side.
+6. **Ping** every ~15 s; worker answers `pong` with the same `t`.
+7. Checkpoint polling (`GET /v1/presentation/{id}/checkpoint`) stays **web-only**. Android will not implement it.
+
+HTTP `POST /v1/workers/register` is optional bring-up. The 20-stream demo **must** be WebSocket.
+
+If the worker is in stub mode (no ONNX on the phone) it may emit `MODELS_MISSING` — do not use that APK on stage.

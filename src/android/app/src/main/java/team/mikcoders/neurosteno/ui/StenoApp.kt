@@ -24,9 +24,11 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import team.mikcoders.neurosteno.present.PresentConnectLimits
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -88,6 +90,31 @@ fun StenoApp(vm: StenoViewModel = viewModel()) {
                 )
             }
             Spacer(Modifier.height(12.dp))
+            if (state.presentConnect) {
+                Text(
+                    "Потоки ${state.presentStreams}/${PresentConnectLimits.MAX_STREAMS}" +
+                        (if (state.presentWorkerId.isNotBlank()) " · worker ${state.presentWorkerId}" else ""),
+                    style = MaterialTheme.typography.labelLarge,
+                )
+                OutlinedTextField(
+                    value = state.presentWsUrl,
+                    onValueChange = vm::onPresentWsUrl,
+                    label = { Text("wss PresentConnect") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                )
+                OutlinedTextField(
+                    value = state.presentSession,
+                    onValueChange = vm::onPresentSession,
+                    label = { Text("session_id") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                )
+                OutlinedButton(onClick = { vm.togglePresentConnect() }) {
+                    Text(if (state.presentConnected) "Отключить worker" else "Подключить worker")
+                }
+                Spacer(Modifier.height(8.dp))
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = { picker.launch(arrayOf("audio/*", "application/octet-stream")) }) {
                     Text("Импорт")

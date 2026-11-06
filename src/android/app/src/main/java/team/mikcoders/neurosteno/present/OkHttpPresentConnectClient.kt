@@ -5,29 +5,36 @@ import android.util.Log
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
+import team.mikcoders.neurosteno.export.TranscriptFile
+import team.mikcoders.neurosteno.export.TranscriptJson
+import team.mikcoders.neurosteno.export.Utterance
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * WebSocket worker from docs/PRESENT_CONNECT.md. Caps at [PresentConnectConfig.maxStreams] (20).
+ * WebSocket worker from docs/PRESENT_CONNECT.md.
+ * Hard cap [PresentConnectLimits.MAX_STREAMS] (20). Stream 21 → OVER_CAPACITY.
  */
 class OkHttpPresentConnectClient(
     private val http: OkHttpClient = OkHttpClient.Builder()
         .readTimeout(0, TimeUnit.MILLISECONDS)
+        .callTimeout(15, TimeUnit.SECONDS)
         .build(),
 ) : PresentConnectClient {
     private val _events = MutableSharedFlow<PresentConnectEvent>(extraBufferCapacity = 64)
@@ -37,11 +44,11 @@ class OkHttpPresentConnectClient(
     private val openStreams = ConcurrentHashMap<String, StreamBuf>()
     private val count = AtomicInteger(0)
     private var socket: WebSocket? = null
-    private var maxStreams: Int = 20
+    private var maxStreams: Int = PresentConnectLimits.MAX_STREAMS
 
     override suspend fun connect(config: PresentConnectConfig) {
         disconnect()
-        maxStreams = config.maxStreams
+        maxStreams = config.maxStreams.coerceAtMost(PresentConnectLimits.MAX_STREAMS)
         val req = Request.Builder()
             .url(config.wsUrl)
             .build()
@@ -58,15 +65,62 @@ class OkHttpPresentConnectClient(
 
     override fun activeStreamCount(): Int = count.get()
 
+    override fun sendTranscriptFinal(streamId: String, file: TranscriptFile) {
+        val ws = socket ?: return
+        file.transcript.forEach { u ->
+            val utterance = json.parseToJsonElement(TranscriptJson.encode(TranscriptFile(listOf(u))))
+                .let { (it as JsonObject)["transcript"] as JsonArray }[0]
+            val body = buildJsonObject {
+                put("type", "transcript.final")
+                put("stream_id", streamId)
+                put("utterance", utterance)
+            }
+            ws.send(body.toString())
+        }
+    }
+
+    override fun sendTranscriptPartial(streamId: String, utterance: Utterance) {
+        val ws = socket ?: return
+        val body = buildJsonObject {
+            put("type", "transcript.partial")
+            put("stream_id", streamId)
+            put("speaker_id", utterance.speakerId)
+            put("start_ms", utterance.startMs)
+            put("end_ms", utterance.endMs)
+            put("text", utterance.text)
+        }
+        ws.send(body.toString())
+    }
+
+    /**
+     * HTTP fallback from the contract: POST /v1/workers/register.
+     * WebSocket demo must not depend on this.
+     */
+    fun registerWorker(config: PresentConnectConfig): String? {
+        val payload = buildJsonObject {
+            put("device_id", config.deviceId)
+            put("max_streams", config.maxStreams)
+            put("models", buildJsonArray { add(JsonPrimitive("zipformer-ru-int8")) })
+        }.toString()
+        val req = Request.Builder()
+            .url(config.httpBaseUrl.trimEnd('/') + "/v1/workers/register")
+            .post(payload.toRequestBody(JSON))
+            .build()
+        return http.newCall(req).execute().use { resp ->
+            if (!resp.isSuccessful) return@use null
+            resp.body?.string()
+        }
+    }
+
     private inner class Listener(private val config: PresentConnectConfig) : WebSocketListener() {
         override fun onOpen(webSocket: WebSocket, response: Response) {
             val hello = buildJsonObject {
                 put("type", "hello")
-                put("protocol", "present-connect/1")
+                put("protocol", PresentConnectLimits.PROTOCOL)
                 put("max_streams", config.maxStreams)
                 put("sample_rate", config.sampleRate)
-                put("encoding", "pcm_s16le")
-                put("models", JsonPrimitive("zipformer-ru-int8"))
+                put("encoding", PresentConnectLimits.ENCODING)
+                put("models", buildJsonArray { add(JsonPrimitive("zipformer-ru-int8")) })
                 put("accepts_diarization", true)
             }
             webSocket.send(hello.toString())
@@ -78,7 +132,10 @@ class OkHttpPresentConnectClient(
                 "hello.ok" -> _events.tryEmit(
                     PresentConnectEvent.HelloOk(obj.str("session_id") ?: config.sessionId, obj.str("worker_id") ?: ""),
                 )
-                "ping" -> webSocket.send("""{"type":"pong","t":${obj["t"] ?: 0}}""")
+                "ping" -> {
+                    val t = obj["t"] ?: JsonPrimitive(0)
+                    webSocket.send(buildJsonObject { put("type", "pong"); put("t", t) }.toString())
+                }
                 "stream.start" -> onStart(webSocket, obj)
                 "audio.pcm16" -> onPcm(obj)
                 "stream.end" -> onEnd(webSocket, obj.str("stream_id"))
@@ -102,17 +159,19 @@ class OkHttpPresentConnectClient(
 
     private fun onStart(ws: WebSocket, obj: JsonObject) {
         val id = obj.str("stream_id") ?: return
-        if (count.get() >= maxStreams) {
-            ws.send(
-                """{"type":"error","stream_id":"$id","code":"${PresentConnectCodes.OVER_CAPACITY}","message":"max $maxStreams streams"}""",
-            )
-            _events.tryEmit(PresentConnectEvent.OverCapacity(id))
+        val encoding = obj.str("encoding")
+        if (encoding != null && encoding != PresentConnectLimits.ENCODING) {
+            ws.send(PresentConnectLimits.errorJson(id, PresentConnectCodes.BAD_ENCODING, "need pcm_s16le"))
             return
         }
-        if (obj.str("encoding") != null && obj.str("encoding") != "pcm_s16le") {
-            ws.send(
-                """{"type":"error","stream_id":"$id","code":"${PresentConnectCodes.BAD_ENCODING}","message":"need pcm_s16le"}""",
-            )
+        val sr = obj["sample_rate"]?.jsonPrimitive?.contentOrNull?.toIntOrNull()
+        if (sr != null && sr != PresentConnectLimits.SAMPLE_RATE) {
+            ws.send(PresentConnectLimits.errorJson(id, PresentConnectCodes.BAD_ENCODING, "need 16 kHz"))
+            return
+        }
+        if (!PresentConnectLimits.canAccept(count.get(), maxStreams)) {
+            ws.send(PresentConnectLimits.errorJson(id, PresentConnectCodes.OVER_CAPACITY, "max $maxStreams streams"))
+            _events.tryEmit(PresentConnectEvent.OverCapacity(id))
             return
         }
         openStreams[id] = StreamBuf()
@@ -134,11 +193,14 @@ class OkHttpPresentConnectClient(
 
     private fun onEnd(ws: WebSocket, id: String?) {
         if (id == null) return
-        openStreams.remove(id) ?: return
+        val buf = openStreams.remove(id) ?: return
         count.updateAndGet { n -> (n - 1).coerceAtLeast(0) }
-        // Transcript is produced by the pipeline owner (ViewModel) listening to StreamEnded.
-        ws.send("""{"type":"stream.closed","stream_id":"$id"}""")
-        _events.tryEmit(PresentConnectEvent.StreamEnded(id))
+        val pcm = synchronized(buf) { buf.pcm.toByteArray() }
+        ws.send(buildJsonObject {
+            put("type", "stream.closed")
+            put("stream_id", id)
+        }.toString())
+        _events.tryEmit(PresentConnectEvent.StreamEnded(id, pcm))
     }
 
     private fun onCancel(id: String?) {
@@ -146,7 +208,7 @@ class OkHttpPresentConnectClient(
         if (openStreams.remove(id) != null) {
             count.updateAndGet { n -> (n - 1).coerceAtLeast(0) }
         }
-        _events.tryEmit(PresentConnectEvent.StreamEnded(id))
+        _events.tryEmit(PresentConnectEvent.StreamEnded(id, ByteArray(0)))
     }
 
     private class StreamBuf {
@@ -155,13 +217,9 @@ class OkHttpPresentConnectClient(
 
     companion object {
         private const val TAG = "PresentConnect"
+        private val JSON = "application/json; charset=utf-8".toMediaType()
+
     }
 }
 
 private fun JsonObject.str(key: String): String? = this[key]?.jsonPrimitive?.contentOrNull
-
-@Suppress("unused")
-private fun JsonObject.int(key: String): Int? = this[key]?.jsonPrimitive?.intOrNull
-
-@Suppress("unused")
-private fun JsonObject.long(key: String): Long? = this[key]?.jsonPrimitive?.longOrNull
