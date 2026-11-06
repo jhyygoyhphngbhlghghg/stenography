@@ -30,7 +30,9 @@ Audio (SAF import / AudioRecord)
   Dialogue JSON + Compose list + share/export
 ```
 
-PresentConnect (flavor `presentConnect`, network mode) is **Path B**:
+**Live demo claim = DEMO_STAGE6:** one phone mic, 6 RU talkers at 3–6 m, far-field gain + VAD/diar/ASR on device. PresentConnect Path B ≤20 is **optional** (flavor `presentConnect`); not the slide claim.
+
+PresentConnect (flavor `presentConnect`, network mode) is **Path B** (kept, unused for the live claim):
 
 ```
 Browser mics (≤20) ── per-stream PCM ──► presentation BE ──WS──► phone worker
@@ -43,7 +45,9 @@ Browser mics (≤20) ── per-stream PCM ──► presentation BE ──WS─
                          GET transcript = brief {speaker_id,start_ms,end_ms,text}
 ```
 
-Tech demo is Path B PresentConnect ≤20 streams, **not** a Path A cocktail mix. Eval (PR #4, not re-run here) on `mix_20talker_per_stream`: DER 0.235, WER_main 0.087, 20/20 speakers. Mapping: `samples/demo-stress/channels.json`. Golden brief: `artifacts/test-results/golden_path_b_brief.json`.
+Path B is **not** a Path A cocktail mix. Eval (PR #4, cite only) on `mix_20talker_per_stream`: DER 0.235, WER_main 0.087, 20/20 speakers. Mapping: `samples/demo-stress/channels.json`.
+
+Single-mic DEMO_STAGE6 PCM is gain-staged (`FarFieldGain`, max +24 dB, peak ≤ 0.95) before Silero VAD / diar / Zipformer-ru so 3–6 m speech sits above the energy floor. CLIPPED / BAD_MIC still hard-skip on raw PCM. Bound-main energy / band-limit stay soft (`SOFT_LOW` / `BAND_LIMITED`).
 
 Checkpoint polling (clients follow presenter) lives on the **web BE**, not in this app. See `docs/PRESENT_CONNECT.md`.
 

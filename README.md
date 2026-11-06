@@ -2,7 +2,7 @@
 
 Team **MIK Coders** · Nuclear IT Hack · Hex.Team case «Нейро-стенографист».
 
-Android app that turns a conversation recording into a structured dialogue transcript **on device**: speakers, timestamps, text. Offline stenography path is airplane-mode. Present-connect path is a separate network mode for the presentation website (≤20 live streams).
+Android app that turns a conversation recording into a structured dialogue transcript **on device**: speakers, timestamps, text. **Live demo claim = DEMO_STAGE6** (Eval owns the wavs): one phone mic, 6 RU speakers at 3–6 m, not studio. Offline stenography path is airplane-mode. PresentConnect Path B ≤20 is an **optional** network mode, not the slide claim.
 
 This Origin repo is the overnight build. Layout follows [hacathon_template](https://github.com/grigorevmp/hacathon_template) so it can later be mirrored to GitHub `stenography`.
 
@@ -71,7 +71,7 @@ Models are **not** in git. Before an airplane-mode demo:
 
 ## Modes
 
-1. **Offline stenography** — import/record → VAD → diarize → ASR → LLM stub → list → export JSON. No network.
-2. **Present-connect** — phone is the on-device worker: receive ≤20 audio streams from the presentation site, return transcripts. Network required. See the contract doc.
+1. **Offline stenography / DEMO_STAGE6** — import or in-app mic → far-field gain → VAD → diarize → ASR → LLM stub → list → export JSON. No network. This is the live demo path.
+2. **Present-connect (optional)** — phone is the on-device worker: receive ≤20 audio streams from the presentation site, return transcripts. Network required. **Not** the slide claim. See the contract doc.
 
 Presentation web FE/BE is a **separate** track (designer + Артём/Пётр). This repo owns the Android worker and the API contract they must implement against.
