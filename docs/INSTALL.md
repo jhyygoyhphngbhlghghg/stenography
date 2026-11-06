@@ -35,4 +35,4 @@ APK: `src/android/app/build/outputs/apk/<flavor>/debug/`. Для сдачи ск
 
 ## PresentConnect
 
-Flavor `presentConnect`. Контракт: `docs/PRESENT_CONNECT.md`. Нужна сеть до презентационного BE, не до облачного ASR.
+Flavor `presentConnect`, демо **Path B**: ≤20 отдельных потоков, не один смешанный микрофон комнаты. Контракт: `docs/PRESENT_CONNECT.md`. Нужна сеть до презентационного BE, не до облачного ASR.
