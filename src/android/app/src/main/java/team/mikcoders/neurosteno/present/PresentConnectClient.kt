@@ -98,4 +98,5 @@ object PresentConnectCodes {
     const val LOW_ENERGY = "LOW_ENERGY"
     const val CLIPPED = "CLIPPED"
     const val BAD_MIC = "BAD_MIC"
+    const val BAND_LIMITED = "BAND_LIMITED"
 }
