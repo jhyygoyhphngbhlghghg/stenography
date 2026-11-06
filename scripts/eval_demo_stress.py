@@ -208,6 +208,7 @@ def run_one(
                     min_duration_off=float(clip.get("min_duration_off", 0.5)),
                     asr_only=bool(clip.get("asr_only", False)),
                     farfield_gain=bool(clip.get("farfield_gain", False)),
+                    farfield_per_turn=bool(clip.get("farfield_per_turn", False)),
                 )
             hyp_path.write_text(json.dumps(doc, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
             wall_path.write_text(str(meta["wall_ms"]) + "\n", encoding="utf-8")
@@ -221,7 +222,8 @@ def run_one(
             if meta.get("farfield_gain") and meta.get("farfield"):
                 ff = meta["farfield"]
                 extra += (
-                    f" ffgain={ff.get('gain_db'):.2f}dB "
+                    f" ffgain[{ff.get('mode')}]={ff.get('gain_db'):.2f}dB "
+                    f"nseg={ff.get('n_segments')} crushed={ff.get('loud_crushed')} "
                     f"rms {ff.get('rms_before'):.4f}->{ff.get('rms_after'):.4f} "
                     f"vad {ff.get('vad_fire_before'):.3f}->{ff.get('vad_fire_after'):.3f}"
                 )

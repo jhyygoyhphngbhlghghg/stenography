@@ -15,13 +15,15 @@ import stream_pcm_gate as G  # noqa: E402
 
 
 class Thresholds(unittest.TestCase):
-    def test_pinned_to_platform_b66581c(self):
+    def test_pinned_to_platform_db3afe4(self):
         self.assertEqual(FF.TARGET_RMS_FS, 0.08)
         self.assertEqual(FF.MAX_GAIN_DB, 24.0)
         self.assertEqual(FF.PEAK_LIMIT, 0.95)
         self.assertEqual(FF.VAD_RMS_FS, 0.008)
-        self.assertEqual(FF.PLATFORM_FFGAIN_FEAT_SHA, "5bfc582d07bbc1556c77638e8bc958db1cc2f83d")
-        self.assertEqual(FF.PLATFORM_FFGAIN_DOCS_SHA, "b66581c883d32f3195488cdd02680bdfa0b35038")
+        self.assertEqual(FF.SEGMENT_ONSET_FS, 0.0025)
+        self.assertEqual(FF.PLATFORM_FFGAIN_FEAT_SHA, "ae8690303d12db51f5c23d14fdcf87b6e50a10f2")
+        self.assertEqual(FF.PLATFORM_FFGAIN_DOCS_SHA, "db3afe44f7c02db7abb933a3be0b94fce7ef526a")
+        self.assertEqual(FF.PLATFORM_FFGAIN_WHOLEFILE_FEAT_SHA, "5bfc582d07bbc1556c77638e8bc958db1cc2f83d")
         self.assertEqual(G.RMS_REJECT_FS, FF.VAD_RMS_FS)
 
 
@@ -97,6 +99,44 @@ class DemoPrep(unittest.TestCase):
         g = FF.stage(sparse)
         self.assertTrue(g["clip_guard"])
         self.assertLessEqual(g["peak_after"], FF.PEAK_LIMIT + 1e-5)
+
+    def test_gain_for_segment_never_attenuates_loud_turn(self):
+        self.assertEqual(FF.gain_for_segment(0.119, 0.4), 1.0)
+        self.assertEqual(FF.gain_for_segment(0.08, 0.2), 1.0)
+        quiet = FF.gain_for_segment(0.01, 0.02)
+        self.assertGreater(quiet, 1.0)
+        self.assertLessEqual(FF.linear_to_db(quiet), FF.MAX_GAIN_DB + 1e-6)
+
+    def test_sequential_mix_boosts_quiet_far_without_crushing_near(self):
+        pcm, turns = FF.sequential_mix()
+        mix_rms = FF.rms(pcm)
+        self.assertGreater(mix_rms, FF.TARGET_RMS_FS)
+        self.assertLess(FF.TARGET_RMS_FS / mix_rms, 1.0)
+        g = FF.stage(pcm)
+        self.assertFalse(g["loud_crushed"])
+        self.assertTrue(g["boosted"])
+        self.assertGreaterEqual(len(g["segments"]), 3)
+        near = next(t for t in turns if t["name"] == "near_3m")
+        far5 = next(t for t in turns if t["name"] == "far_5m")
+        far6 = next(t for t in turns if t["name"] == "far_6m")
+        near_before = FF.rms(pcm[near["start"] : near["end"]])
+        near_after = FF.rms(g["samples"][near["start"] : near["end"]])
+        far5_before = FF.rms(pcm[far5["start"] : far5["end"]])
+        far5_after = FF.rms(g["samples"][far5["start"] : far5["end"]])
+        far6_before = FF.rms(pcm[far6["start"] : far6["end"]])
+        far6_after = FF.rms(g["samples"][far6["start"] : far6["end"]])
+        self.assertGreater(near_before, FF.TARGET_RMS_FS)
+        self.assertAlmostEqual(near_before, near_after, places=5)
+        self.assertLess(far5_before, FF.TARGET_RMS_FS)
+        self.assertLess(far6_before, FF.TARGET_RMS_FS)
+        self.assertGreater(far5_after, far5_before * 1.5)
+        self.assertGreater(far6_after, far6_before * 1.5)
+        self.assertGreaterEqual(far5_after, G.RMS_SOFT_FS * 0.9)
+        self.assertGreaterEqual(far6_after, G.RMS_REJECT_FS)
+        prep = PREP.prepare(pcm)
+        self.assertFalse(prep["skip_asr"])
+        self.assertTrue(prep["after_gate"]["asr_allowed"])
+        self.assertIsNone(prep["skip_code"])
 
 
 if __name__ == "__main__":

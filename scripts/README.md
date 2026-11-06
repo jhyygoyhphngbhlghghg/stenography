@@ -10,9 +10,9 @@
 - `test_path_b_regression.py` — frozen Path B gate (CLEAN + EDGE_* + WORST_CASE): measured 20/20 speakers, schema. Does not require low WER/DER. See docs/GATE.md.
 - `generate_adversarial_path_b.py` — Path B EDGE_*/WORST_CASE demo-room degradations (reverb, true overlap+bleed, room noise, bad mic). Does not rewrite the CLEAN baseline. **Secondary regression.**
 - `generate_demo_stage6.py` — **PRIMARY** demo fixture: 6 RU talkers, one-mic mix, turn-taking + 200 ms end overlap, large-room IR, medium HVAC, Nothing-class phone mic, 3–6 m.
-- `farfield_gain.py` / `demo_pcm_prep.py` — Python mirror of Platform FarFieldGain+DemoPcmPrep @ `5bfc582` / `b66581c` (RMS-target 0.08 FS, max +24 dB, distant never hard-drop energy). Ingest-only; does not retune STAGE6 wavs.
-- `measure-farfield-gain.py` — synthetic 3–6 m gain table (does not touch Eval wavs).
-- `test_farfield_gain.py` — synth VAD 0→1 at 5–6 m; CLIPPED/empty still hard-skip.
+- `farfield_gain.py` / `demo_pcm_prep.py` — Python mirror of Platform FarFieldGain. Headline **per-turn** @ `ae86903` / `db3afe4` (quiet islands → 0.08 FS, loud near 0 dB, no crush). `stage_whole_file` keeps historical AGC @ `b66581c`. Ingest-only; does not retune STAGE6 wavs.
+- `measure-farfield-gain.py` — synthetic 3–6 m + sequential mix table (does not touch Eval wavs).
+- `test_farfield_gain.py` — synth VAD 0→1 at 5–6 m; sequential mix does not crush near seat; CLIPPED/empty still hard-skip.
 - `stream_pcm_gate.py` — Python mirror of StreamPcmGate.kt v3 @ Implementer `a5b7aed` (sha256 == Platform `686ac4a`; bound BAND_LIMITED is a soft flag + still ASR). `version=2` keeps historical hard BAND_LIMITED (`e3ad908`). `version=1` keeps `*_gated` / `*_gated_b142a4d`.
 - `measure-stream-pcm-gate.py` — synthetic PCM stats for those thresholds (does not touch Eval wavs). Byte-identical to Implementer `a5b7aed` / Platform `686ac4a`.
 - `test_stream_pcm_gate.py` — v2 verdicts: bound silence SOFT_LOW, phone crush BAND_LIMITED, broadband Pass.
