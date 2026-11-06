@@ -6,7 +6,7 @@
 
 Path A (one-room cocktail: 20 говорящих в **один** поток, потом кластеризация) — **задокументированный hard fail**. В архитектуре и на слайдах **не** утверждать, что cocktail-диаризация одной комнаты работает для ≥20 говорящих.
 
-Цифры ниже — **Eval-measured** (H1 / Eval Owner, [PR #4](https://cursor.com/codebase/johann-schilling/neuro-stenographer/pull/4), real Common Voice 17 RU, host sherpa-onnx). Новые числа не выдумывать. DER Path B в том же замере также **0.235** (в таблице округление **0.24**).
+Цифры ниже — **Eval-measured** (H1 / Eval Owner, [PR #4](https://cursor.com/codebase/johann-schilling/neuro-stenographer/pull/4), real Common Voice 17 RU, host sherpa-onnx) и относятся **только к clean per-stream**: сухие раздельные дорожки (dry/separate tracks) того прогона. Новые числа не выдумывать. DER Path B в том же замере также **0.235** (в таблице округление **0.24**).
 
 | path | speakers recovered | DER | main WER | RTF |
 |---|---|---|---|---|
@@ -14,7 +14,11 @@ Path A (one-room cocktail: 20 говорящих в **один** поток, п�
 | **B per-stream PresentConnect** | **20/20** | **0.24** (also 0.235) | **0.087** | 2.65 |
 | dry main alone | 1/1 | 0.02 | 0.174 | 0.06 |
 
-Overnight-клипы без перекрытия (тот же замер): WER ~3.5% / 0% / 0%.
+Overnight-клипы без перекрытия (тот же замер): WER ~3.5% / 0% / 0%. Это тоже clean/no-overlap, не edge suite.
+
+**Заявка Path B (≤20 отдельных потоков, 20/20, DER ≈ 0.24, main WER 0.087) — только clean per-stream.** Сухие раздельные дорожки, как в PR #4. Это не эхо, не перекрытие речи, не белый шум, не шум комнаты, не плохие микрофоны.
+
+**Worst-case edge suite** (echo, overlap, white noise / room noise, bad mics): **unmeasured until edge suite**. Чисел нет — сюда их не ставим. Когда Eval прогонит suite, публикуем **honest FAIL / hard numbers**. До замера: **expect FAIL / hard degradation**. **Do not claim in slides**, что Path B в этих условиях работает. Запрещены формулировки «should be fine», «robust», «handles noisy rooms», «graceful under echo».
 
 **Контракт Path B.** Каждый `stream_id` обрабатывается **независимо**: PCM → VAD → ASR. Метка по умолчанию: **`speaker_id` ← `stream_id`** (или стабильная карта stream→speaker / `speaker_hint`). Диаризация опциональна и только *внутри* одного потока — не mix-then-cluster по комнате. Реплики сессии склеиваются по времени. Жёсткий потолок — **20** одновременных потоков; 21-й отклоняется (`OVER_CAPACITY`).
 
@@ -22,7 +26,7 @@ Overnight-клипы без перекрытия (тот же замер): WER ~
 
 ## Контекст
 
-Hex.Team case «Нейро-стенографист»: Android-приложение локально превращает аудиозапись разговора в структурированную расшифровку (кто сказал, когда, что). Облачный ASR запрещён. Демо офлайн-пути — в авиарежиме. Отдельный сетевой режим **PresentConnect** — демо Path B: до 20 **отдельных** потоков на локальный Zipformer-ru; это не подмена офлайн-ASR и не one-room cocktail.
+Hex.Team case «Нейро-стенографист»: Android-приложение локально превращает аудиозапись разговора в структурированную расшифровку (кто сказал, когда, что). Облачный ASR запрещён. Демо офлайн-пути — в авиарежиме. Отдельный сетевой режим **PresentConnect** — демо Path B: до 20 **отдельных** потоков на локальный Zipformer-ru. Цифры 20/20 — только clean per-stream (DEMO LOCK); edge suite (echo, overlap, white/room noise, bad mics) **unmeasured until edge suite**, **expect FAIL / hard degradation**, **do not claim in slides**. Это не подмена офлайн-ASR и не one-room cocktail.
 
 Команда: **MIK Coders**. Этот репозиторий — Android-«backend» (обработка на телефоне) + контракт API для web FE/BE.
 
