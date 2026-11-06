@@ -3,10 +3,9 @@ package team.mikcoders.neurosteno.pipeline
 /**
  * DEMO_STAGE6 single-mic scene vs PresentConnect (Path B, not the live claim).
  *
- * Per-turn gain uses [team.mikcoders.neurosteno.audio.FarFieldGain.stage]
- * (Platform PR #3 @ db3afe44): each energy window independently 0.08 FS /
- * max +24 dB / peak 0.95; loud near turns stay ≤0 dB. **Not** whole-file AGC
- * (Eval e0e64b85: 0.73→0.70, s5 still missing). Path B ingest is unchanged.
+ * FarFieldGain.stage and EQ are **frozen** (Hex keep-punct WER still 0.7794,
+ * s5 missing). Live work is diar/VAD hole-fill to recover s5 at 5.4 m without
+ * moving the 3 m seat. Path B ingest is unchanged.
  */
 data class FarFieldScene(
     val name: String,
@@ -35,13 +34,16 @@ data class FarFieldScene(
             vadMinSpeechSec = 0.20f,
             vadMaxSpeechSec = 30f,
             // Keep short far fragments (s5 was 4.7 s at 5.4 m, missing @ a8b39d5a).
-            diarMinDurationOnSec = 0.12f,
-            diarMinDurationOffSec = 0.25f,
+            // Clustering: K=6 (threshold unused when numClusters>0). Soft min-on
+            // so embedding path does not drop a quiet 5.4 m island.
+            diarMinDurationOnSec = 0.08f,
+            diarMinDurationOffSec = 0.18f,
             diarClusterThreshold = 0.5f,
             asrCropPadMs = 200L,
             orphanMinMs = 400L,
             expandIfCoverageBelow = 0.5f,
-            expandMaxRegionMs = 12_000L,
+            // Endpoint snap only. A 12 s expand would swallow the 3 m seat.
+            expandMaxRegionMs = 1_500L,
             mergeGapMs = 280L,
         )
 

@@ -32,10 +32,10 @@ models/
   vad/silero_vad.onnx
   diar/segmentation.onnx   # symlink to pyannote model.onnx
       embedding.onnx       # symlink to 3dspeaker_*.onnx
-  llm/                     TODO GGUF — empty overnight
+  llm/qwen2-0_5b-instruct-q4_0.gguf   # Qwen2-0.5B-Instruct Q4_0 (~353 MB listing)
   vosk-small-ru/           (optional; DOWNLOAD_VOSK=1)
 ```
 
 HF filenames for Zipformer-ru are **exact** (`encoder.int8.onnx` / `decoder.onnx` / `joiner.int8.onnx` / `tokens.txt`). The script no longer guesses `encoder-epoch-99-avg-1.int8.onnx`.
 
-Copy into the app `filesDir/models/` (adb push) or `assets/models/` before freeze. Hybrid: bundle Zipformer-ru int8 if APK size allows; never commit weights.
+ASR/VAD/diar are **embedded by Platform pack** (PR #3 @ `af71d91`). This branch does **not** re-pack `assets/`. GGUF is downloaded into `models/llm/` so Platform unpack can place it at `filesDir/models/llm/*.gguf`. Never commit weights.

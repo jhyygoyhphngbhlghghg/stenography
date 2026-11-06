@@ -1,6 +1,7 @@
 package team.mikcoders.neurosteno.ui
 
 import android.app.Application
+import android.content.Intent
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -39,6 +40,9 @@ data class StenoUiState(
     val presentConnect: Boolean = BuildConfig.PRESENT_CONNECT,
     val engineName: String = "stub",
     val modelsReady: Boolean = false,
+    val modelsLoading: Boolean = true,
+    val llmName: String = "llm-unset",
+    val llmOnDevice: Boolean = false,
     val recording: Boolean = false,
     val heldPcm: PcmAudio? = null,
     val presentWsUrl: String = "ws://10.0.2.2:8080/v1/present-connect",
@@ -49,22 +53,30 @@ data class StenoUiState(
 )
 
 class StenoViewModel(app: Application) : AndroidViewModel(app) {
-    private val created = PipelineFactory.create(app)
-    private val pipeline: StenoPipeline = created.first
-    private val models = created.second
+    @Volatile private var pipeline: StenoPipeline = team.mikcoders.neurosteno.pipeline.StubStenoPipeline()
 
-    private val _state = MutableStateFlow(
-        StenoUiState(
-            engineName = pipeline.displayName,
-            stubPath = pipeline is team.mikcoders.neurosteno.pipeline.StubStenoPipeline,
-            modelsReady = models.readyForOfflineDemo,
-        ),
-    )
+    private val _state = MutableStateFlow(StenoUiState())
     val state: StateFlow<StenoUiState> = _state
     private val mic = MicRecorder()
     private val present = if (BuildConfig.PRESENT_CONNECT) OkHttpPresentConnectClient() else null
 
     init {
+        viewModelScope.launch {
+            val created = withContext(Dispatchers.IO) {
+                PipelineFactory.create(getApplication())
+            }
+            pipeline = created.first
+            _state.update {
+                it.copy(
+                    engineName = created.first.displayName,
+                    stubPath = created.first is team.mikcoders.neurosteno.pipeline.StubStenoPipeline,
+                    modelsReady = created.second.readyForOfflineDemo,
+                    modelsLoading = false,
+                    llmName = created.first.llmDisplayName,
+                    llmOnDevice = created.first.llmIsOnDevice,
+                )
+            }
+        }
         val client = present
         if (client != null) {
             viewModelScope.launch {
@@ -148,6 +160,14 @@ class StenoViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun onFilePicked(uri: Uri, displayName: String?) {
+        try {
+            getApplication<Application>().contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION,
+            )
+        } catch (_: SecurityException) {
+            // One-shot SAF grant is enough for this session.
+        }
         _state.update {
             it.copy(
                 fileLabel = displayName ?: uri.lastPathSegment ?: uri.toString(),
@@ -212,7 +232,7 @@ class StenoViewModel(app: Application) : AndroidViewModel(app) {
                     it.copy(
                         progress = PipelineProgress(
                             PipelineStage.Decode,
-                            "per-turn FarFieldGain +${"%.1f".format(prep.gain.gainDb)} dB (${prep.gain.segments.size} windows)",
+                            "PCM ready (${prep.gain.segments.size} energy windows; gain/EQ frozen)",
                             0.08f,
                         ),
                     )
@@ -227,6 +247,8 @@ class StenoViewModel(app: Application) : AndroidViewModel(app) {
                         jsonPreview = TranscriptJson.encode(result),
                         stubPath = pipeline is team.mikcoders.neurosteno.pipeline.StubStenoPipeline,
                         engineName = pipeline.displayName,
+                        llmName = pipeline.llmDisplayName,
+                        llmOnDevice = pipeline.llmIsOnDevice,
                     )
                 }
             } catch (t: Throwable) {

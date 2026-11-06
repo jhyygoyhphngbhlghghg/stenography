@@ -10,6 +10,8 @@ import team.mikcoders.neurosteno.export.Utterance
  */
 class StubStenoPipeline : StenoPipeline {
     override val displayName: String = "stub (models missing)"
+    override val llmDisplayName: String = "llm-skipped (stub pipeline)"
+    override val llmIsOnDevice: Boolean = false
 
     override suspend fun transcribe(
         audio: PcmAudio,
@@ -23,7 +25,7 @@ class StubStenoPipeline : StenoPipeline {
         delay(80)
         onProgress(PipelineProgress(PipelineStage.Asr, "ASR skipped — no Zipformer-ru", 0.7f))
         delay(80)
-        onProgress(PipelineProgress(PipelineStage.Llm, "LLM weights TODO", 0.9f))
+        onProgress(PipelineProgress(PipelineStage.Llm, llmDisplayName, 0.9f))
         delay(80)
         val end = audio.durationMs.coerceAtLeast(3_000L)
         val mid = end / 2

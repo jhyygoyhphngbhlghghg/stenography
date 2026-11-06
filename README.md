@@ -44,7 +44,7 @@ Schema notes: `docs/JSON.md`. Extra keys are rejected by `scripts/verify-transcr
 - Kotlin + Jetpack Compose, minSdk **28** (brief 26–28; sherpa Java demo is 28)
 - sherpa-onnx: Zipformer-ru int8 primary · Whisper tiny backup · Vosk emergency
 - Silero VAD · OfflineSpeakerDiarization
-- Local LLM post-pass: heuristic punctuation now; GGUF TODO (no cloud LLM)
+- Local LLM: llama.cpp GGUF Qwen2-0.5B (adds spoken-intonation punct; Zipformer emits none). No cloud LLM.
 - No whisper.cpp primary · no Picovoice · no cloud ASR
 
 Two product flavors, one codebase: **stenographer** (offline file/mic) and **presentConnect** (talks to the presentation backend).
