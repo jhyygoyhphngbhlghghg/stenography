@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -21,6 +22,10 @@ import team.mikcoders.neurosteno.pipeline.PipelineStage
 import team.mikcoders.neurosteno.pipeline.PcmAudio
 import team.mikcoders.neurosteno.pipeline.SherpaJni
 import team.mikcoders.neurosteno.pipeline.StenoPipeline
+import team.mikcoders.neurosteno.present.OkHttpPresentConnectClient
+import team.mikcoders.neurosteno.present.PathBSession
+import team.mikcoders.neurosteno.present.PresentConnectConfig
+import team.mikcoders.neurosteno.present.PresentConnectEvent
 
 data class StenoUiState(
     val fileLabel: String? = null,
@@ -38,6 +43,16 @@ data class StenoUiState(
     val heldPcm: PcmAudio? = null,
     val jniLoaded: Boolean = false,
     val jniError: String? = null,
+    val activeStreams: List<ActiveStreamChip> = emptyList(),
+    val overCapacityId: String? = null,
+    val presentConnected: Boolean = false,
+    val wsUrl: String = "wss://present.example.local/v1/present-connect?session=demo&role=worker&device=phone",
+)
+
+data class ActiveStreamChip(
+    val streamId: String,
+    val speakerId: String,
+    val role: String,
 )
 
 class StenoViewModel(app: Application) : AndroidViewModel(app) {
@@ -56,6 +71,75 @@ class StenoViewModel(app: Application) : AndroidViewModel(app) {
     )
     val state: StateFlow<StenoUiState> = _state
     private val mic = MicRecorder()
+    private val pathB = PathBSession.fromPipeline(pipeline)
+    private val presentClient =
+        if (BuildConfig.PRESENT_CONNECT) OkHttpPresentConnectClient(pathB = pathB) else null
+
+    init {
+        val client = presentClient
+        if (client != null) {
+            viewModelScope.launch {
+                client.events.collect { onPresentEvent(it) }
+            }
+        }
+    }
+
+    private fun onPresentEvent(e: PresentConnectEvent) {
+        when (e) {
+            is PresentConnectEvent.HelloOk ->
+                _state.update { it.copy(presentConnected = true, error = null) }
+            is PresentConnectEvent.StreamStarted ->
+                _state.update { s ->
+                    s.copy(
+                        activeStreams = s.activeStreams.filterNot { it.streamId == e.streamId } +
+                            ActiveStreamChip(e.streamId, e.speakerId, e.role),
+                    )
+                }
+            is PresentConnectEvent.StreamEnded ->
+                _state.update { s ->
+                    s.copy(activeStreams = s.activeStreams.filterNot { it.streamId == e.streamId })
+                }
+            is PresentConnectEvent.Final -> {
+                val brief = pathB.brief()
+                _state.update {
+                    it.copy(
+                        transcript = brief,
+                        jsonPreview = team.mikcoders.neurosteno.present.PresentConnectWire.briefJson(brief.transcript),
+                    )
+                }
+            }
+            is PresentConnectEvent.OverCapacity ->
+                _state.update { it.copy(overCapacityId = e.rejectedStreamId) }
+            is PresentConnectEvent.Error ->
+                _state.update { it.copy(error = "${e.code}: ${e.message}") }
+            PresentConnectEvent.Disconnected ->
+                _state.update { it.copy(presentConnected = false, activeStreams = emptyList()) }
+            is PresentConnectEvent.Partial -> { }
+        }
+    }
+
+    fun updateWsUrl(url: String) {
+        _state.update { it.copy(wsUrl = url) }
+    }
+
+    fun connectPresent() {
+        val client = presentClient ?: return
+        val url = _state.value.wsUrl
+        viewModelScope.launch {
+            client.connect(
+                PresentConnectConfig(
+                    wsUrl = url,
+                    httpBaseUrl = url.substringBefore("/v1").ifBlank { url },
+                    sessionId = "demo",
+                    deviceId = "phone",
+                ),
+            )
+        }
+    }
+
+    fun disconnectPresent() {
+        viewModelScope.launch { presentClient?.disconnect() }
+    }
 
     fun onFilePicked(uri: Uri, displayName: String?) {
         _state.update {

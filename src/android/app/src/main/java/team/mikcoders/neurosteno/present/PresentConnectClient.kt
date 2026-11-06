@@ -33,9 +33,13 @@ data class PresentConnectConfig(
 sealed class PresentConnectEvent {
     data class HelloOk(val sessionId: String, val workerId: String) : PresentConnectEvent()
 
-    data class StreamStarted(val streamId: String) : PresentConnectEvent()
+    data class StreamStarted(
+        val streamId: String,
+        val speakerId: String = "",
+        val role: String = "",
+    ) : PresentConnectEvent()
 
-    data class StreamEnded(val streamId: String) : PresentConnectEvent()
+    data class StreamEnded(val streamId: String, val speakerId: String = "") : PresentConnectEvent()
 
     data class Partial(
         val streamId: String,

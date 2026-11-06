@@ -25,6 +25,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -73,12 +74,55 @@ fun StenoApp(vm: StenoViewModel = viewModel()) {
         ) {
             Text(
                 if (state.presentConnect) {
-                    "Режим PresentConnect (сеть, ≤20 потоков). Офлайн-стенография — flavor stenographer."
+                    "Tech demo = Path B PresentConnect: ≤20 отдельных потоков, s01→speaker_1 (main). PCM не смешиваем. Офлайн-файл — flavor stenographer."
                 } else {
-                    "Офлайн-стенография. Авиарежим после загрузки моделей. PresentConnect — другой flavor."
+                    "Офлайн-стенография. Авиарежим после загрузки моделей. PresentConnect Path B — другой flavor."
                 },
                 style = MaterialTheme.typography.bodyMedium,
             )
+            if (state.presentConnect) {
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = state.wsUrl,
+                    onValueChange = { vm.updateWsUrl(it) },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("PresentConnect wss") },
+                    singleLine = true,
+                )
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = { vm.connectPresent() }, enabled = !state.presentConnected) {
+                        Text("WS connect")
+                    }
+                    OutlinedButton(onClick = { vm.disconnectPresent() }, enabled = state.presentConnected) {
+                        Text("Disconnect")
+                    }
+                    Text(
+                        "потоков ${state.activeStreams.size}/20",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 12.dp),
+                    )
+                }
+                if (state.activeStreams.isNotEmpty()) {
+                    Spacer(Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        state.activeStreams.forEach { s ->
+                            FilterChip(
+                                selected = s.role == "main",
+                                onClick = {},
+                                label = { Text("${s.streamId}→${s.speakerId}") },
+                            )
+                        }
+                    }
+                }
+                state.overCapacityId?.let { id ->
+                    Text(
+                        "OVER_CAPACITY: $id (stream 21)",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+            }
             Spacer(Modifier.height(8.dp))
             if (state.stubPath) {
                 Text(
@@ -144,7 +188,11 @@ fun StenoApp(vm: StenoViewModel = viewModel()) {
             val rows = state.transcript?.transcript.orEmpty()
             if (rows.isEmpty() && !state.running) {
                 Text(
-                    "Пусто. Импортируйте запись и нажмите «Расшифровать».",
+                    if (state.presentConnect) {
+                        "Path B: жду stream.start (s01→speaker_1 … s20→speaker_20). Brief без stream_id."
+                    } else {
+                        "Пусто. Импортируйте запись и нажмите «Расшифровать»."
+                    },
                     style = MaterialTheme.typography.bodyMedium,
                 )
             } else {
