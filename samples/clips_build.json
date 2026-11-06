@@ -1,0 +1,23 @@
+{
+  "label": "REAL",
+  "corpus": "Mozilla Common Voice 17.0 ru (test split)",
+  "license": "CC0-1.0",
+  "notes": "Turn-taking, no overlap. Gold sentences from Common Voice test split.",
+  "clips": [
+    {
+      "test_id": "clip_01",
+      "duration_ms": 22908,
+      "n_utt": 3
+    },
+    {
+      "test_id": "clip_02",
+      "duration_ms": 18336,
+      "n_utt": 2
+    },
+    {
+      "test_id": "clip_03",
+      "duration_ms": 23904,
+      "n_utt": 3
+    }
+  ]
+}

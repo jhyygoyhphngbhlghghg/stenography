@@ -107,7 +107,7 @@ def main() -> int:
     p.add_argument(
         "--run-host",
         action="store_true",
-        help="Linux sherpa-onnx inference for demo-stress (ignored for clips)",
+        help="Linux sherpa-onnx inference (demo-stress suite, and clips when --suite clips/all)",
     )
     args = p.parse_args()
     rc = 0
@@ -121,6 +121,9 @@ def main() -> int:
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     rows = []
     print("test_id\tstatus\twer\trtf\tnotes")
+    if args.run_host:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import host_asr_diar
     for clip in manifest["clips"]:
         test_id = clip["test_id"]
         wav = ROOT / clip["file"]
@@ -131,6 +134,18 @@ def main() -> int:
         wer_s = ""
         rtf_s = ""
         notes = []
+        if args.run_host and wav.is_file():
+            nclust = 3 if test_id == "clip_03" else 2
+            try:
+                doc, meta = host_asr_diar.transcribe_file(
+                    wav, ROOT / "models", num_clusters=nclust
+                )
+                args.hyp_dir.mkdir(parents=True, exist_ok=True)
+                hyp_path.write_text(json.dumps(doc, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+                wall_path.write_text(str(meta["wall_ms"]) + "\n", encoding="utf-8")
+            except Exception as e:
+                notes.append(f"host inference blocked: {type(e).__name__}: {e}")
+                status = "blocked"
         if not wav.is_file():
             notes.append("wav missing")
         if not ref_path.is_file():
@@ -154,16 +169,25 @@ def main() -> int:
                 notes.append("RTF needs duration + wall_ms")
         note = "; ".join(notes) if notes else clip.get("notes", "")
         print(f"{test_id}\t{status}\t{wer_s or '-'}\t{rtf_s or '-'}\t{note}")
+        dur = wav_duration_ms(wav) if wav.is_file() else None
+        wall = None
+        if wall_path.is_file():
+            try:
+                wall = int(wall_path.read_text().strip())
+            except ValueError:
+                wall = None
         rows.append(
             {
                 "test_id": test_id,
                 "timestamp_utc": "",
                 "commit": "",
                 "file_name": clip["file"],
-                "duration_ms": "",
-                "wall_ms": "",
+                "duration_ms": "" if dur is None else str(dur),
+                "wall_ms": "" if wall is None else str(wall),
                 "rtf": rtf_s,
+                "wer": wer_s,
                 "speakers_hyp": "",
+                "status": status,
                 "notes": note or "pending real on-device run",
             }
         )
@@ -180,7 +204,9 @@ def main() -> int:
                     "duration_ms",
                     "wall_ms",
                     "rtf",
+                    "wer",
                     "speakers_hyp",
+                    "status",
                     "notes",
                 ],
             )

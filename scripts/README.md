@@ -4,7 +4,9 @@
 - `fetch-sherpa-aar.sh` — GitHub Releases Android AAR (JitPack `v2.0.1` unpublished).
 - `verify-transcript-json.py` — exact brief schema (`transcript[]` + four fields).
 - `eval_harness.py` — WER+RTF skeleton for 3 fixed clips (empty table until a real run). `--suite demo-stress` scores the 20-talker mix; `--run-host` runs Linux sherpa-onnx (no KVM/ADB).
-- `generate_demo_stress_mix.py` — SYNTHETIC 20-talker cocktail mix (espeak-ng ru, +3 dB main, staggered offsets).
+- `fetch_cv17_ru.py` — download Common Voice 17 RU test clips (CC0) for 20 distinct talkers.
+- `generate_demo_stress_mix.py` — REAL 20-talker cocktail mix from that corpus (+3 dB main, staggered offsets). `--engine espeak` is the superseded OOD baseline.
+- `diar_param_sweep.py` — Path A clustering grid on the one-room mix (diar only).
 - `host_asr_diar.py` — Zipformer-ru + OfflineSpeakerDiarization on Linux Python.
 - `eval_demo_stress.py` — DER/JER/purity + main-speaker WER + RTF; pending/blocked if inference cannot run.
 - `eval_metrics.py` — metric implementations (not pyannote.metrics).

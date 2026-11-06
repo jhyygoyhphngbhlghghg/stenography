@@ -11,6 +11,9 @@ python3 scripts/eval_harness.py --suite demo-stress
 if [[ -f samples/demo-stress/ref/smoke.json ]]; then
   python3 scripts/verify-transcript-json.py samples/demo-stress/ref/smoke.json
 fi
+if [[ -f samples/ref/clip_01.json ]]; then
+  python3 scripts/verify-transcript-json.py samples/ref/clip_01.json samples/ref/clip_02.json samples/ref/clip_03.json
+fi
 if [[ -f artifacts/eval/demo-stress/hyp.json ]]; then
   python3 scripts/verify-transcript-json.py artifacts/eval/demo-stress/hyp.json
 fi
