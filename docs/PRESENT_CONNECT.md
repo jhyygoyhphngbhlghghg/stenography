@@ -188,9 +188,10 @@ HTTP `transcribe` is for bringing-up the phone without WS. The 20-stream demo **
 | `UNKNOWN_STREAM` | PCM for a stream that was not started |
 | `PIPELINE` | on-device ASR/VAD failure |
 | `MODELS_MISSING` | worker in stub mode — **do not use on stage** |
-| `LOW_ENERGY` | stream buffer near-silence / RMS below gate; **ASR skipped** |
+| `LOW_ENERGY` | **unbound / anonymous** stream below RMS floor, or **empty** (`n==0`) buffer; **ASR skipped**. Bound `s01`..`s20` near-silence is `SOFT_LOW` (ASR still runs) |
 | `CLIPPED` | clip ratio too high (hard-limited mic); **ASR skipped** |
 | `BAD_MIC` | stuck mic / extreme DC; **ASR skipped** |
+| `BAND_LIMITED` | phone-EQ / crush (HF/speech occupancy) without hard clip; **ASR skipped** |
 
 ### 4.1 Path B pre-ASR energy / mic-quality gate
 
@@ -211,11 +212,23 @@ Units: full-scale (FS) = 32768 for s16. `dBFS = 20*log10(rms_fs)`. Evidence: `ar
 | `CLIP_REJECT` | 0.02 of samples with \|s16\| ≥ 32760 | clipped square measures clip_ratio **1.0** |
 | `DC_REJECT_FS` | 0.20 | stuck 8000/32768 = 0.244; extreme DC 20000/32768 = 0.610 |
 | `STUCK_VARIANCE_FS` | 1e-7 | stuck/extreme variance 0; tiny_noise variance 3.7e-9 but peak ≪ reject so `LOW_ENERGY` |
-| `MIN_SAMPLES` | 800 (50 ms @ 16 kHz) | shorter buffers are not speech |
+| `MIN_SAMPLES` | 800 (50 ms @ 16 kHz) | spectral inspect needs this much; unbound shorter buffers are `LOW_ENERGY` |
+| `BAND_LIMITED_HF_RATIO` | 0.08 | broadband_stack hf_ratio **0.400**; phone_crush_stack **0**; phone_crush_lpf **0.008** (4× one-pole LP @ 2400 Hz) |
+| `BAND_LIMITED_SPEECH_OCC` | ≥2 Goertzel bins (250–3500 Hz, occupancy >5% of peak bin) | phone stack occ_speech 3; LPF crush 2; clean 1 kHz occ 1 (not crush) |
+| `BAND_LIMITED_HF_OCC` | 0 bins in 4–7 kHz | broadband occ_hf 2 |
 
-Hard reject: no ASR, no brief row, wire `{"type":"error","stream_id":"s0N","code":"LOW_ENERGY|CLIPPED|BAD_MIC","message":"..."}`, then `stream.closed`. UI flags the seat as bad-mic.
+**Bound-seat energy policy (H1: hard `LOW_ENERGY` dropped 9/20 EDGE_noise seats — Eval’s count, not re-measured here):**
+
+- Known PresentConnect seat = `bindStart` already ran **and** `stream_id` is `s01`..`s20`.
+- Near / below RMS 0.008 FS on a known seat → **`SOFT_LOW`**, still ASR, still a hyp row if ASR returns text. Do not omit the seat solely due to energy.
+- Hard `LOW_ENERGY` skip only when the stream is **unbound / anonymous** (`mic-a`, no `bindStart`) **or** the buffer is truly empty (`n == 0` bytes). All-zero but non-empty PCM on a bound seat is near-silence → ASR.
+- `CLIPPED` / `BAD_MIC` / `BAND_LIMITED` still hard-skip on bound seats (mic quality, not energy).
+
+Hard reject: no ASR, no brief row, wire `{"type":"error","stream_id":"s0N","code":"LOW_ENERGY|CLIPPED|BAD_MIC|BAND_LIMITED","message":"..."}`, then `stream.closed`. UI flags the seat.
 
 Soft flags (`SOFT_LOW` / `SOFT_CLIP` / `SOFT_DC`): still ASR; log + `MicQuality` event only. **Scored brief stays four fields** (`speaker_id`, `start_ms`, `end_ms`, `text`) — no quality extras.
+
+Eval H1 gated remeasure (cite only, not re-run): EDGE_noise hard-drop 9/20 seats; EDGE_badmic WER still 1.0 when CLIPPED/DC missed phone crush; WORST_CASE unchanged. This push does not claim new DER/WER.
 
 ---
 

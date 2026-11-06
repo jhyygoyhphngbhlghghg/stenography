@@ -186,22 +186,28 @@ python3 scripts/measure-stream-pcm-gate.py --record
 cd src/android && ./gradlew --no-daemon :app:testStenographerDebugUnitTest
 ```
 
-Thresholds (pcm_s16le, FS=32768, 16 kHz) from that measure command — see `artifacts/test-results/stream-pcm-gate.json`:
+Thresholds (pcm_s16le, FS=32768, 16 kHz) from that measure command — see `artifacts/test-results/stream-pcm-gate.json`.
 
-| Fixture | RMS FS | dBFS | clip_ratio | verdict |
-|---|---|---|---|---|
-| silence | 0 | −∞ | 0 | `LOW_ENERGY` |
-| tiny_noise (±3 LSB) | 6.11e-5 | −84.3 | 0 | `LOW_ENERGY` |
-| clipped square ±32767 | 1.0 | 0 | 1.0 | `CLIPPED` |
-| clean 1 kHz −20 dBpeak | 0.0707 | −23.0 | 0 | pass (ASR) |
-| stuck DC 8000 | 0.244 | −12.2 | 0 | `BAD_MIC` |
+Eval H1 gated remeasure (**Eval’s numbers**, not re-run here): hard `LOW_ENERGY` dropped 9/20 EDGE_noise seats (hyp 11/20); CLIPPED/DC missed phone-mic crush so EDGE_badmic WER still 1.0; WORST_CASE unchanged.
 
-Reject RMS 0.008 FS (≈ −42 dBFS). Codes: `LOW_ENERGY`, `CLIPPED`, `BAD_MIC`. Soft flags still ASR; brief JSON four fields only.
+| Fixture | RMS FS | hf_ratio | occ_speech/hf | unbound | bound `s0N` |
+|---|---|---|---|---|---|
+| empty (`n=0`) | — | — | — | `LOW_ENERGY` skip | `LOW_ENERGY` skip |
+| silence / tiny_noise | 0 / 6.11e-5 | — | — | `LOW_ENERGY` skip | **`SOFT_LOW` + ASR** |
+| clipped square | 1.0 | — | — | `CLIPPED` skip | `CLIPPED` skip |
+| stuck / extreme DC | 0.24 / 0.61 | — | — | `BAD_MIC` skip | `BAD_MIC` skip |
+| phone_crush_stack | 0.113 | **0** | 3 / 0 | `BAND_LIMITED` skip | `BAND_LIMITED` skip |
+| phone_crush_lpf (4× LP 2400 Hz) | 0.072 | **0.008** | 2 / 0 | `BAND_LIMITED` skip | `BAND_LIMITED` skip |
+| broadband_stack | 0.139 | **0.400** | 3 / 2 | pass | pass |
+| clean 1 kHz −20 dBpeak | 0.071 | 0 | 1 / 0 | pass | pass |
+
+`BAND_LIMITED` when hf_ratio &lt; 0.08 **and** occ_speech ≥ 2 **and** occ_hf = 0 **and** RMS ≥ 0.020 FS (catches crush CLIPPED/DC miss). Goertzel bins 250–3500 Hz speech, 4–7 kHz HF.
+
+Codes: `LOW_ENERGY`, `CLIPPED`, `BAD_MIC`, `BAND_LIMITED`. Soft flags still ASR; brief JSON four fields only. **Eval wavs / ref / metrics / harness untouched.**
 
 | Command | Result | Wall |
 |---|---|---|
 | `python3 scripts/measure-stream-pcm-gate.py --record` | **PASS** (synthetic only) | <1 s |
-| `./gradlew :app:testStenographerDebugUnitTest` | **PASS** (25 tests, 0 failures; 8 gate cases) | 15 s |
-| `./gradlew :app:compilePresentConnectDebugKotlin` | **PASS** | 12 s |
+| `./gradlew :app:testStenographerDebugUnitTest` | **PASS** (31 tests, 0 failures; 14 gate cases) | 15 s |
 
-`PathBGoldenBriefTest` (2) and `StreamLabelerTest` (4) unchanged and still green. No Eval DER/WER re-measure.
+`PathBGoldenBriefTest` (2) and `StreamLabelerTest` (4) files unchanged this push and still green. No Eval DER/WER claimed.
