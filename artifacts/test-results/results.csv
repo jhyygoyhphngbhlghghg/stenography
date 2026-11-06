@@ -1,0 +1,2 @@
+test_id,timestamp_utc,commit,file_name,duration_ms,wall_ms,rtf,speakers_hyp,notes
+# no rows yet — fill after a real on-device run
