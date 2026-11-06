@@ -77,10 +77,11 @@ SO="${SO:-${SOS[0]}}"
 FILE_OUT="$(file "$SO")"
 NEEDED="$(readelf -d "$SO" | awk '/NEEDED/{gsub(/[\[\]]/,"",$NF); print $NF}' | paste -sd, -)"
 SONAME="$(readelf -d "$SO" | awk '/SONAME/{gsub(/[\[\]]/,"",$NF); print $NF; exit}')"
-JNI_SYMS="$(nm -D --defined-only "$SO" 2>/dev/null | awk '/ JNI_OnLoad$| Java_com_k2fsa_sherpa_onnx/{print $3}' | head -n 40)"
+JNI_SYMS="$(nm -D --defined-only "$SO" 2>/dev/null | awk '/ JNI_OnLoad$| Java_com_k2fsa_sherpa_onnx/{print $3}')"
 JNI_COUNT="$(printf '%s\n' "$JNI_SYMS" | grep -c . || true)"
 HAS_ONLOAD=0
 printf '%s\n' "$JNI_SYMS" | grep -q 'JNI_OnLoad' && HAS_ONLOAD=1 || true
+JNI_SYMS_HEAD="$(printf '%s\n' "$JNI_SYMS" | head -n 40)"
 
 DLOPEN_STATUS="skipped"
 DLOPEN_MSG=""
@@ -151,11 +152,13 @@ else
   PY_STATUS="fail"
 fi
 
+# Java_* JNI exports are enough (this AAR has no JNI_OnLoad). Host dlopen of an
+# Android NDK .so is expected to fail on glibc → PARTIAL, not PASS.
 RESULT="PARTIAL"
-if [[ "$HAS_ONLOAD" -eq 1 && "$JNI_COUNT" -gt 0 && "$DLOPEN_STATUS" == "ok" ]]; then
-  RESULT="PASS"
-elif [[ "$HAS_ONLOAD" -ne 1 || "$JNI_COUNT" -eq 0 ]]; then
+if [[ "$JNI_COUNT" -le 0 ]]; then
   RESULT="FAIL"
+elif [[ "$DLOPEN_STATUS" == "ok" ]]; then
+  RESULT="PASS"
 else
   RESULT="PARTIAL"
 fi
@@ -186,8 +189,8 @@ WALL_MS=$(( (END - START) / 1000000 ))
   echo "ctypes_msg=$PY_MSG"
   echo "note=Host dlopen of an Android NDK .so is expected to fail on glibc (bionic, liblog). This is not an on-device UnsatisfiedLinkError probe."
   echo
-  echo "== JNI symbols (first 40) =="
-  echo "$JNI_SYMS"
+  echo "== JNI symbols (first 40 of ${JNI_COUNT}) =="
+  echo "$JNI_SYMS_HEAD"
   echo
   echo "== all libsherpa-onnx-jni.so in AAR =="
   printf '%s\n' "${SOS[@]}"
