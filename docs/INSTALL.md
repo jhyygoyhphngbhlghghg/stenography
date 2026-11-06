@@ -35,4 +35,4 @@ APK: `src/android/app/build/outputs/apk/<flavor>/debug/`. Для сдачи ск
 
 ## PresentConnect
 
-Flavor `presentConnect`, демо **Path B**: ≤20 отдельных потоков, не один смешанный микрофон комнаты. Под edge заявка только **20/20** stream tracking. **WORST_CASE FAIL:** WER main **0.9130**, DER **1.2985** (PR #4 @ `9908353d`). Clean WER/DER на WORST_CASE и EDGE_* не заявлять. **Do not claim in slides.** Контракт: `docs/PRESENT_CONNECT.md`. Нужна сеть до презентационного BE, не до облачного ASR.
+Презентация — **DEMO_STAGE6** (6 RU, один микрофон телефона, 3–6 м). WER/DER pending Eval. Flavor `presentConnect` — **опциональный Path B**, не эта заявка: ≤20 отдельных потоков. Под edge только **20/20** stream tracking. **WORST_CASE FAIL:** WER main **0.9130**, DER **1.2985** (PR #4 @ `9908353d`). Clean WER/DER на WORST_CASE и EDGE_* не заявлять. Контракт: `docs/PRESENT_CONNECT.md`. Нужна сеть до презентационного BE, не до облачного ASR.
