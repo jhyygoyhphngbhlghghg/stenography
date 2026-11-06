@@ -79,6 +79,8 @@ samples/demo-stress/adversarial/**/*.wav
 !samples/demo-stress/adversarial/smoke_worst.wav
 samples/demo-stress/stage6/**/*.wav
 !samples/demo-stress/stage6/smoke.wav
+# Handoff: commit small slices; keep the full mix local/gitignored
+artifacts/demo-stage6-handoff/DEMO_STAGE6.wav
 !artifacts/eval/demo-stress/*.log
 !artifacts/eval/demo-stress/run.log
 apk/*.apk
