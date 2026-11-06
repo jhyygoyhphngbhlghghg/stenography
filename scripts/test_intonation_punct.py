@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""IntonationPunct vs Impl 552b142 (no GGUF required)."""
+"""IntonationPunct vs Impl 3c3f9ce (no GGUF required)."""
 from __future__ import annotations
 
 import sys
@@ -13,8 +13,8 @@ import intonation_punct as P  # noqa: E402
 
 
 class Intonation(unittest.TestCase):
-    def test_pinned_to_impl_552b142(self):
-        self.assertEqual(P.IMPL_SECOND_PASS_HEAD, "552b142898f3cf3a8bddb939f0864730dbafb261")
+    def test_pinned_to_impl_3c3f9ce(self):
+        self.assertEqual(P.IMPL_SECOND_PASS_HEAD, "3c3f9ce61f803d716276f95fa7e6098cc2fe7be4")
 
     def test_zipformer_none_gets_terminal_period(self):
         self.assertEqual("Добрый день.", P.apply("Добрый день"))
@@ -25,10 +25,16 @@ class Intonation(unittest.TestCase):
         self.assertTrue(out.endswith("."))
         self.assertIn("коллеги", out)
 
+    def test_s1_like_turn_gets_multiple_spoken_commas_not_just_period(self):
+        out = P.apply("Здравствуйте коллеги сегодня мы начинаем но это важно")
+        self.assertGreaterEqual(out.count(","), 2, out)
+        self.assertTrue(out.endswith("."))
+        self.assertIn("но", out)
+
     def test_leading_filler_gets_spoken_comma(self):
         out = P.add_spoken_commas("ну вот послушайте")
         self.assertTrue(out.startswith("ну,"))
-        self.assertIn("вот", out)
+        self.assertIn("вот,", out)
 
     def test_never_strips_existing_commas(self):
         src = "Ну, вот, послушайте"

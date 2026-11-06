@@ -300,8 +300,8 @@ def transcribe_file(
     ff_meta = None
     scene = RECON.STAGE6 if impl_second_pass else None
     if impl_second_pass:
-        # Impl @ 552b142: frozen per-turn FarFieldGain (no whole-file crush), then
-        # VadDiarReconcile + IntonationPunct. EQ stays frozen (not re-applied here).
+        # Impl @ 3c3f9ce: frozen per-turn FarFieldGain (no whole-file crush), then
+        # VadDiarReconcile HARD CAP K=6 + IntonationPunct. EQ stays frozen.
         farfield_gain = True
         farfield_per_turn = True
         num_clusters = int(scene["expected_speakers"])
@@ -501,8 +501,8 @@ def transcribe_file(
         if impl_second_pass:
             meta["stack"] = (
                 "linux-sherpa-onnx-python Zipformer-ru + OfflineSpeakerDiarization; "
-                "Impl VadDiarReconcile + IntonationPunct @ 552b142 "
-                "(K=6, orphan/energy-hole/split non-near, near 3 m protected; ADD spoken punct, never strip)"
+                "Impl VadDiarReconcile + IntonationPunct @ 3c3f9ce "
+                "(HARD CAP K=6, never speaker_7..12, near 3 m protected; ADD spoken commas, never strip)"
             )
         elif phone_distance_eq:
             meta["stack"] = (
@@ -527,7 +527,7 @@ def transcribe_file(
     if impl_second_pass and ff_meta is None:
         meta["stack"] = (
             "linux-sherpa-onnx-python Zipformer-ru + OfflineSpeakerDiarization; "
-            "Impl VadDiarReconcile + IntonationPunct @ 552b142"
+            "Impl VadDiarReconcile + IntonationPunct @ 3c3f9ce"
         )
     if meta["duration_ms"] > 0:
         meta["rtf"] = wall_ms / meta["duration_ms"]

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Python mirror of Impl IntonationPunct.kt @ 552b142 (PR #7).
+"""Python mirror of Impl IntonationPunct.kt @ 3c3f9ce (PR #7).
 
 Hex.Team scoring lock (PR #4 @ 0824df64, cite only): Zipformer emits NONE,
 so this path **must ADD** spoken-intonation `,` `.` `?` `!`.
@@ -17,7 +17,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-IMPL_SECOND_PASS_HEAD = "552b142898f3cf3a8bddb939f0864730dbafb261"
+IMPL_SECOND_PASS_HEAD = "3c3f9ce61f803d716276f95fa7e6098cc2fe7be4"
 
 TERMINAL = frozenset(".?!\u2026")
 PUNCT_CHARS = frozenset(".?!,;:\u2026\u2014\u2013")
@@ -35,8 +35,13 @@ _VOCATIVE = re.compile(
     r"(^|\s)(коллеги|друзья|ребята|господа)(?=\s+\S)",
     re.IGNORECASE,
 )
-_LEADING_FILLER = re.compile(
-    r"^(ну|вот|да|так|значит|короче|слушай|ага|ладно|хорошо)(?=\s+\S)",
+_DISCOURSE = re.compile(
+    r"(^|\s)(ну|вот|да|так|итак|значит|короче|кстати|вообще|слушай|слушайте|"
+    r"смотрите|понимаете|ладно|хорошо|ага|допустим|например)(?=\s+\S)",
+    re.IGNORECASE,
+)
+_CONTRAST = re.compile(
+    r"(?<=\S)\s+(но|а|однако)(?=\s+\S)",
     re.IGNORECASE,
 )
 _PLEASE = re.compile(
@@ -88,11 +93,9 @@ def add_spoken_commas(text: str) -> str:
         return t
     t = _GREETING.sub(lambda m: m.group(0) + ",", t)
     t = _VOCATIVE.sub(lambda m: f"{m.group(1)}{m.group(2)},", t)
-    for _ in range(3):
-        t = _LEADING_FILLER.sub(
-            lambda m: m.group(0) if m.group(0).endswith(",") else m.group(0) + ",",
-            t,
-        )
+    for _ in range(4):
+        t = _DISCOURSE.sub(lambda m: f"{m.group(1)}{m.group(2)},", t)
+    t = _CONTRAST.sub(lambda m: f", {m.group(1)}", t)
     t = _PLEASE.sub(lambda m: f", {m.group(1)}{m.group(2)}", t)
     return squeeze_space(t)
 
