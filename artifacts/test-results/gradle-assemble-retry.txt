@@ -1,0 +1,8 @@
+START 2026-11-06T17:09:54Z
+assemble_test_exit=1 assemble_wall_sec=20 2026-11-06T17:10:14Z
+RETRY_DONE exit=1
+START2 2026-11-06T17:12:17Z
+assemble_test_exit=1 assemble_wall_sec=31 2026-11-06T17:12:48Z
+143621712	app/build/outputs/apk/stenographer/debug/app-stenographer-debug.apk
+143621716	app/build/outputs/apk/presentConnect/debug/app-presentConnect-debug.apk
+RETRY2_DONE exit=1

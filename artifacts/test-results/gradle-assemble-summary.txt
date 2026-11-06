@@ -1,0 +1,45 @@
+host: cloud-agent linux amd64, OpenJDK 21.0.12.1
+sdk: installed for this run at /home/ubuntu/android-sdk (not in git)
+  build-tools;35.0.0
+  platforms;android-35
+  platform-tools 37.0.1
+local.properties: sdk.dir=/home/ubuntu/android-sdk (gitignored)
+
+AAR resolve
+  command: cd src/android && ./gradlew --no-daemon :app:dependencies --configuration stenographerDebugRuntimeClasspath
+  exit: 0
+  wall_sec: 51
+  result: PASS
+  tree includes: com.github.k2-fsa.sherpa-onnx:sherpa-onnx:v2.0.1
+  independent curl: scripts/inspect-sherpa-aar.sh
+    url: https://jitpack.io/com/github/k2-fsa/sherpa-onnx/sherpa-onnx/v2.0.1/sherpa-onnx-v2.0.1.aar
+    http: 200
+    bytes: 49441341
+    wall_ms: 444
+    sha256: a8d09d1d32f3eb8520482c6d3d43fae674681c5b050385967c70a3c2c9bf0ee7
+
+assemble
+  command: cd src/android && ./gradlew --no-daemon :app:assembleStenographerDebug :app:assemblePresentConnectDebug
+  first compile FAIL: Java .builder() API does not exist on v2.0.1 Kotlin AAR (SherpaStenoPipeline)
+  after Kotlin data-class configs + ModelStore.zipformerFile qualify:
+    assemble_wall_sec: 31 (incremental; full first wrapper+deps+compile was 128s then 75s)
+    exit of combined assemble+unitTest before test fix: 1 (APKs already written)
+  APKs (gitignored):
+    143621712  src/android/app/build/outputs/apk/stenographer/debug/app-stenographer-debug.apk
+    143621716  src/android/app/build/outputs/apk/presentConnect/debug/app-presentConnect-debug.apk
+  result: PASS (APKs produced)
+
+unit tests
+  command: cd src/android && ./gradlew --no-daemon :app:testStenographerDebugUnitTest
+  after PresentConnectStreamTableTest end() id fix:
+    exit: 0
+    wall_sec: 11
+    7 tests (Pcm, TranscriptJson, PresentConnectStreamTable x4)
+  result: PASS
+
+JNI
+  packaged in both APKs: libsherpa-onnx-jni.so + libonnxruntime.so + c-api + cxx-api
+  ABIs: arm64-v8a, armeabi-v7a, x86, x86_64
+  app probe: NeuroStenoApp / PipelineFactory System.loadLibrary("sherpa-onnx-jni")
+  UnsatisfiedLinkError at runtime: NOT OBSERVED (no emulator/device in this VM)
+  BLOCKED for on-device load: need a phone or emulator

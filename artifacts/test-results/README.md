@@ -13,4 +13,8 @@ Platform de-risk evidence (Track B):
 | `sherpa-aar-resolve.json` | JitPack AAR HTTP 200, bytes, sha256, JNI `.so` list |
 | `sherpa-aar-listing.txt` | `unzip -l` of the AAR |
 | `present-connect-capacity.json` | streams 1..20 accepted, stream 21 `OVER_CAPACITY` |
-| `gradle-assemble.txt` | assemble command, exit code, APK path/size if built |
+| `gradle-assemble.txt` | Gradle `dependencies` tree (sherpa-onnx v2.0.1 resolve) |
+| `gradle-assemble-summary.txt` | assemble commands, exit codes, APK bytes, JNI notes |
+| `gradle-assemble-retry.txt` | incremental assemble that produced APKs |
+| `sherpa-apk-jni.txt` | `unzip -l` of native libs inside the debug APK |
+| `TEST-PresentConnectStreamTableTest.xml` | JUnit XML for the 20-stream cap |
