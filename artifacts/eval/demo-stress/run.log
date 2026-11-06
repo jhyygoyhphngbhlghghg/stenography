@@ -1,6 +1,6 @@
-demo-stress eval  commit=bb59640  utc=2026-11-06T18:33:29.517391+00:00
+demo-stress eval  commit=3dd87b5  utc=2026-11-06T18:39:13.668208+00:00
 Cloud agents have no KVM/ADB — host Linux sherpa-onnx only.
-run_host=True only=['EDGE_noise_gated', 'EDGE_badmic_gated', 'WORST_CASE_gated'] models=/agent/repos/neuro-stenographer/models
+run_host=True only=['EDGE_noise_gated_b142a4d', 'EDGE_badmic_gated_b142a4d', 'WORST_CASE_gated_b142a4d'] models=/agent/repos/neuro-stenographer/models
 ROW mix_20talker status=measured der=0.9500 jer=0.9520 purity=0.9983 wer_main=1.0000 rtf=0.1784 blocked='' notes='diarization collapsed to 1 speaker (ref 20); Path A: one-room mix, 20 distinct CV talkers, main +3 dB vs babble sum, staggered offsets.'
 ROW mix_20talker_main_dry status=measured der=0.0192 jer=0.0843 purity=0.9157 wer_main=0.1739 rtf=0.0587 blocked='' notes='Oracle PresentConnect s01 dry main (no babble). Zipformer ASR-only.'
 ROW mix_20talker_per_stream status=measured der=0.0913 jer=0.1840 purity=0.9983 wer_main=0.0870 rtf=0.1212 blocked='' notes='Path B tech demo: per-stream RMS VAD + ASR, oracle s0N↔speaker_N, unlooped dry tracks.'
@@ -10,14 +10,17 @@ ROW EDGE_overlap status=measured der=0.9936 jer=0.5476 purity=0.9807 wer_main=0.
 ROW EDGE_noise status=measured der=1.7005 jer=0.5675 purity=0.9203 wer_main=0.1739 rtf=0.2602 blocked='' notes='EDGE Path B: SYNTHETIC white+HVAC+chair+door+phone on CLEAN dry streams.'
 ROW EDGE_badmic status=measured der=0.6569 jer=0.2863 purity=0.9497 wer_main=1.0000 rtf=0.1910 blocked='' notes='EDGE Path B: phone-mic band-limit/clip/compress/EQ on CLEAN dry streams.'
 ROW WORST_CASE status=measured der=1.2985 jer=0.5981 purity=0.9491 wer_main=0.9130 rtf=0.2907 blocked='' notes='WORST_CASE Path B: overlap+bleed (~+1.5 dB main on s01) + SYNTHETIC reverb + room noises + bad mic. Expect FAIL. Johann hard requirement.'
-==> host inference EDGE_noise_gated (/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/EDGE_noise.wav)
-    segments=46 wall_ms=4977 pcm_gate passed=11 dropped=9 codes={'LOW_ENERGY': 9}
-ROW EDGE_noise_gated status=measured der=1.2940 jer=0.7312 purity=0.9207 wer_main=0.1739 rtf=0.2656 blocked='' notes="pcm_gate passed=11/20 dropped=9 codes={'LOW_ENERGY': 9}; GATED remeasure of frozen EDGE_noise through StreamPcmGate (dae416f / f5ff5e2). Same wavs. Do not retune fixtures."
-==> host inference EDGE_badmic_gated (/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/EDGE_badmic.wav)
-    segments=50 wall_ms=5108 pcm_gate passed=20 dropped=0 codes={}
-ROW EDGE_badmic_gated status=measured der=0.6569 jer=0.2863 purity=0.9497 wer_main=1.0000 rtf=0.2726 blocked='' notes='pcm_gate passed=20/20 dropped=0 codes={}; GATED remeasure of frozen EDGE_badmic through StreamPcmGate (dae416f / f5ff5e2). Same wavs. Do not retune fixtures.'
-==> host inference WORST_CASE_gated (/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/WORST_CASE.wav)
-    segments=20 wall_ms=6310 pcm_gate passed=20 dropped=0 codes={}
-ROW WORST_CASE_gated status=measured der=1.2985 jer=0.5981 purity=0.9491 wer_main=0.9130 rtf=0.3491 blocked='' notes='pcm_gate passed=20/20 dropped=0 codes={}; GATED remeasure of frozen WORST_CASE through StreamPcmGate (dae416f / f5ff5e2). Same wavs. Do not retune fixtures.'
+ROW EDGE_noise_gated status=measured der=1.2940 jer=0.7312 purity=0.9207 wer_main=0.1739 rtf=0.2656 blocked='' notes='GATED remeasure of frozen EDGE_noise through StreamPcmGate (dae416f / f5ff5e2). Same wavs. Do not retune fixtures.'
+ROW EDGE_badmic_gated status=measured der=0.6569 jer=0.2863 purity=0.9497 wer_main=1.0000 rtf=0.2726 blocked='' notes='GATED remeasure of frozen EDGE_badmic through StreamPcmGate (dae416f / f5ff5e2). Same wavs. Do not retune fixtures.'
+ROW WORST_CASE_gated status=measured der=1.2985 jer=0.5981 purity=0.9491 wer_main=0.9130 rtf=0.3491 blocked='' notes='GATED remeasure of frozen WORST_CASE through StreamPcmGate (dae416f / f5ff5e2). Same wavs. Do not retune fixtures.'
+==> host inference EDGE_noise_gated_b142a4d (/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/EDGE_noise.wav)
+    segments=18 wall_ms=7876 pcm_gate passed=20 dropped=0 codes={}
+ROW EDGE_noise_gated_b142a4d status=measured der=0.7092 jer=0.4395 purity=0.9375 wer_main=0.1739 rtf=0.4204 blocked='' notes='pcm_gate passed=20/20 dropped=0 codes={}; Post-hush-fix @ b142a4d: StreamPcmGate thresholds unchanged; do not wipe quiet on-mic seats. Frozen EDGE_noise wavs. Do not retune.'
+==> host inference EDGE_badmic_gated_b142a4d (/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/EDGE_badmic.wav)
+    segments=50 wall_ms=6986 pcm_gate passed=20 dropped=0 codes={}
+ROW EDGE_badmic_gated_b142a4d status=measured der=0.6569 jer=0.2863 purity=0.9497 wer_main=1.0000 rtf=0.3729 blocked='' notes='pcm_gate passed=20/20 dropped=0 codes={}; Post-hush-fix @ b142a4d on frozen EDGE_badmic wavs. StreamPcmGate unchanged. Do not retune.'
+==> host inference WORST_CASE_gated_b142a4d (/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/WORST_CASE.wav)
+    segments=20 wall_ms=9402 pcm_gate passed=20 dropped=0 codes={}
+ROW WORST_CASE_gated_b142a4d status=measured der=1.2985 jer=0.5981 purity=0.9491 wer_main=0.9130 rtf=0.5201 blocked='' notes='pcm_gate passed=20/20 dropped=0 codes={}; Post-hush-fix @ b142a4d on frozen WORST_CASE wavs. StreamPcmGate unchanged. Do not retune.'
 copied mix_20talker.json -> hyp.json
 wrote /agent/repos/neuro-stenographer/artifacts/eval/demo-stress/metrics.csv and /agent/repos/neuro-stenographer/artifacts/eval/demo-stress/metrics.json

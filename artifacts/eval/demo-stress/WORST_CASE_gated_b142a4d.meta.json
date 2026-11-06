@@ -1,0 +1,266 @@
+{
+  "dry_dir": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_WORST_CASE",
+  "wall_ms": 9402,
+  "duration_ms": 18076,
+  "n_segments": 20,
+  "n_hyp_speakers": 20,
+  "n_streams": 20,
+  "path": "B_per_stream",
+  "vad": "rms",
+  "pad_ms": 250,
+  "min_duration_on": 0.2,
+  "min_duration_off": 0.45,
+  "rel_thresh": 0.04,
+  "pcm_gate": true,
+  "pcm_gate_no_hush": true,
+  "pcm_gate_source": "StreamPcmGate.kt thresholds f5ff5e2; no-hush ingest b142a4d",
+  "streams_passed": 20,
+  "streams_dropped": 0,
+  "pcm_gate_codes": {},
+  "stack": "linux-sherpa-onnx per-stream StreamPcmGate+RMS-VAD+ASR (oracle stream id), merge by time",
+  "streams": [
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_WORST_CASE/spk_01.wav",
+      "n_segments": 1,
+      "wall_ms": 1177,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [],
+        "code": null,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_WORST_CASE/spk_02.wav",
+      "n_segments": 1,
+      "wall_ms": 381,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [],
+        "code": null,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_WORST_CASE/spk_03.wav",
+      "n_segments": 1,
+      "wall_ms": 365,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [],
+        "code": null,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_WORST_CASE/spk_04.wav",
+      "n_segments": 1,
+      "wall_ms": 368,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [],
+        "code": null,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_WORST_CASE/spk_05.wav",
+      "n_segments": 1,
+      "wall_ms": 465,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [],
+        "code": null,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_WORST_CASE/spk_06.wav",
+      "n_segments": 1,
+      "wall_ms": 566,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [],
+        "code": null,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_WORST_CASE/spk_07.wav",
+      "n_segments": 1,
+      "wall_ms": 451,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [],
+        "code": null,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_WORST_CASE/spk_08.wav",
+      "n_segments": 1,
+      "wall_ms": 444,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [],
+        "code": null,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_WORST_CASE/spk_09.wav",
+      "n_segments": 1,
+      "wall_ms": 455,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [],
+        "code": null,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_WORST_CASE/spk_10.wav",
+      "n_segments": 1,
+      "wall_ms": 449,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [],
+        "code": null,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_WORST_CASE/spk_11.wav",
+      "n_segments": 1,
+      "wall_ms": 444,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [],
+        "code": null,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_WORST_CASE/spk_12.wav",
+      "n_segments": 1,
+      "wall_ms": 463,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [],
+        "code": null,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_WORST_CASE/spk_13.wav",
+      "n_segments": 1,
+      "wall_ms": 362,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [],
+        "code": null,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_WORST_CASE/spk_14.wav",
+      "n_segments": 1,
+      "wall_ms": 452,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [],
+        "code": null,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_WORST_CASE/spk_15.wav",
+      "n_segments": 1,
+      "wall_ms": 440,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [],
+        "code": null,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_WORST_CASE/spk_16.wav",
+      "n_segments": 1,
+      "wall_ms": 437,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [],
+        "code": null,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_WORST_CASE/spk_17.wav",
+      "n_segments": 1,
+      "wall_ms": 445,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [],
+        "code": null,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_WORST_CASE/spk_18.wav",
+      "n_segments": 1,
+      "wall_ms": 483,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [],
+        "code": null,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_WORST_CASE/spk_19.wav",
+      "n_segments": 1,
+      "wall_ms": 368,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [],
+        "code": null,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_WORST_CASE/spk_20.wav",
+      "n_segments": 1,
+      "wall_ms": 361,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [],
+        "code": null,
+        "crops_skipped": 0
+      }
+    }
+  ],
+  "no_kvm_adb": true,
+  "json_schema": "transcript[].{speaker_id,start_ms,end_ms,text}",
+  "rtf": 0.5201371984952423
+}
