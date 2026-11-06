@@ -27,6 +27,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
+import demo_pcm_prep as DEMO_PREP  # noqa: E402
 import stream_pcm_gate as PCM_GATE  # noqa: E402
 
 
@@ -193,6 +194,7 @@ def transcribe_file(
     asr_only: bool = False,
     skip_asr: bool = False,
     speaker_id_override: str | None = None,
+    farfield_gain: bool = False,
 ) -> tuple[dict, dict]:
     if asr_only:
         return transcribe_asr_only(wav, models, num_threads=num_threads)
@@ -212,6 +214,16 @@ def transcribe_file(
     z = find_zipformer(models)
     d = find_diar(models)
     samples, sr = load_wav_mono16k(wav)
+    ff_meta = None
+    if farfield_gain:
+        prep = DEMO_PREP.prepare(samples, sr, bound_main=True)
+        ff_meta = DEMO_PREP.gain_meta(prep)
+        if prep["skip_asr"]:
+            raise HostBlocked(
+                f"DemoPcmPrep hard-skip {prep['skip_code']} "
+                f"(Platform FarFieldGain @ b66581c; CLIPPED/BAD_MIC/empty only)"
+            )
+        samples = prep["samples"]
 
     t0 = time.perf_counter()
     diar_cfg = sherpa_onnx.OfflineSpeakerDiarizationConfig(
@@ -321,7 +333,14 @@ def transcribe_file(
             "embedding": str(d["embedding"]),
         },
         "no_kvm_adb": True,
+        "farfield_gain": bool(farfield_gain),
     }
+    if ff_meta is not None:
+        meta["farfield"] = ff_meta
+        meta["stack"] = (
+            "linux-sherpa-onnx-python Zipformer-ru + OfflineSpeakerDiarization; "
+            "Platform FarFieldGain+DemoPcmPrep @ b66581c (RMS-target 0.08, max +24 dB, soft energy)"
+        )
     if meta["duration_ms"] > 0:
         meta["rtf"] = wall_ms / meta["duration_ms"]
     return doc, meta

@@ -14,6 +14,7 @@ fi
 python3 scripts/eval_harness.py
 python3 scripts/test_eval_metrics.py -q
 python3 scripts/test_stream_pcm_gate.py -q
+python3 scripts/test_farfield_gain.py -q
 python3 scripts/eval_harness.py --suite demo-stress
 if [[ -f samples/demo-stress/ref/smoke.json ]]; then
   python3 scripts/verify-transcript-json.py samples/demo-stress/ref/smoke.json
@@ -68,6 +69,9 @@ if [[ -f samples/demo-stress/stage6/ref/DEMO_STAGE6.json ]]; then
 fi
 if [[ -f artifacts/eval/demo-stress/DEMO_STAGE6.json ]]; then
   python3 scripts/verify-transcript-json.py artifacts/eval/demo-stress/DEMO_STAGE6.json
+fi
+if [[ -f artifacts/eval/demo-stress/DEMO_STAGE6_ffgain.json ]]; then
+  python3 scripts/verify-transcript-json.py artifacts/eval/demo-stress/DEMO_STAGE6_ffgain.json
 fi
 
 if [[ -f src/android/local.properties ]] || [[ -n "${ANDROID_HOME:-}" ]]; then
