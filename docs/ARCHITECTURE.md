@@ -47,7 +47,7 @@ Browser mics (≤20) ── per-stream PCM ──► presentation BE ──WS─
 
 Path B is **not** a Path A cocktail mix. Eval (PR #4, cite only) on `mix_20talker_per_stream`: DER 0.235, WER_main 0.087, 20/20 speakers. Mapping: `samples/demo-stress/channels.json`.
 
-Single-mic DEMO_STAGE6 PCM is **per-turn** gain-staged (`FarFieldGain.stagePerSegment`: each quiet energy window independently targets RMS 0.08 FS, max +24 dB, peak ≤ 0.95; loud turns never attenuated). Whole-file AGC is wrong when a near seat already sits ~0.12 FS (Eval ffgain @ `e0e64b85` mix 0.119 FS, AGC −3.46 dB). CLIPPED / BAD_MIC still hard-skip on raw PCM. Bound-main energy / band-limit stay soft (`SOFT_LOW` / `BAND_LIMITED`).
+Single-mic DEMO_STAGE6 PCM: **per-turn gain is frozen** (`FarFieldGain`; Eval per-turn @ `54177a1e` islands already ≥0.08 FS so AGC is a no-op — do not retune). Then **phone-distance EQ** (`PhoneDistanceEq`: 1600 Hz high-shelf on far islands only; near seat RMS ≥ 0.12 FS is identity). CLIPPED / BAD_MIC still hard-skip on raw PCM. Bound-main energy / band-limit stay soft (`SOFT_LOW` / `BAND_LIMITED`).
 
 Checkpoint polling (clients follow presenter) lives on the **web BE**, not in this app. See `docs/PRESENT_CONNECT.md`.
 
