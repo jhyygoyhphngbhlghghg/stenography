@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import team.mikcoders.neurosteno.BuildConfig
+import team.mikcoders.neurosteno.audio.AudioDecoder
 import team.mikcoders.neurosteno.export.TranscriptFile
 import team.mikcoders.neurosteno.export.TranscriptJson
 import team.mikcoders.neurosteno.pipeline.PipelineProgress
@@ -57,13 +58,16 @@ class StenoViewModel(app: Application) : AndroidViewModel(app) {
             _state.update { it.copy(running = true, error = null, progress = PipelineProgress(PipelineStage.Decode, "start", 0f)) }
             try {
                 val audio = withContext(Dispatchers.Default) {
-                    // Real MediaCodec decode lands in a follow-up commit.
-                    // Silence placeholder keeps import → run → list → export working tonight.
-                    PcmAudio(
-                        samples = FloatArray(16_000 * 4),
-                        sampleRate = 16_000,
-                        sourceName = label,
-                    )
+                    val uriStr = _state.value.importedUri
+                    if (uriStr != null) {
+                        AudioDecoder.decode(getApplication(), Uri.parse(uriStr), label)
+                    } else {
+                        PcmAudio(
+                            samples = FloatArray(16_000 * 4),
+                            sampleRate = 16_000,
+                            sourceName = label,
+                        )
+                    }
                 }
                 val result = pipeline.transcribe(audio) { p ->
                     _state.update { it.copy(progress = p) }
