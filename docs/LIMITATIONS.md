@@ -1,18 +1,33 @@
 # Ограничения решения
 
+## DEMO_STAGE6 — заявка презентации
+
+**Презентация = DEMO_STAGE6. Не Path B. Не ≤20 потоков.**
+
+- **6** спикеров, **RU**, на сцене.
+- **Один** микрофон телефона. Каждый спикер **3–6 м** от микрофона.
+- Реплики **sequential**. Только **лёгкое** перекрытие или перебивание в конце реплики.
+- **Большая комната**, **средний** фон (babble/HVAC). **Не** студия.
+- Микрофон телефона: band-limit, compression, затухание с расстоянием, reverb. **Не** чистый Common Voice.
+- Один канал, far-field: VAD → диаризация → Zipformer-ru ASR (офлайн / on-device).
+
+Цель johann: **ideal recognition** (ясные смены спикеров + пригодный текст). **WER/DER для DEMO_STAGE6 не выдуманы.** Eval владеет фикстурой и цифрами ([PR #4](https://cursor.com/codebase/johann-schilling/neuro-stenographer/pull/4)). **Scores pending Eval.** Студийную подмену не заявлять. Запрещены «should be fine», «robust», «handles noisy rooms», «graceful under echo».
+
+Path A (cocktail ≥20 в один поток) — measured FAIL: **1/20**, DER **0.95**, main WER **1.00**, RTF **0.18**. Не демо.
+
 ## Поддерживаемые условия
 
 - Android 8.0+ (minSdk 26), демо на современном устройстве.
 - Вход: локальный файл (WAV/M4A/MP3 через SAF) или запись микрофоном приложения.
 - Выход: JSON брифа + просмотр списка реплик.
-- Офлайн-стенография: авиарежим после того, как модели лежат в filesDir/assets.
-- PresentConnect (демо **Path B**): отдельный сетевой режим, до **20 отдельных** потоков (один mic = один `stream_id`). 21-й поток — `OVER_CAPACITY`. Под edge из качества остаётся только stream tracking **20/20**. **WORST_CASE WER/DER — FAIL** (ниже).
+- Офлайн-стенография: авиарежим после того, как модели лежат в filesDir/assets. Это контур **DEMO_STAGE6** (одна far-field запись).
+- PresentConnect (**опциональный** Path B, не заявка презентации): до **20 отдельных** потоков (один mic = один `stream_id`). 21-й поток — `OVER_CAPACITY`. Под edge этого режима остаётся только stream tracking **20/20**. **WORST_CASE WER/DER — FAIL** (ниже).
 
-## Multi-talker: claim lock
+## Optional PresentConnect (Path B) — not the presentation claim
 
-Архитектура демо — **Path B**: ≤20 отдельных потоков, PCM → VAD → ASR, `speaker_id` ← `stream_id`. Источник edge-цифр: Eval [PR #4](https://cursor.com/codebase/johann-schilling/neuro-stenographer/pull/4) @ `9908353d`. Числа не выдуманы. Фикстуры **не** подкручивали после FAIL.
+Не DEMO_STAGE6. ≤20 отдельных потоков, PCM → VAD → ASR, `speaker_id` ← `stream_id`. Источник edge-цифр: Eval [PR #4](https://cursor.com/codebase/johann-schilling/neuro-stenographer/pull/4) @ `9908353d`. Числа не выдуманы. Фикстуры **не** подкручивали после FAIL.
 
-**Path B under edge: stream tracking still 20/20** (hyp/ref speakers) на каждой строке таблицы. Это **единственная** multi-talker заявка, которая переживает edge.
+**Path B under edge: stream tracking still 20/20** (hyp/ref speakers) на каждой строке таблицы. Это единственная заявка **этого опционального режима**, которая переживает его edge. На слайды DEMO_STAGE6 её не ставить.
 
 **WER/DER under WORST_CASE are FAIL.** Слайды: WORST_CASE WER≈0.91, DER≈1.30. Точные значения — строка таблицы: WER main **0.9130**, DER 250ms **1.2985**. Clean WER/DER на WORST_CASE и на EDGE_* **не** заявлять.
 
@@ -49,15 +64,15 @@ Measured consequence @ `bed868b3` (gated_v2 hyp — **not** the demo claim):
 
 Bound seats (`s01`..`s20`) must **soft-flag only** (still ASR), same spirit as `SOFT_LOW`. Never hard-drop main/`s01`. Hard `BAND_LIMITED` only for unbound/anonymous. Platform owns the code fix on PR #3. This doc locks the claim only.
 
-**Claim remains ungated Path B stream tracking 20/20** under edge (frozen baseline @ `9908353d`). Ungated WORST_CASE stays FAIL: WER main **0.9130**, DER 250ms **1.2985**. Hold merge. Overnight #2 first.
+**Для optional Path B** заявка под edge остаётся ungated stream tracking **20/20** (frozen baseline @ `9908353d`). Это не DEMO_STAGE6. Ungated WORST_CASE stays FAIL: WER main **0.9130**, DER 250ms **1.2985**. Hold merge. Overnight #2 first.
 
 Ранний clean-замер того же PR #4 (до этого suite): Path B DER **0.24** (также 0.235), main WER **0.087**, RTF **2.65**, 20/20. Это не строка CLEAN этого suite (там DER 0.0913, RTF 0.1212, WER main 0.0870) и не WORST_CASE. Path A того раннего замера — hard fail: **1/20**, DER **0.95**, main WER **1.00**, RTF **0.18**. Офлайн-файл по-прежнему одна запись (VAD → диаризация → ASR) и не является 20-talker демо.
 
 ## Известные ограничения
 
-- **Новые WER/RTF не выдумывать.** Цитировать только замер H1 / PR #4: ранний clean и Path A, overnight-клипы (~3.5% / 0% / 0% WER, без перекрытия), и edge suite @ `9908353d` (таблица выше). Он-девайс строки в `artifacts/test-results/results.csv` пусты, пока нет своего прогона.
+- **Новые WER/RTF не выдумывать.** DEMO_STAGE6: **scores pending Eval**, цифр нет. Цитировать только замер H1 / PR #4 для Path A и optional Path B: ранний clean, overnight-клипы (~3.5% / 0% / 0% WER, без перекрытия), edge suite @ `9908353d` (таблица выше). Он-девайс строки в `artifacts/test-results/results.csv` пусты, пока нет своего прогона.
 - Zipformer-ru — RU-first; английский best-effort (для EN — Whisper tiny, не default).
-- Перекрытие в **одной** записи: Path A на ≥20 говорящих уже FAIL (1/20). Офлайн-демо файла — клипы без перекрытия. На Path B killers — overlap/bleed (EDGE_overlap WER main 0.7391, DER 0.9936), noise false alarms (EDGE_noise DER 1.7005), bad mic (EDGE_badmic WER main 1.0000). WORST_CASE: WER main **0.9130**, DER **1.2985**, hyp/ref **20/20**. Clean WER/DER на эти строки не переносить.
+- DEMO_STAGE6 допускает только лёгкое перекрытие в конце реплики. Это не замер и не обещание качества. Path A на ≥20 говорящих в одном миксе — FAIL (1/20). На optional Path B killers — overlap/bleed (EDGE_overlap WER main 0.7391, DER 0.9936), noise false alarms (EDGE_noise DER 1.7005), bad mic (EDGE_badmic WER main 1.0000). WORST_CASE: WER main **0.9130**, DER **1.2985**, hyp/ref **20/20**. Clean WER/DER на эти строки не переносить. Не переносить их на DEMO_STAGE6.
 - LLM post-pass: модуль есть, **веса не приложены** (TODO Gemma/Qwen/Phi via llama.cpp или MediaPipe). Сейчас identity / лёгкая пунктуация, честно в UI.
 - Модели не в git (~74 MB+ ASR, плюс VAD/diar). Без `download-models.sh` / adb push приложение соберётся, но pipeline уйдёт в stub.
 - NNAPI на OEM плавает; default provider = CPU.
