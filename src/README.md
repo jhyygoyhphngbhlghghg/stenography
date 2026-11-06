@@ -10,7 +10,7 @@ src/android/
     ui/          # Compose: import, progress, transcript list, export
     audio/       # decode, record, PCM 16 kHz mono
     pipeline/    # VAD → diarize → ASR → LLM post-pass
-    llm/         # local LLM stub + TODO weights
+    llm/         # heuristic punctuation + GGUF TODO weights
     export/      # JSON (brief schema) + TXT
     present/     # PresentConnectClient
 ```

@@ -22,7 +22,6 @@ data class TranscriptFile(
 object TranscriptJson {
     val json: Json = Json {
         prettyPrint = true
-        prettyPrintIndent = "  "
         encodeDefaults = true
         ignoreUnknownKeys = false
         explicitNulls = false
