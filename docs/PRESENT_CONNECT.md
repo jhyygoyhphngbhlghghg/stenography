@@ -14,6 +14,10 @@ QR on slide → audience browser mic → web BE relays PCM → Android app
 
 Hard cap: **≤ 20 concurrent audio streams** per phone worker. Stream 21 is rejected.
 
+**Tech demo = Path B**, not a one-room cocktail mix. Each `stream_id` is its own PCM buffer → ASR. Oracle map (Eval `mix_20talker_per_stream`): `s{N:02d}` ↔ `speaker_{N}` for N=1..20. `s01` / `speaker_1` is **main**. Bind on `stream.start`; do **not** recluster across streams. Never mix open streams into one buffer.
+
+Eval (PR #4, not re-run here) scored Path B `mix_20talker_per_stream`: DER 0.235, WER_main 0.087, 20/20 speakers.
+
 Offline stenography (file import / in-app record, airplane mode) is a **different mode**. Do not send present-connect audio through a cloud ASR.
 
 ---
@@ -111,9 +115,12 @@ Text frames, JSON. Audio payload is **base64 PCM s16le, 16 kHz, mono**. Chunk ~1
   "stream_id": "s01",
   "sample_rate": 16000,
   "encoding": "pcm_s16le",
-  "speaker_hint": null
+  "speaker_hint": null,
+  "offset_ms": 0
 }
 ```
+
+`speaker_hint` optional; default oracle is `s01`→`speaker_1` … `s20`→`speaker_20`. `offset_ms` is an **additive** clock shift only when the PCM for that stream starts at zero. Eval dry wavs already sit on the shared session clock — default `0`.
 
 If worker already has 20 open streams it replies `error` / `OVER_CAPACITY` and does **not** accept PCM.
 
@@ -130,9 +137,9 @@ If worker already has 20 open streams it replies `error` / `OVER_CAPACITY` and d
 
 `seq` is uint, monotonic per `stream_id`. Gaps: worker may skip; do not stall the whole session.
 
-`stream.end` — flush VAD, emit finals, then `stream.closed`.
+`stream.end` — ASR **this stream’s PCM only**, emit `transcript.final` (oracle `speaker_id`), then `stream.closed`.
 
-`stream.cancel` — drop without a final.
+`stream.cancel` — drop the buffer without a final (do not absorb into the session brief).
 
 `ping`: `{"type":"ping","t": 1730900000000}`  (worker answers `pong`)
 
@@ -153,7 +160,7 @@ Server may broadcast to `display`:
 }
 ```
 
-Web FE maps `stream_id` → seat/QR label. `speaker_id` is diarization **inside** that stream (one browser mic can still be one speaker).
+Web FE may map `stream_id` → seat/QR label. `stream_id` is **on the wire only**. Session export / `GET …/transcript` is the Eval brief: `{ "transcript": [ {speaker_id, start_ms, end_ms, text} ] }` — extras rejected; **no `stream_id` in the brief**; sorted by `start_ms`. Worker sets `speaker_id` from the Path B oracle (`s01`→`speaker_1`), not from reclustering across streams.
 
 ---
 
@@ -166,7 +173,7 @@ Base: `https://{host}/v1`
 | `POST` | `/workers/register` | phone | `{device_id, max_streams:20, models:[...]}` → `{worker_id, ws_url}` |
 | `GET` | `/workers/{id}/health` | phone/BE | `{ok, streams, max_streams}` |
 | `POST` | `/sessions/{sid}/transcribe` | BE (debug) | `multipart/audio` → brief JSON `{transcript:[...]}` **one file, not 20 streams** |
-| `GET` | `/sessions/{sid}/transcript` | display | current concatenated `{transcript:[...]}` |
+| `GET` | `/sessions/{sid}/transcript` | display | concat of `transcript.final` utterances, **brief keys only** (strip `stream_id` / `type`), sorted by `start_ms` |
 
 HTTP `transcribe` is for bringing-up the phone without WS. The 20-stream demo **must** use WebSocket.
 
@@ -211,7 +218,7 @@ interface PresentConnectClient {
 }
 ```
 
-Implementation talks OkHttp WebSocket. Pipeline on the phone is the same as file import: PCM → VAD → diarize → ASR → LLM stub → `transcript.final`.
+Implementation: `OkHttpPresentConnectClient` + `PathBSession` + `StreamLabeler`. Per-stream PCM → ASR → relabel `speaker_id` from `s0N` → `transcript.final`. Mapping table: `samples/demo-stress/channels.json`. Golden brief (8 utts / 7 speakers): `artifacts/test-results/golden_path_b_brief.json`.
 
 ---
 

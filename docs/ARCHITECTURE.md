@@ -30,17 +30,20 @@ Audio (SAF import / AudioRecord)
   Dialogue JSON + Compose list + share/export
 ```
 
-PresentConnect (flavor `presentConnect`, network mode):
+PresentConnect (flavor `presentConnect`, network mode) is **Path B**:
 
 ```
-Browser mics (≤20) ──audio──► presentation BE ──WS/HTTP──► phone worker
-                                                              │
-                                                              ▼
-                                                         same pipeline
-                                                              │
-                                                              ▼
-                         presentation display ◄──transcript───┘
+Browser mics (≤20) ── per-stream PCM ──► presentation BE ──WS──► phone worker
+                                                                  │
+                                                    Path B: never mix PCM
+                                                    s01→speaker_1 … s20→speaker_20
+                                                    ASR each stream’s buffer
+                                                                  │
+                         display ◄── transcript.final (stream_id on wire only)
+                         GET transcript = brief {speaker_id,start_ms,end_ms,text}
 ```
+
+Tech demo is Path B PresentConnect ≤20 streams, **not** a Path A cocktail mix. Eval (PR #4, not re-run here) on `mix_20talker_per_stream`: DER 0.235, WER_main 0.087, 20/20 speakers. Mapping: `samples/demo-stress/channels.json`. Golden brief: `artifacts/test-results/golden_path_b_brief.json`.
 
 Checkpoint polling (clients follow presenter) lives on the **web BE**, not in this app. See `docs/PRESENT_CONNECT.md`.
 

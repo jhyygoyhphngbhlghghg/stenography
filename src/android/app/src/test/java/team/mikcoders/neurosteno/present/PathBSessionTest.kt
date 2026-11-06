@@ -65,6 +65,24 @@ class PathBSessionTest {
     }
 
     @Test
+    fun neverMixesPcmAcrossStreams() = runBlocking {
+        val seen = mutableListOf<Pair<String, Int>>()
+        val session = PathBSession(
+            asr = PathBAsr { streamId, audio ->
+                seen += streamId to audio.samples.size
+                listOf(Utterance("cluster", 0, 1, streamId))
+            },
+        )
+        session.bindStart("s01")
+        session.bindStart("s02")
+        session.finish("s01", ByteArray(64))
+        session.finish("s02", ByteArray(128))
+        assertEquals(listOf("s01" to 32, "s02" to 64), seen)
+        val speakers = session.brief().transcript.map { it.speakerId }.toSet()
+        assertEquals(setOf("speaker_1", "speaker_2"), speakers)
+    }
+
+    @Test
     fun clockOffsetShiftsTimestampsWhenStreamStartSaysSo() = runBlocking {
         val session = PathBSession(
             asr = PathBAsr { _, _ -> listOf(Utterance("cluster", 100, 200, "hi")) },
