@@ -2,7 +2,7 @@
 
 Team **MIK Coders** · Nuclear IT Hack · Hex.Team case «Нейро-стенографист».
 
-Android app that turns a conversation recording into a structured dialogue transcript **on device**: speakers, timestamps, text. Offline stenography path is airplane-mode (one file: VAD → diarize → ASR). Present-connect demo is **Path B**: ≤20 **separate** live streams into local Zipformer-ru, not one mixed room mic. One-room cocktail diarization of ≥20 talkers is a measured fail (see `docs/ARCHITECTURE.md`).
+Android app that turns a conversation recording into a structured dialogue transcript **on device**: speakers, timestamps, text. Offline stenography path is airplane-mode (one file: VAD → diarize → ASR). Present-connect demo is **Path B**: ≤20 **separate** live streams into local Zipformer-ru, not one mixed room mic. The 20/20, DER ≈ 0.24, main WER 0.087 figures are **clean per-stream** only (PR #4, dry/separate tracks). Echo, overlap, white/room noise, and bad mics are **unmeasured until edge suite** — expect **FAIL / hard degradation**, **do not claim in slides**. One-room cocktail diarization of ≥20 talkers is a measured fail (see `docs/ARCHITECTURE.md`).
 
 This Origin repo is the overnight build. Layout follows [hacathon_template](https://github.com/grigorevmp/hacathon_template) so it can later be mirrored to GitHub `stenography`.
 
@@ -72,6 +72,6 @@ Models are **not** in git. Before an airplane-mode demo:
 ## Modes
 
 1. **Offline stenography** — one recording: import/record → VAD → diarize → ASR → LLM stub → list → export JSON. No network. This is not the 20-talker room-mix demo.
-2. **Present-connect (Path B)** — phone is the on-device worker: ≤20 **separate** streams (`speaker_id` ← `stream_id`), each PCM → VAD → ASR, merge by time. Network required. Do not mix audience mics into one stream. See `docs/PRESENT_CONNECT.md`.
+2. **Present-connect (Path B)** — phone is the on-device worker: ≤20 **separate** streams (`speaker_id` ← `stream_id`), each PCM → VAD → ASR, merge by time. Network required. Do not mix audience mics into one stream. Quoted scores are clean per-stream only. Echo, overlap, white/room noise, bad mics: **unmeasured until edge suite**, **expect FAIL / hard degradation**, **do not claim in slides**. See `docs/PRESENT_CONNECT.md`.
 
 Presentation web FE/BE is a **separate** track (designer + Артём/Пётр). This repo owns the Android worker and the API contract they must implement against.
