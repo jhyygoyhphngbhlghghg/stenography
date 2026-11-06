@@ -212,7 +212,7 @@ class StenoViewModel(app: Application) : AndroidViewModel(app) {
                     it.copy(
                         progress = PipelineProgress(
                             PipelineStage.Decode,
-                            "far-field +${"%.1f".format(prep.gain.gainDb)} dB",
+                            "DEMO_STAGE6 per-turn gain (no whole-file AGC)",
                             0.08f,
                         ),
                     )

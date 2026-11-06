@@ -96,6 +96,55 @@ object FarFieldGain {
         )
     }
 
+    /**
+     * Per-turn/per-chunk staging. Same RMS target / +24 dB / peak 0.95 as [stage],
+     * but **never attenuates** a near seat that is already above target (H1 e0e64b85:
+     * whole-file AGC crushed/failed to lift s5 while 3 m was already WER 0).
+     * Peak-only scale-down if the crop already exceeds [PEAK_LIMIT].
+     */
+    fun stageTurn(samples: FloatArray): FarFieldGainResult {
+        val n = samples.size
+        if (n == 0) return stage(samples)
+        val rmsBefore = rms(samples)
+        val peakBefore = peak(samples)
+        val vadBefore = energyVadFireRate(samples)
+        if (rmsBefore < MIN_RMS_FOR_GAIN) return stage(samples)
+        val desired = TARGET_RMS_FS / rmsBefore
+        val peakCap = PEAK_LIMIT / peakBefore.coerceAtLeast(1e-12)
+        var gain = min(desired, min(peakCap, maxGainLinear))
+        if (gain < 1.0) {
+            gain = if (peakBefore > PEAK_LIMIT) min(1.0, peakCap) else 1.0
+        }
+        val clipGuard = gain + 1e-12 < desired
+        val out = FloatArray(n)
+        var i = 0
+        var peakAfter = 0.0
+        var sumSq = 0.0
+        val g = gain.toFloat()
+        val lim = PEAK_LIMIT.toFloat()
+        while (i < n) {
+            val y = (samples[i] * g).coerceIn(-lim, lim)
+            out[i] = y
+            val a = abs(y.toDouble())
+            if (a > peakAfter) peakAfter = a
+            sumSq += y.toDouble() * y
+            i++
+        }
+        return FarFieldGainResult(
+            samples = out,
+            gainLinear = gain,
+            gainDb = linearToDb(gain),
+            rmsBefore = rmsBefore,
+            rmsAfter = sqrt(sumSq / n),
+            peakBefore = peakBefore,
+            peakAfter = peakAfter,
+            clipGuard = clipGuard,
+            boosted = gain > 1.0 + 1e-9,
+            vadFireRateBefore = vadBefore,
+            vadFireRateAfter = energyVadFireRate(out),
+        )
+    }
+
     fun rms(samples: FloatArray): Double {
         if (samples.isEmpty()) return 0.0
         var acc = 0.0

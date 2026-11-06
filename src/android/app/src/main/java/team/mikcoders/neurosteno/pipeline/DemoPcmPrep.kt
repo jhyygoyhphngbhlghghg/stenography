@@ -9,9 +9,12 @@ import team.mikcoders.neurosteno.present.StreamPcmStats
 
 /**
  * Single-channel **DEMO_STAGE6** prep (offline ViewModel path only — not Path B).
- * CLIPPED/BAD_MIC/empty on **raw** PCM (hard), then far-field gain so 4–6 m
- * speech clears the ASR energy floor, then inspect as bound main:
- * SOFT_LOW / soft BAND_LIMITED, **never hard-drop distant talkers**.
+ *
+ * Hard skip **raw** PCM for CLIPPED / BAD_MIC / empty `n==0` only.
+ * Energy / band-limit on bound main is **soft** (never hard-drop 4–6 m).
+ *
+ * Does **not** apply whole-file RMS AGC (Eval e0e64b85: 0.73→0.70, s5 still
+ * missing). Per-turn gain runs later in [SherpaStenoPipeline] after soft VAD.
  */
 object DemoPcmPrep {
     fun prepare(audio: PcmAudio, boundMain: Boolean = true): PreparedDemoPcm {
@@ -28,19 +31,13 @@ object DemoPcmPrep {
                 gain = FarFieldGain.stage(FloatArray(0)),
             )
         }
-        val gain = FarFieldGain.stage(audio.samples)
-        val afterGate = StreamPcmGate.inspect(
-            Pcm.floatToS16le(gain.samples),
-            audio.sampleRate,
-            boundSeat = boundMain,
-        )
         return PreparedDemoPcm(
-            audio = PcmAudio(gain.samples, audio.sampleRate, audio.sourceName),
+            audio = audio,
             skipAsr = false,
             skipCode = null,
             rawGate = rawGate,
-            afterGate = afterGate,
-            gain = gain,
+            afterGate = rawGate,
+            gain = FarFieldGain.stage(FloatArray(0)),
         )
     }
 
