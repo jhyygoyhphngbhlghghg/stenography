@@ -11,6 +11,10 @@ import kotlin.math.tanh
 /**
  * Single-mic DEMO_STAGE6 far-field staging.
  *
+ * **GAIN FROZEN** (Eval per-turn @ `54177a1e`: STAGE6 energy islands already
+ * ≥0.08 FS → this AGC is a no-op on those wavs; do not retune targets).
+ * Spectral / phone-distance EQ lives in [PhoneDistanceEq], not here.
+ *
  * Whole-file RMS AGC is wrong: a loud near seat (Eval ffgain mix 0.119 FS)
  * pulls gain **down** (−3.46 dB) and 4–6 m turns stay below ASR. This path
  * uses **per-turn energy windows**: each quiet segment independently targets
@@ -475,6 +479,91 @@ object FarFieldSynth {
     }
 
     data class MixTurn(val name: String, val distanceM: Double, val range: IntRange)
+
+    /** Harmonic stack so 300–3400 Hz band energy is measurable (not a 1 kHz sine). */
+    fun speechStack(
+        n: Int = N_400MS,
+        peak: Double = 0.22,
+        sampleRateHz: Int = Pcm.TARGET_HZ,
+    ): FloatArray {
+        val freqs = doubleArrayOf(400.0, 800.0, 1_200.0, 1_600.0, 2_000.0, 2_400.0, 2_800.0, 3_200.0, 3_600.0)
+        val rel = doubleArrayOf(1.0, 0.75, 0.55, 0.40, 0.32, 0.25, 0.20, 0.16, 0.12)
+        val raw = FloatArray(n)
+        val twoPi = 2.0 * Math.PI
+        var i = 0
+        var pk = 0.0
+        while (i < n) {
+            var acc = 0.0
+            var k = 0
+            while (k < freqs.size) {
+                acc += rel[k] * sin(twoPi * freqs[k] * i / sampleRateHz)
+                k++
+            }
+            raw[i] = acc.toFloat()
+            val a = abs(acc)
+            if (a > pk) pk = a
+            i++
+        }
+        val g = (peak / pk.coerceAtLeast(1e-12)).toFloat()
+        i = 0
+        while (i < n) {
+            raw[i] *= g
+            i++
+        }
+        return raw
+    }
+
+    /** Extra air / distance muffling on top of [phoneMic] (synth only). */
+    fun distanceMuffle(
+        samples: FloatArray,
+        distanceM: Double,
+        sampleRateHz: Int = Pcm.TARGET_HZ,
+    ): FloatArray {
+        val fc = (3_200.0 * 3.0 / distanceM).coerceIn(900.0, 4_000.0)
+        val a = 1.0 - exp(-2.0 * Math.PI * fc / sampleRateHz)
+        val xs = DoubleArray(samples.size) { samples[it].toDouble() }
+        var stage = 0
+        while (stage < 2) {
+            var y = 0.0
+            var i = 0
+            while (i < xs.size) {
+                y += a * (xs[i] - y)
+                xs[i] = y
+                i++
+            }
+            stage++
+        }
+        return FloatArray(xs.size) { xs[it].toFloat() }
+    }
+
+    /** Phone-mic + 1/r + extra muffling + HVAC. For EQ measure; not Eval wavs. */
+    fun phoneDistanceScene(distanceM: Double, n: Int = N_400MS): FloatArray {
+        val far = distanceMuffle(atDistance(speechStack(n), distanceM), distanceM)
+        return mix(phoneMic(far), hvac(n))
+    }
+
+    /** Sequential mix: hot near speech (no phone crush) + muffled 5 m / 6 m phone scenes. */
+    fun sequentialPhoneMix(): Pair<FloatArray, List<MixTurn>> {
+        val near = speechStack(peak = 0.28)
+        val g1 = gap()
+        val far5 = phoneDistanceScene(5.0)
+        val g2 = gap()
+        val far6 = phoneDistanceScene(6.0)
+        var o = 0
+        fun take(p: FloatArray): IntRange {
+            val a = o
+            o += p.size
+            return a until o
+        }
+        val turns = listOf(
+            MixTurn("near_3m", 3.0, take(near)),
+            MixTurn("gap1", 0.0, take(g1)),
+            MixTurn("far_5m", 5.0, take(far5)),
+            MixTurn("gap2", 0.0, take(g2)),
+            MixTurn("far_6m", 6.0, take(far6)),
+        )
+        return concat(listOf(near, g1, far5, g2, far6)) to turns
+    }
 
     /** Sequential DEMO_STAGE6-like file: loud 3 m, then quiet 5 m and 6 m. */
     fun sequentialMix(): Pair<FloatArray, List<MixTurn>> {
