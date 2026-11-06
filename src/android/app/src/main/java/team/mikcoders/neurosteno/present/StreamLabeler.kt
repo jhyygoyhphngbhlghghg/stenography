@@ -89,6 +89,13 @@ class StreamLabeler(
             return "speaker_${m.groupValues[1].toInt()}"
         }
 
+        /** Bound Path B seat: `s01`..`s20` (oracle `speaker_N`). */
+        fun isKnownSeat(streamId: String): Boolean {
+            val m = SNN.matchEntire(streamId.trim()) ?: return false
+            val n = m.groupValues[1].toInt()
+            return n in 1..MAX_STREAMS
+        }
+
         fun normalizeSpeaker(hint: String): String {
             val t = hint.trim()
             SPEAKER_N.matchEntire(t)?.let { return "speaker_${it.groupValues[1].toInt()}" }

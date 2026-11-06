@@ -43,11 +43,15 @@ class PathBSession(
 
     /**
      * Gate this stream's PCM, then optionally ASR. Oracle speaker_id, optional clock shift.
-     * Cancel path must not call this. Rejects do not absorb into the brief.
+     * Bound `s01`..`s20`: near-silence is SOFT_LOW (still ASR). Empty buffer still skips.
+     * Cancel path must not call this. Hard rejects do not absorb into the brief.
      */
     suspend fun finish(streamId: String, pcmS16le: ByteArray): PathBFinish {
+        val boundKnown = synchronized(lock) {
+            labels.containsKey(streamId) && StreamLabeler.isKnownSeat(streamId)
+        }
         val label = synchronized(lock) { labels[streamId] } ?: labeler.bind(streamId)
-        val quality = StreamPcmGate.inspect(pcmS16le, sampleRate)
+        val quality = StreamPcmGate.inspect(pcmS16le, sampleRate, boundSeat = boundKnown)
         when (val verdict = quality.verdict) {
             is StreamGateVerdict.Reject -> {
                 val flag = StreamMicFlag(streamId, label.speakerId, verdict.code, hardReject = true)
