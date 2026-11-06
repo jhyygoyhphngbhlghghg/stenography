@@ -1,0 +1,29 @@
+{
+  "sample_rate_hz": 16000,
+  "n_talkers": 20,
+  "stagger_ms": 90,
+  "main_speaker_id": "speaker_1",
+  "notes": "Path B oracle: s{N:02d} ↔ speaker_{N} ↔ dry spk_{N:02d}.wav. Eval dry wavs already contain stagger on the session clock; do not add offset_ms again unless stream.start says the PCM is per-stream zero.",
+  "channels": [
+    {"stream_id": "s01", "speaker_id": "speaker_1", "offset_ms": 0, "role": "main"},
+    {"stream_id": "s02", "speaker_id": "speaker_2", "offset_ms": 90, "role": "babble"},
+    {"stream_id": "s03", "speaker_id": "speaker_3", "offset_ms": 180, "role": "babble"},
+    {"stream_id": "s04", "speaker_id": "speaker_4", "offset_ms": 270, "role": "babble"},
+    {"stream_id": "s05", "speaker_id": "speaker_5", "offset_ms": 360, "role": "babble"},
+    {"stream_id": "s06", "speaker_id": "speaker_6", "offset_ms": 450, "role": "babble"},
+    {"stream_id": "s07", "speaker_id": "speaker_7", "offset_ms": 540, "role": "babble"},
+    {"stream_id": "s08", "speaker_id": "speaker_8", "offset_ms": 630, "role": "babble"},
+    {"stream_id": "s09", "speaker_id": "speaker_9", "offset_ms": 720, "role": "babble"},
+    {"stream_id": "s10", "speaker_id": "speaker_10", "offset_ms": 810, "role": "babble"},
+    {"stream_id": "s11", "speaker_id": "speaker_11", "offset_ms": 900, "role": "babble"},
+    {"stream_id": "s12", "speaker_id": "speaker_12", "offset_ms": 990, "role": "babble"},
+    {"stream_id": "s13", "speaker_id": "speaker_13", "offset_ms": 1080, "role": "babble"},
+    {"stream_id": "s14", "speaker_id": "speaker_14", "offset_ms": 1170, "role": "babble"},
+    {"stream_id": "s15", "speaker_id": "speaker_15", "offset_ms": 1260, "role": "babble"},
+    {"stream_id": "s16", "speaker_id": "speaker_16", "offset_ms": 1350, "role": "babble"},
+    {"stream_id": "s17", "speaker_id": "speaker_17", "offset_ms": 1440, "role": "babble"},
+    {"stream_id": "s18", "speaker_id": "speaker_18", "offset_ms": 1530, "role": "babble"},
+    {"stream_id": "s19", "speaker_id": "speaker_19", "offset_ms": 1620, "role": "babble"},
+    {"stream_id": "s20", "speaker_id": "speaker_20", "offset_ms": 1710, "role": "babble"}
+  ]
+}
