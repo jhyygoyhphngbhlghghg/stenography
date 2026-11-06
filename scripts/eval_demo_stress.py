@@ -210,6 +210,7 @@ def run_one(
                     farfield_gain=bool(clip.get("farfield_gain", False)),
                     farfield_per_turn=bool(clip.get("farfield_per_turn", False)),
                     phone_distance_eq=bool(clip.get("phone_distance_eq", False)),
+                    impl_second_pass=bool(clip.get("impl_second_pass", False)),
                 )
             hyp_path.write_text(json.dumps(doc, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
             wall_path.write_text(str(meta["wall_ms"]) + "\n", encoding="utf-8")
@@ -235,6 +236,15 @@ def run_one(
                         f"near_id={ff.get('eq_n_near_identity')} "
                         f"near_crushed={ff.get('eq_near_crushed')}"
                     )
+            if meta.get("impl_second_pass") and meta.get("reconcile"):
+                rc = meta["reconcile"]
+                extra += (
+                    f" recon in={rc.get('n_diar_in')}->{rc.get('n_diar_out')} "
+                    f"spk {rc.get('n_hyp_speakers_in')}->{rc.get('n_hyp_speakers_out')} "
+                    f"vad e={rc.get('n_energy_vad')} sil={rc.get('n_silero_vad')}"
+                )
+            if meta.get("intonation_punct"):
+                extra += f" punct={meta['intonation_punct'].get('engine')}"
             log(f"    segments={meta['n_segments']} wall_ms={meta['wall_ms']}{extra}")
         except host_asr_diar.HostBlocked as e:
             status = "blocked"

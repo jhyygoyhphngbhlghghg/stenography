@@ -19,7 +19,11 @@
 - `stream_pcm_gate.py` — Python mirror of StreamPcmGate.kt v3 @ Implementer `a5b7aed` (sha256 == Platform `686ac4a`; bound BAND_LIMITED is a soft flag + still ASR). `version=2` keeps historical hard BAND_LIMITED (`e3ad908`). `version=1` keeps `*_gated` / `*_gated_b142a4d`.
 - `measure-stream-pcm-gate.py` — synthetic PCM stats for those thresholds (does not touch Eval wavs). Byte-identical to Implementer `a5b7aed` / Platform `686ac4a`.
 - `test_stream_pcm_gate.py` — v2 verdicts: bound silence SOFT_LOW, phone crush BAND_LIMITED, broadband Pass.
-- `host_asr_diar.py` — Zipformer-ru + OfflineSpeakerDiarization on Linux Python.
+- `vad_diar_reconcile.py` — Python mirror of Impl `VadDiarReconcile.kt` @ `552b142` (PR #7): orphan / energy-hole / split non-near; K=6; near 3 m protected.
+- `intonation_punct.py` — Python mirror of Impl `IntonationPunct.kt` @ `552b142`: ADD spoken `,` `.` `?` `!`; never strip; fold ё→е. GGUF candidate optional.
+- `test_vad_diar_reconcile.py` — orphanFifthTurnIsRecoveredAsSpeaker (5→6); near seat not swallowed.
+- `test_intonation_punct.py` — punctless Zipformer accepts added intonation punct; never strips.
+- `host_asr_diar.py` — Zipformer-ru + OfflineSpeakerDiarization on Linux Python. `impl_second_pass` runs reconcile + IntonationPunct.
 - `eval_demo_stress.py` — DER/JER/purity + main-speaker WER + RTF; pending/blocked if inference cannot run.
 - `eval_metrics.py` — DER/JER/purity + WER. Hex.Team lock: keep `,` `.` `?` `!`; fold ё→е.
 - `test_eval_metrics.py` — unit checks of the metric code (not clip scores).

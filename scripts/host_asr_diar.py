@@ -28,11 +28,86 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 import demo_pcm_prep as DEMO_PREP  # noqa: E402
+import farfield_gain as FF  # noqa: E402
+import intonation_punct as PUNCT  # noqa: E402
 import stream_pcm_gate as PCM_GATE  # noqa: E402
+import vad_diar_reconcile as RECON  # noqa: E402
 
 
 class HostBlocked(RuntimeError):
     """Inference did not run. Callers must record pending/blocked, not fake WER."""
+
+
+def collect_silero(
+    samples,
+    sr: int,
+    models: Path,
+    *,
+    threshold: float = 0.32,
+    min_silence_sec: float = 0.18,
+    min_speech_sec: float = 0.20,
+    max_speech_sec: float = 30.0,
+    window: int = 512,
+) -> list[dict[str, int]]:
+    """Silero VAD regions (exclusive-end samples). Empty if model/API missing."""
+    import sherpa_onnx
+
+    vad_path = Path(models) / "vad" / "silero_vad.onnx"
+    if not vad_path.is_file():
+        return []
+    cfg = sherpa_onnx.VadModelConfig()
+    cfg.silero_vad.model = str(vad_path)
+    cfg.silero_vad.threshold = float(threshold)
+    cfg.silero_vad.min_silence_duration = float(min_silence_sec)
+    cfg.silero_vad.min_speech_duration = float(min_speech_sec)
+    cfg.silero_vad.max_speech_duration = float(max_speech_sec)
+    cfg.silero_vad.window_size = int(window)
+    cfg.sample_rate = int(sr)
+    cfg.num_threads = 1
+    vad = sherpa_onnx.VoiceActivityDetector(cfg, buffer_size_in_seconds=60)
+    x = samples.astype("float32", copy=False)
+    offset = 0
+    out: list[dict[str, int]] = []
+    n = int(x.size)
+    while offset + window <= n:
+        vad.accept_waveform(x[offset : offset + window])
+        offset += window
+        while not vad.empty():
+            seg = vad.front()
+            vad.pop()
+            start = int(seg.start)
+            end = start + int(len(seg.samples))
+            if end > start:
+                out.append({"start_sample": start, "end_sample": end})
+    vad.flush()
+    while not vad.empty():
+        seg = vad.front()
+        vad.pop()
+        start = int(seg.start)
+        end = start + int(len(seg.samples))
+        if end > start:
+            out.append({"start_sample": start, "end_sample": end})
+    return out
+
+
+def _asr_crop(recognizer, samples, sr: int, start_ms: int, end_ms: int, *, pad_ms: int = 0, per_crop_gain: bool = False) -> str:
+    a = max(0, int(((start_ms - pad_ms) * sr) / 1000))
+    b = min(int(samples.size), int(((end_ms + pad_ms) * sr) / 1000))
+    if b <= a:
+        return ""
+    crop = samples[a:b]
+    if per_crop_gain:
+        crop = FF.stage(crop, per_turn=True)["samples"]
+    if recognizer is None or crop.size == 0:
+        return ""
+    try:
+        stream = recognizer.create_stream()
+        stream.accept_waveform(sr, crop)
+        recognizer.decode_stream(stream)
+        return (stream.result.text or "").strip()
+    except Exception as e:
+        print(f"ASR crop {start_ms}-{end_ms}ms failed: {e}", file=sys.stderr)
+        return ""
 
 
 def find_zipformer(models: Path) -> dict[str, Path]:
@@ -197,6 +272,7 @@ def transcribe_file(
     farfield_gain: bool = False,
     farfield_per_turn: bool = False,
     phone_distance_eq: bool = False,
+    impl_second_pass: bool = False,
 ) -> tuple[dict, dict]:
     if asr_only:
         return transcribe_asr_only(wav, models, num_threads=num_threads)
@@ -217,20 +293,30 @@ def transcribe_file(
     d = find_diar(models)
     samples, sr = load_wav_mono16k(wav)
     ff_meta = None
-    use_prep = bool(farfield_gain or phone_distance_eq)
+    scene = RECON.STAGE6 if impl_second_pass else None
+    if impl_second_pass:
+        # Impl @ 552b142: frozen per-turn FarFieldGain (no whole-file crush), then
+        # VadDiarReconcile + IntonationPunct. EQ stays frozen (not re-applied here).
+        farfield_gain = True
+        farfield_per_turn = True
+        num_clusters = int(scene["expected_speakers"])
+        cluster_threshold = float(scene["diar_cluster_threshold"])
+        min_duration_on = float(scene["diar_min_duration_on_sec"])
+        min_duration_off = float(scene["diar_min_duration_off_sec"])
+    use_prep = bool(farfield_gain or phone_distance_eq or impl_second_pass)
     if use_prep:
         # phone_eq forces frozen per-turn gain (never whole-file crush).
         prep = DEMO_PREP.prepare(
             samples,
             sr,
             bound_main=True,
-            per_turn=bool(farfield_per_turn or phone_distance_eq),
-            phone_eq=bool(phone_distance_eq),
+            per_turn=bool(farfield_per_turn or phone_distance_eq or impl_second_pass),
+            phone_eq=bool(phone_distance_eq) and not impl_second_pass,
         )
         ff_meta = DEMO_PREP.gain_meta(prep)
-        if phone_distance_eq:
+        if phone_distance_eq and not impl_second_pass:
             src = "af71d91 PhoneDistanceEq + frozen per-turn FarFieldGain"
-        elif farfield_per_turn:
+        elif farfield_per_turn or impl_second_pass:
             src = "db3afe4 per-turn"
         else:
             src = "b66581c whole-file"
@@ -297,34 +383,85 @@ def transcribe_file(
         except Exception as e:
             raise HostBlocked(f"Zipformer OfflineRecognizer init failed: {type(e).__name__}: {e}") from e
 
+    recon_meta = None
+    punct_meta = None
+    work_segs = segs
+    if impl_second_pass:
+        mapped = [
+            {
+                "speaker_index": int(seg.speaker),
+                "start_ms": int(round(float(seg.start) * 1000.0)),
+                "end_ms": int(round(float(seg.end) * 1000.0)),
+            }
+            for seg in segs
+        ]
+        energy = RECON.energy_speech_regions(samples, sr)
+        silero: list[dict[str, int]] = []
+        silero_err = ""
+        try:
+            silero = collect_silero(
+                samples,
+                sr,
+                models,
+                threshold=float(scene["vad_threshold"]),
+                min_silence_sec=float(scene["vad_min_silence_sec"]),
+                min_speech_sec=float(scene["vad_min_speech_sec"]),
+                max_speech_sec=float(scene["vad_max_speech_sec"]),
+            )
+        except Exception as e:
+            silero_err = f"{type(e).__name__}: {e}"
+        vad_regions = RECON.union_regions(energy, silero)
+        reconciled = RECON.run(vad_regions, mapped, sr, scene, samples=samples)
+        recon_meta = {
+            "impl_head": RECON.IMPL_SECOND_PASS_HEAD,
+            "n_diar_in": len(mapped),
+            "n_diar_out": len(reconciled),
+            "n_energy_vad": len(energy),
+            "n_silero_vad": len(silero),
+            "n_vad_union": len(vad_regions),
+            "silero_error": silero_err,
+            "n_hyp_speakers_in": len({s["speaker_index"] for s in mapped}),
+            "n_hyp_speakers_out": len({s["speaker_index"] for s in reconciled}),
+            "near_protected": True,
+        }
+        work_segs = reconciled
+
     rows = []
-    for seg in segs:
-        start = float(seg.start)
-        end = float(seg.end)
-        spk = int(seg.speaker)
-        a = max(0, int(start * sr))
-        b = min(samples.size, int(end * sr))
-        crop = samples[a:b]
-        text = ""
-        if recognizer is not None and crop.size:
-            try:
-                stream = recognizer.create_stream()
-                stream.accept_waveform(sr, crop)
-                recognizer.decode_stream(stream)
-                text = (stream.result.text or "").strip()
-            except Exception as e:
-                text = ""
-                print(f"ASR segment speaker_{spk + 1} {start:.2f}-{end:.2f}s failed: {e}", file=sys.stderr)
+    pad_ms = int(scene["asr_crop_pad_ms"]) if impl_second_pass else 0
+    per_crop_gain = bool(impl_second_pass)
+    for seg in work_segs:
+        if impl_second_pass:
+            start_ms = int(seg["start_ms"])
+            end_ms = int(seg["end_ms"])
+            spk = int(seg["speaker_index"])
+        else:
+            start_ms = int(round(float(seg.start) * 1000.0))
+            end_ms = int(round(float(seg.end) * 1000.0))
+            spk = int(seg.speaker)
+        text = _asr_crop(
+            recognizer, samples, sr, start_ms, end_ms, pad_ms=pad_ms, per_crop_gain=per_crop_gain
+        )
         sid = speaker_id_override or f"speaker_{spk + 1}"
         rows.append(
             {
                 "speaker_id": sid,
-                "start_ms": int(round(start * 1000.0)),
-                "end_ms": int(round(end * 1000.0)),
+                "start_ms": start_ms,
+                "end_ms": end_ms,
                 "text": text,
             }
         )
     rows.sort(key=lambda u: (u["start_ms"], u["speaker_id"]))
+    if impl_second_pass:
+        gguf = PUNCT.find_gguf(models)
+        complete, engine = PUNCT.try_gguf_runner(gguf)
+        rows = PUNCT.punctuate_utterances(rows, candidate_fn=complete)
+        punct_meta = {
+            "impl_head": PUNCT.IMPL_SECOND_PASS_HEAD,
+            "engine": engine if complete else engine,
+            "gguf": str(gguf) if gguf else None,
+            "adds_punct": True,
+            "never_strips": True,
+        }
     wall_ms = int(round((time.perf_counter() - t0) * 1000.0))
     doc = {"transcript": rows}
     meta = {
@@ -349,13 +486,20 @@ def transcribe_file(
             "embedding": str(d["embedding"]),
         },
         "no_kvm_adb": True,
-        "farfield_gain": bool(farfield_gain or phone_distance_eq),
-        "farfield_per_turn": bool(farfield_per_turn or phone_distance_eq),
-        "phone_distance_eq": bool(phone_distance_eq),
+        "farfield_gain": bool(farfield_gain or phone_distance_eq or impl_second_pass),
+        "farfield_per_turn": bool(farfield_per_turn or phone_distance_eq or impl_second_pass),
+        "phone_distance_eq": bool(phone_distance_eq) and not impl_second_pass,
+        "impl_second_pass": bool(impl_second_pass),
     }
     if ff_meta is not None:
         meta["farfield"] = ff_meta
-        if phone_distance_eq:
+        if impl_second_pass:
+            meta["stack"] = (
+                "linux-sherpa-onnx-python Zipformer-ru + OfflineSpeakerDiarization; "
+                "Impl VadDiarReconcile + IntonationPunct @ 552b142 "
+                "(K=6, orphan/energy-hole/split non-near, near 3 m protected; ADD spoken punct, never strip)"
+            )
+        elif phone_distance_eq:
             meta["stack"] = (
                 "linux-sherpa-onnx-python Zipformer-ru + OfflineSpeakerDiarization; "
                 "Platform PhoneDistanceEq @ af71d91 (250–4500 Hz high-shelf on far islands; "
@@ -371,6 +515,15 @@ def transcribe_file(
                 "linux-sherpa-onnx-python Zipformer-ru + OfflineSpeakerDiarization; "
                 "Platform FarFieldGain whole-file @ b66581c (RMS-target 0.08, max +24 dB, can attenuate)"
             )
+    if recon_meta is not None:
+        meta["reconcile"] = recon_meta
+    if punct_meta is not None:
+        meta["intonation_punct"] = punct_meta
+    if impl_second_pass and ff_meta is None:
+        meta["stack"] = (
+            "linux-sherpa-onnx-python Zipformer-ru + OfflineSpeakerDiarization; "
+            "Impl VadDiarReconcile + IntonationPunct @ 552b142"
+        )
     if meta["duration_ms"] > 0:
         meta["rtf"] = wall_ms / meta["duration_ms"]
     return doc, meta
