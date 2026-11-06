@@ -69,11 +69,16 @@ def collect_silero(
     offset = 0
     out: list[dict[str, int]] = []
     n = int(x.size)
+    def _front():
+        # sherpa-onnx 2.0.1 exposes front as a property, not a method.
+        f = vad.front
+        return f() if callable(f) else f
+
     while offset + window <= n:
         vad.accept_waveform(x[offset : offset + window])
         offset += window
         while not vad.empty():
-            seg = vad.front()
+            seg = _front()
             vad.pop()
             start = int(seg.start)
             end = start + int(len(seg.samples))
@@ -81,7 +86,7 @@ def collect_silero(
                 out.append({"start_sample": start, "end_sample": end})
     vad.flush()
     while not vad.empty():
-        seg = vad.front()
+        seg = _front()
         vad.pop()
         start = int(seg.start)
         end = start + int(len(seg.samples))
