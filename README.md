@@ -32,8 +32,9 @@ Schema notes: `docs/JSON.md`.
 | `config/` | Local env examples, flavor flags |
 | `docs/` | Architecture, limits, install, PresentConnect contract |
 | `src/android/` | Kotlin + Compose application module |
-| `scripts/` | Model download (weights gitignored) |
+| `scripts/` | Model download (weights gitignored) and `eval-wer.sh` |
 | `samples/` | Short demo clips (optional; large wav gitignored) |
+| `eval/` | Three-clip WER/RTF harness skeleton (no judge audio, no scores) |
 
 ## Stack (locked)
 
@@ -68,6 +69,7 @@ Models are **not** in git. Before an airplane-mode demo:
 - `docs/PRESENT_CONNECT.md` — WebSocket/HTTP contract for the web team
 - `docs/INSTALL.md` — install + use
 - `docs/TEST_RESULTS.md` — own tests
+- `eval/README.md` — WER/RTF harness skeleton (do not invent scores)
 
 ## Modes
 
