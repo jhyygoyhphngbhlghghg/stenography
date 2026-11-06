@@ -43,7 +43,9 @@ class PathBSession(
 
     /**
      * Gate this stream's PCM, then optionally ASR. Oracle speaker_id, optional clock shift.
-     * Bound `s01`..`s20`: near-silence is SOFT_LOW (still ASR). Empty buffer still skips.
+     * Bound `s01`..`s20`: near-silence is SOFT_LOW and crush is soft BAND_LIMITED
+     * (still ASR). Bound main `s01` is never hard-dropped for energy/band-limit.
+     * Empty buffer (`n==0`) may still skip. CLIPPED / BAD_MIC stay hard.
      * Cancel path must not call this. Hard rejects do not absorb into the brief.
      */
     suspend fun finish(streamId: String, pcmS16le: ByteArray): PathBFinish {
