@@ -2,7 +2,7 @@
 
 ## Сборка
 
-Требуется JDK 17+, Android SDK (compileSdk 35).
+Требуется JDK 17+, Android SDK (compileSdk 35, minSdk 28). Copy `src/android/local.properties.example` → `local.properties`.
 
 ```bash
 cd src/android
@@ -21,7 +21,7 @@ APK: `src/android/app/build/outputs/apk/<flavor>/debug/`. Для сдачи ск
 # adb push models/ onto the device app filesDir, or pack into assets/models/
 ```
 
-Список и лицензии: `docs/MODELS.md` (добавляется следующим коммитом, если ещё нет).
+Список и лицензии: `docs/MODELS.md`. AAR: `scripts/fetch-sherpa-aar.sh` (или Gradle task `fetchSherpaOnnxAar`).
 
 ## Офлайн-стенография (авиарежим)
 
