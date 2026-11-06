@@ -2,7 +2,7 @@
 
 Team **MIK Coders** · Nuclear IT Hack · Hex.Team case «Нейро-стенографист».
 
-Android app that turns a conversation recording into a structured dialogue transcript **on device**: speakers, timestamps, text. Offline stenography path is airplane-mode (one file: VAD → diarize → ASR). Present-connect demo is **Path B**: ≤20 **separate** live streams into local Zipformer-ru, not one mixed room mic. Under edge, the only surviving multi-talker claim is stream tracking **20/20**. **WORST_CASE WER/DER are FAIL** (PR #4 @ `9908353d`: WER main **0.9130**, DER **1.2985**). Do **not** claim clean WER/DER on WORST_CASE or EDGE_*. Killers: overlap/bleed, noise false alarms, bad mic. Reverb alone does not collapse Path B. **Do not claim in slides** otherwise. One-room cocktail diarization of ≥20 talkers is a measured fail (see `docs/ARCHITECTURE.md`).
+Android app that turns a conversation recording into a structured dialogue transcript **on device**: speakers, timestamps, text. **Presentation claim = DEMO_STAGE6:** 6 on-stage RU speakers, one phone mic, each 3–6 m away, sequential turns with light end overlap, large room, medium babble/HVAC, phone-mic band-limit / compression / distance / reverb. Pipeline: VAD → diarize → Zipformer-ru. Goal: ideal recognition. **Scores pending Eval.** Not a studio. PresentConnect **Path B** (≤20 separate streams) is an **optional** network mode, not this claim. Its ungated edge tracking is 20/20; **WORST_CASE WER/DER are FAIL** (PR #4 @ `9908353d`: WER main **0.9130**, DER **1.2985**). Do not cite those as DEMO_STAGE6. One-room cocktail diarization of ≥20 talkers is a measured fail (see `docs/ARCHITECTURE.md`).
 
 This Origin repo is the overnight build. Layout follows [hacathon_template](https://github.com/grigorevmp/hacathon_template) so it can later be mirrored to GitHub `stenography`.
 
@@ -63,7 +63,7 @@ Models are **not** in git. Before an airplane-mode demo:
 ## Docs
 
 - `docs/ARCHITECTURE.md` — pipeline
-- `docs/LIMITATIONS.md` — honest limits (Eval-measured Path A/B only; no invented WER/RTF)
+- `docs/LIMITATIONS.md` — DEMO_STAGE6 scene (scores pending); Path A/B numbers only where measured
 - `docs/JSON.md` — export schema
 - `docs/PRESENT_CONNECT.md` — WebSocket/HTTP contract for the web team
 - `docs/INSTALL.md` — install + use
@@ -71,7 +71,7 @@ Models are **not** in git. Before an airplane-mode demo:
 
 ## Modes
 
-1. **Offline stenography** — one recording: import/record → VAD → diarize → ASR → LLM stub → list → export JSON. No network. This is not the 20-talker room-mix demo.
-2. **Present-connect (Path B)** — phone is the on-device worker: ≤20 **separate** streams (`speaker_id` ← `stream_id`), each PCM → VAD → ASR, merge by time. Network required. Do not mix audience mics into one stream. Under edge only **20/20** stream tracking survives. **WORST_CASE FAIL:** WER main **0.9130**, DER **1.2985** (PR #4 @ `9908353d`). Do not claim clean WER/DER on WORST_CASE or EDGE_*. See `docs/PRESENT_CONNECT.md`.
+1. **DEMO_STAGE6 / offline stenography** — one far-field recording: import/record → VAD → diarize → ASR → LLM stub → list → export JSON. No network. Presentation scene is 6 RU speakers, one phone mic, 3–6 m. Scores pending Eval. This is not the 20-talker room-mix.
+2. **Present-connect (Path B), optional** — not the presentation claim. Phone is the on-device worker: ≤20 **separate** streams (`speaker_id` ← `stream_id`), each PCM → VAD → ASR, merge by time. Network required. Do not mix audience mics into one stream. Under edge only **20/20** stream tracking survives. **WORST_CASE FAIL:** WER main **0.9130**, DER **1.2985** (PR #4 @ `9908353d`). Do not claim clean WER/DER on WORST_CASE or EDGE_*. See `docs/PRESENT_CONNECT.md`.
 
 Presentation web FE/BE is a **separate** track (designer + Артём/Пётр). This repo owns the Android worker and the API contract they must implement against.
