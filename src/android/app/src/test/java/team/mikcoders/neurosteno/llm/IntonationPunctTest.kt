@@ -20,10 +20,18 @@ class IntonationPunctTest {
     }
 
     @Test
+    fun s1LikeTurnGetsMultipleSpokenCommasNotJustPeriod() {
+        val out = IntonationPunct.apply("Здравствуйте коллеги сегодня мы начинаем но это важно")
+        assertTrue("need commas, not only terminal: $out", out.count { it == ',' } >= 2)
+        assertTrue(out.endsWith("."))
+        assertTrue(out.contains("но"))
+    }
+
+    @Test
     fun leadingFillerGetsSpokenComma() {
         val out = IntonationPunct.addSpokenCommas("ну вот послушайте")
         assertTrue(out.startsWith("ну,"))
-        assertTrue(out.contains("вот"))
+        assertTrue("discourse commas, not only first filler: $out", out.contains("вот,"))
     }
 
     @Test

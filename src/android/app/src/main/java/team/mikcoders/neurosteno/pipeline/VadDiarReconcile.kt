@@ -3,11 +3,14 @@ package team.mikcoders.neurosteno.pipeline
 import team.mikcoders.neurosteno.audio.FarFieldGain
 
 /**
- * Recover quiet distant seats that pyannote dropped (STAGE6 s5 @ 5.4 m).
+ * Recover quiet distant seats pyannote dropped (STAGE6 s5 @ 5.4 m) **without**
+ * inventing speaker_7..12.
  *
- * Cite-only: a8b39d5a / e0e64b85 / 54177a1e — 5 hyp speakers, s5 missing,
- * 3.0 m WER 0. Do **not** expand a far stub over the near seat. Uncovered
- * VAD pieces and energy holes become new speakers. PresentConnect skips this.
+ * Cite-only Eval `9b29b9c1` (mirror 552b142): hyp/ref 12/6, JER 0.6821 —
+ * previous orphan/hole/split path over-split. HARD CAP = [FarFieldScene.expectedSpeakers]
+ * (6). Extra islands merge into existing clusters, never a new label past K.
+ * Near (~3 m) seat is not expanded and does not absorb far orphans.
+ * PresentConnect skips this.
  */
 object VadDiarReconcile {
     fun run(
@@ -20,36 +23,65 @@ object VadDiarReconcile {
         if (scene.expectedSpeakers <= 0) {
             return diar.sortedBy { it.startMs }
         }
+        val k = scene.expectedSpeakers
         val near = diar.minByOrNull { it.startMs }
         val segs = ArrayList(diar)
-        var orphanId = -1
         for (region in vad) {
             val r0 = region.startMs(hz)
             val r1 = region.endMs(hz)
             val pieces = subtract(r0, r1, segs)
             for (p in pieces) {
-                if (p.second - p.first >= scene.orphanMinMs && !overlapsNear(p.first, p.second, near)) {
-                    segs += DiarSeg(speakerIndex = orphanId--, startMs = p.first, endMs = p.second)
-                }
+                adopt(segs, p.first, p.second, scene, near, k)
             }
             snapTinyEndpoint(segs, r0, r1, scene, near)
         }
         if (samples != null && samples.isNotEmpty()) {
-            orphanId = fillEnergyHoles(segs, samples, hz, scene, near, orphanId)
+            fillEnergyHoles(segs, samples, hz, scene, near, k)
         }
-        splitNonNearByVad(segs, vad, hz, scene, near)
+        splitNonNearByVad(segs, vad, hz, scene, near, k)
         val clipped = segs.mapNotNull { s ->
             val c = clipAwayFromNear(s, near)
             if (c.endMs > c.startMs) c else null
         }
-        val merged = mergeSameSpeaker(clipped, scene.mergeGapMs)
+        val capped = capToExpected(clipped, k, near)
+        val merged = mergeSameSpeaker(capped, scene.mergeGapMs)
         return relabelByAppearance(merged)
     }
 
     /**
-     * Snap a single overlapping diar stub only when the VAD island is short
-     * (endpointing, ≤ [FarFieldScene.expandMaxRegionMs]). Never move the 3 m seat.
+     * New cluster only while unique speakers < K. Otherwise attach to the
+     * nearest **non-near** cluster (never speaker_7+).
      */
+    internal fun adopt(
+        segs: MutableList<DiarSeg>,
+        startMs: Long,
+        endMs: Long,
+        scene: FarFieldScene,
+        near: DiarSeg?,
+        k: Int,
+    ) {
+        if (endMs - startMs < scene.orphanMinMs) return
+        if (overlapsNear(startMs, endMs, near)) return
+        val unique = uniqueSpeakers(segs)
+        if (unique < k) {
+            segs += DiarSeg(speakerIndex = nextId(segs), startMs = startMs, endMs = endMs)
+            return
+        }
+        val host = nearestNonNearSpeaker(startMs, endMs, segs, near) ?: return
+        val neighbor = segs.filter { it.speakerIndex == host }.minByOrNull { gap(it, startMs, endMs) }
+        if (neighbor != null && canExtend(neighbor, startMs, endMs, near)) {
+            val ix = segs.indexOf(neighbor)
+            if (ix >= 0) {
+                segs[ix] = neighbor.copy(
+                    startMs = minOf(neighbor.startMs, startMs),
+                    endMs = maxOf(neighbor.endMs, endMs),
+                )
+                return
+            }
+        }
+        segs += DiarSeg(speakerIndex = host, startMs = startMs, endMs = endMs)
+    }
+
     private fun snapTinyEndpoint(
         segs: MutableList<DiarSeg>,
         r0: Long,
@@ -75,9 +107,8 @@ object VadDiarReconcile {
         hz: Int,
         scene: FarFieldScene,
         near: DiarSeg?,
-        startOrphanId: Int,
-    ): Int {
-        var orphanId = startOrphanId
+        k: Int,
+    ) {
         val durationMs = if (hz <= 0) 0L else samples.size * 1000L / hz
         val holes = gaps(segs, 0L, durationMs)
         for (hole in holes) {
@@ -90,18 +121,14 @@ object VadDiarReconcile {
             for (r in found) {
                 val s0 = hole.first + r.first * 1000L / hz
                 val s1 = hole.first + (r.last + 1) * 1000L / hz
-                if (s1 - s0 >= scene.orphanMinMs && !overlapsNear(s0, s1, near)) {
-                    segs += DiarSeg(speakerIndex = orphanId--, startMs = s0, endMs = s1)
-                }
+                adopt(segs, s0, s1, scene, near, k)
             }
         }
-        return orphanId
     }
 
     /**
      * If a non-near diar span covers two VAD islands, keep the first island
-     * on the original speaker and emit later islands as new speakers (s5
-     * swallowed into s4). Never split the 3 m seat.
+     * on the original speaker; later islands go through [adopt] (new only if < K).
      */
     private fun splitNonNearByVad(
         segs: MutableList<DiarSeg>,
@@ -109,11 +136,10 @@ object VadDiarReconcile {
         hz: Int,
         scene: FarFieldScene,
         near: DiarSeg?,
+        k: Int,
     ) {
-        val extra = ArrayList<DiarSeg>()
+        val extra = ArrayList<Triple<Long, Long, Int>>()
         val remove = ArrayList<DiarSeg>()
-        var orphanId = (segs.minOfOrNull { it.speakerIndex } ?: 0) - 1
-        if (orphanId >= 0) orphanId = -1
         for (s in segs) {
             if (isNearSeat(s, near)) continue
             val hits = vad.filter { r ->
@@ -122,32 +148,68 @@ object VadDiarReconcile {
             if (hits.size < 2) continue
             remove += s
             val first = hits[0]
-            extra += s.copy(
-                startMs = maxOf(s.startMs, first.startMs(hz)),
-                endMs = minOf(s.endMs, first.endMs(hz)),
+            extra += Triple(
+                maxOf(s.startMs, first.startMs(hz)),
+                minOf(s.endMs, first.endMs(hz)),
+                s.speakerIndex,
             )
             for (h in hits.drop(1)) {
-                val a = maxOf(s.startMs, h.startMs(hz))
-                val b = minOf(s.endMs, h.endMs(hz))
-                if (b - a >= scene.orphanMinMs && !overlapsNear(a, b, near)) {
-                    extra += DiarSeg(speakerIndex = orphanId--, startMs = a, endMs = b)
-                }
+                extra += Triple(
+                    maxOf(s.startMs, h.startMs(hz)),
+                    minOf(s.endMs, h.endMs(hz)),
+                    -1,
+                )
             }
         }
         segs.removeAll(remove.toSet())
-        segs += extra
+        for ((a, b, id) in extra) {
+            if (id >= 0 && b > a) {
+                segs += DiarSeg(id, a, b)
+            } else {
+                adopt(segs, a, b, scene, near, k)
+            }
+        }
+    }
+
+    internal fun capToExpected(segs: List<DiarSeg>, k: Int, near: DiarSeg?): List<DiarSeg> {
+        if (k <= 0 || segs.isEmpty()) return segs
+        val work = segs.toMutableList()
+        var guard = 0
+        while (uniqueSpeakers(work) > k && guard++ < 32) {
+            val nearId = near?.speakerIndex
+            val victim = work
+                .filter { it.speakerIndex != nearId }
+                .groupBy { it.speakerIndex }
+                .minByOrNull { (_, xs) -> xs.sumOf { it.endMs - it.startMs } }
+                ?.key ?: break
+            val rest = work.filter { it.speakerIndex != victim }
+            if (rest.isEmpty()) break
+            val moved = ArrayList<DiarSeg>()
+            for (s in work) {
+                if (s.speakerIndex != victim) {
+                    moved += s
+                    continue
+                }
+                val host = nearestNonNearSpeaker(s.startMs, s.endMs, rest, near)
+                    ?: rest.first().speakerIndex
+                moved += s.copy(speakerIndex = host)
+            }
+            work.clear()
+            work.addAll(moved)
+        }
+        return mergeSameSpeaker(work, 0)
     }
 
     fun mergeSameSpeaker(segs: List<DiarSeg>, gapMs: Long): List<DiarSeg> {
-        if (segs.size <= 1 || gapMs <= 0) return segs.sortedBy { it.startMs }
+        if (segs.size <= 1) return segs.sortedBy { it.startMs }
         val sorted = segs.sortedWith(compareBy<DiarSeg> { it.startMs }.thenBy { it.speakerIndex })
+        if (gapMs < 0) return sorted
         val out = ArrayList<DiarSeg>(sorted.size)
         for (s in sorted) {
             val last = out.lastOrNull()
             if (
                 last != null &&
                 last.speakerIndex == s.speakerIndex &&
-                s.speakerIndex >= 0 &&
                 s.startMs <= last.endMs + gapMs
             ) {
                 out[out.lastIndex] = last.copy(endMs = maxOf(last.endMs, s.endMs))
@@ -181,6 +243,48 @@ object VadDiarReconcile {
     private fun gaps(segs: List<DiarSeg>, t0: Long, t1: Long): List<Pair<Long, Long>> =
         subtract(t0, t1, segs)
 
+    private fun uniqueSpeakers(segs: List<DiarSeg>): Int =
+        segs.map { it.speakerIndex }.distinct().size
+
+    private fun nextId(segs: List<DiarSeg>): Int =
+        (segs.maxOfOrNull { it.speakerIndex } ?: -1) + 1
+
+    private fun nearestNonNearSpeaker(
+        startMs: Long,
+        endMs: Long,
+        segs: List<DiarSeg>,
+        near: DiarSeg?,
+    ): Int? {
+        val cand = segs.filter { !isNearSeat(it, near) && it.speakerIndex != near?.speakerIndex }
+        if (cand.isEmpty()) {
+            val others = segs.filter { it.speakerIndex != near?.speakerIndex }
+            return others.minByOrNull { gap(it, startMs, endMs) }?.speakerIndex
+        }
+        val left = cand.filter { it.endMs <= startMs }.maxByOrNull { it.endMs }
+        val right = cand.filter { it.startMs >= endMs }.minByOrNull { it.startMs }
+        return when {
+            left != null && right != null ->
+                if (startMs - left.endMs <= right.startMs - endMs) left.speakerIndex else right.speakerIndex
+            left != null -> left.speakerIndex
+            right != null -> right.speakerIndex
+            else -> cand.minByOrNull { gap(it, startMs, endMs) }?.speakerIndex
+        }
+    }
+
+    private fun canExtend(neighbor: DiarSeg, startMs: Long, endMs: Long, near: DiarSeg?): Boolean {
+        if (isNearSeat(neighbor, near) || neighbor.speakerIndex == near?.speakerIndex) return false
+        val bridged = minOf(neighbor.startMs, startMs) to maxOf(neighbor.endMs, endMs)
+        if (overlapsNear(bridged.first, bridged.second, near)) return false
+        return gap(neighbor, startMs, endMs) <= 2_000L
+    }
+
+    private fun gap(s: DiarSeg, startMs: Long, endMs: Long): Long =
+        when {
+            s.endMs <= startMs -> startMs - s.endMs
+            endMs <= s.startMs -> s.startMs - endMs
+            else -> 0L
+        }
+
     private fun overlapsNear(a0: Long, a1: Long, near: DiarSeg?): Boolean =
         near != null && overlaps(a0, a1, near.startMs, near.endMs)
 
@@ -190,7 +294,6 @@ object VadDiarReconcile {
             s.startMs == near.startMs &&
             s.endMs == near.endMs
 
-    /** Orphans / later stubs must not eat the first (~3 m) seat. */
     internal fun clipAwayFromNear(s: DiarSeg, near: DiarSeg?): DiarSeg {
         if (near == null || isNearSeat(s, near)) return s
         if (!overlaps(s.startMs, s.endMs, near.startMs, near.endMs)) return s

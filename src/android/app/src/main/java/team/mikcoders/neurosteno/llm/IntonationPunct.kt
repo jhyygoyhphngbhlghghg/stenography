@@ -23,8 +23,12 @@ object IntonationPunct {
         "(^|\\s)(коллеги|друзья|ребята|господа)(?=\\s+\\S)",
         RegexOption.IGNORE_CASE,
     )
-    private val leadingFiller = Regex(
-        "^(ну|вот|да|так|значит|короче|слушай|ага|ладно|хорошо)(?=\\s+\\S)",
+    private val discourse = Regex(
+        "(^|\\s)(ну|вот|да|так|итак|значит|короче|кстати|вообще|слушай|слушайте|смотрите|понимаете|ладно|хорошо|ага|допустим|например)(?=\\s+\\S)",
+        RegexOption.IGNORE_CASE,
+    )
+    private val contrast = Regex(
+        "(?<=\\S)\\s+(но|а|однако)(?=\\s+\\S)",
         RegexOption.IGNORE_CASE,
     )
     private val please = Regex("(?<=\\S)\\s+(пожалуйста)($|\\s|[.,?!])", RegexOption.IGNORE_CASE)
@@ -67,11 +71,14 @@ object IntonationPunct {
             val word = m.groupValues[2]
             "$prefix$word,"
         }
-        repeat(3) {
-            t = leadingFiller.replace(t) { m ->
-                if (m.value.endsWith(",")) m.value else m.value + ","
+        repeat(4) {
+            t = discourse.replace(t) { m ->
+                val pre = m.groupValues[1]
+                val w = m.groupValues[2]
+                "$pre$w,"
             }
         }
+        t = contrast.replace(t) { m -> ", ${m.groupValues[1]}" }
         t = please.replace(t) { m -> ", ${m.groupValues[1]}${m.groupValues[2]}" }
         return squeezeSpace(t)
     }
