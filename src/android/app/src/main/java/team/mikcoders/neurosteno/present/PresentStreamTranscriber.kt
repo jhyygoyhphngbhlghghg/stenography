@@ -3,7 +3,6 @@ package team.mikcoders.neurosteno.present
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import team.mikcoders.neurosteno.audio.Pcm
-import team.mikcoders.neurosteno.audio.SpeechEnergy
 import team.mikcoders.neurosteno.export.TranscriptFile
 import team.mikcoders.neurosteno.export.Utterance
 import team.mikcoders.neurosteno.pipeline.PipelineProgress
@@ -42,13 +41,6 @@ class PresentStreamTranscriber(
             StreamGateVerdict.Pass -> Unit
         }
         val samples = Pcm.s16leToFloat(pcmS16le)
-        if (!SpeechEnergy.hasEnoughSpeech(samples, Pcm.TARGET_HZ)) {
-            return IsolatedResult.Rejected(
-                streamId,
-                PresentConnectCodes.LOW_ENERGY,
-                "energy/VAD gate: no speech",
-            )
-        }
         val audio = PcmAudio(
             samples = samples,
             sampleRate = Pcm.TARGET_HZ,
