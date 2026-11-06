@@ -188,26 +188,26 @@ cd src/android && ./gradlew --no-daemon :app:testStenographerDebugUnitTest
 
 Thresholds (pcm_s16le, FS=32768, 16 kHz) from that measure command — see `artifacts/test-results/stream-pcm-gate.json`.
 
-Eval H1 gated remeasure (**Eval’s numbers**, not re-run here): hard `LOW_ENERGY` dropped 9/20 EDGE_noise seats (hyp 11/20); CLIPPED/DC missed phone-mic crush so EDGE_badmic WER still 1.0; WORST_CASE unchanged.
+Eval gated_v2 @ `bed868b` (**Eval’s numbers**, not re-run here): EDGE_noise dropped **s01 main**; WORST_CASE **0/20** empty transcript; badmic 6/20. Hard `BAND_LIMITED` on bound seats was the bug this push removes.
 
-| Fixture | RMS FS | hf_ratio | occ_speech/hf | unbound | bound `s0N` |
+| Fixture | RMS FS | hf_ratio | occ_speech/hf | unbound | bound `s0N` (incl. main `s01`) |
 |---|---|---|---|---|---|
 | empty (`n=0`) | — | — | — | `LOW_ENERGY` skip | `LOW_ENERGY` skip |
 | silence / tiny_noise | 0 / 6.11e-5 | — | — | `LOW_ENERGY` skip | **`SOFT_LOW` + ASR** |
 | clipped square | 1.0 | — | — | `CLIPPED` skip | `CLIPPED` skip |
 | stuck / extreme DC | 0.24 / 0.61 | — | — | `BAD_MIC` skip | `BAD_MIC` skip |
-| phone_crush_stack | 0.113 | **0** | 3 / 0 | `BAND_LIMITED` skip | `BAND_LIMITED` skip |
-| phone_crush_lpf (4× LP 2400 Hz) | 0.072 | **0.008** | 2 / 0 | `BAND_LIMITED` skip | `BAND_LIMITED` skip |
+| phone_crush_stack | 0.113 | **0** | 3 / 0 | `BAND_LIMITED` skip | **soft `BAND_LIMITED` + ASR** |
+| phone_crush_lpf (4× LP 2400 Hz) | 0.072 | **0.008** | 2 / 0 | `BAND_LIMITED` skip | **soft `BAND_LIMITED` + ASR** |
 | broadband_stack | 0.139 | **0.400** | 3 / 2 | pass | pass |
 | clean 1 kHz −20 dBpeak | 0.071 | 0 | 1 / 0 | pass | pass |
 
-`BAND_LIMITED` when hf_ratio &lt; 0.08 **and** occ_speech ≥ 2 **and** occ_hf = 0 **and** RMS ≥ 0.020 FS (catches crush CLIPPED/DC miss). Goertzel bins 250–3500 Hz speech, 4–7 kHz HF.
+`BAND_LIMITED` detect: hf_ratio &lt; 0.08 **and** occ_speech ≥ 2 **and** occ_hf = 0 **and** RMS ≥ 0.020 FS. **Hard skip only unbound**; bound seats (incl. main `s01`) get a soft flag and still ASR. Goertzel bins 250–3500 Hz speech, 4–7 kHz HF.
 
 Codes: `LOW_ENERGY`, `CLIPPED`, `BAD_MIC`, `BAND_LIMITED`. Soft flags still ASR; brief JSON four fields only. **Eval wavs / ref / metrics / harness untouched.**
 
 | Command | Result | Wall |
 |---|---|---|
 | `python3 scripts/measure-stream-pcm-gate.py --record` | **PASS** (synthetic only) | <1 s |
-| `./gradlew :app:testStenographerDebugUnitTest` | **PASS** (31 tests, 0 failures; 14 gate cases) | 15 s |
+| `./gradlew :app:testStenographerDebugUnitTest` | **PASS** (34 tests, 0 failures; 17 gate cases) | 14 s |
 
 `PathBGoldenBriefTest` (2) and `StreamLabelerTest` (4) files unchanged this push and still green. No Eval DER/WER claimed.

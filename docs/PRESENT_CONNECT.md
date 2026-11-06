@@ -188,10 +188,10 @@ HTTP `transcribe` is for bringing-up the phone without WS. The 20-stream demo **
 | `UNKNOWN_STREAM` | PCM for a stream that was not started |
 | `PIPELINE` | on-device ASR/VAD failure |
 | `MODELS_MISSING` | worker in stub mode — **do not use on stage** |
-| `LOW_ENERGY` | **unbound / anonymous** stream below RMS floor, or **empty** (`n==0`) buffer; **ASR skipped**. Bound `s01`..`s20` near-silence is `SOFT_LOW` (ASR still runs) |
-| `CLIPPED` | clip ratio too high (hard-limited mic); **ASR skipped** |
-| `BAD_MIC` | stuck mic / extreme DC; **ASR skipped** |
-| `BAND_LIMITED` | phone-EQ / crush (HF/speech occupancy) without hard clip; **ASR skipped** |
+| `LOW_ENERGY` | **unbound / anonymous** below RMS floor, or **empty** (`n==0`); **ASR skipped**. Bound `s01`..`s20` near-silence is `SOFT_LOW` (ASR still runs). Bound main `s01` is never hard-dropped for energy |
+| `CLIPPED` | clip ratio too high (hard-limited mic); **ASR skipped** (bound and unbound) |
+| `BAD_MIC` | stuck mic / extreme DC; **ASR skipped** (bound and unbound) |
+| `BAND_LIMITED` | phone-EQ / crush (HF/speech occupancy) without hard clip. **Hard skip only if unbound/anonymous.** Bound `s01`..`s20` (incl. main): **soft flag**, ASR still runs |
 
 ### 4.1 Path B pre-ASR energy / mic-quality gate
 
@@ -217,18 +217,22 @@ Units: full-scale (FS) = 32768 for s16. `dBFS = 20*log10(rms_fs)`. Evidence: `ar
 | `BAND_LIMITED_SPEECH_OCC` | ≥2 Goertzel bins (250–3500 Hz, occupancy >5% of peak bin) | phone stack occ_speech 3; LPF crush 2; clean 1 kHz occ 1 (not crush) |
 | `BAND_LIMITED_HF_OCC` | 0 bins in 4–7 kHz | broadband occ_hf 2 |
 
-**Bound-seat energy policy (H1: hard `LOW_ENERGY` dropped 9/20 EDGE_noise seats — Eval’s count, not re-measured here):**
+**Soft vs hard (bound `s01`..`s20` vs unbound):**
 
-- Known PresentConnect seat = `bindStart` already ran **and** `stream_id` is `s01`..`s20`.
-- Near / below RMS 0.008 FS on a known seat → **`SOFT_LOW`**, still ASR, still a hyp row if ASR returns text. Do not omit the seat solely due to energy.
-- Hard `LOW_ENERGY` skip only when the stream is **unbound / anonymous** (`mic-a`, no `bindStart`) **or** the buffer is truly empty (`n == 0` bytes). All-zero but non-empty PCM on a bound seat is near-silence → ASR.
-- `CLIPPED` / `BAD_MIC` / `BAND_LIMITED` still hard-skip on bound seats (mic quality, not energy).
+| Condition | Bound known seat (`bindStart` + `s01`..`s20`) | Unbound / anonymous |
+|---|---|---|
+| Empty `n==0` | hard `LOW_ENERGY`, skip ASR | hard `LOW_ENERGY`, skip ASR |
+| Near / below RMS 0.008 FS (non-empty) | **`SOFT_LOW`**, still ASR | hard `LOW_ENERGY`, skip ASR |
+| Phone crush / band-limit (no clip/DC) | **soft `BAND_LIMITED`**, still ASR | hard `BAND_LIMITED`, skip ASR |
+| `CLIPPED` / stuck / extreme DC | hard skip | hard skip |
 
-Hard reject: no ASR, no brief row, wire `{"type":"error","stream_id":"s0N","code":"LOW_ENERGY|CLIPPED|BAD_MIC|BAND_LIMITED","message":"..."}`, then `stream.closed`. UI flags the seat.
+Bound **main `s01` is sacred**: never hard-dropped for energy or band-limit (Eval gated_v2 @ `bed868b` dropped s01 on EDGE_noise and emptied WORST_CASE — cite only). Empty `n==0` and `CLIPPED`/`BAD_MIC` may still skip s01.
 
-Soft flags (`SOFT_LOW` / `SOFT_CLIP` / `SOFT_DC`): still ASR; log + `MicQuality` event only. **Scored brief stays four fields** (`speaker_id`, `start_ms`, `end_ms`, `text`) — no quality extras.
+Hard reject: no ASR, no brief row, wire `{"type":"error","stream_id":"…","code":"LOW_ENERGY|CLIPPED|BAD_MIC|BAND_LIMITED","message":"..."}`, then `stream.closed`.
 
-Eval H1 gated remeasure (cite only, not re-run): EDGE_noise hard-drop 9/20 seats; EDGE_badmic WER still 1.0 when CLIPPED/DC missed phone crush; WORST_CASE unchanged. This push does not claim new DER/WER.
+Soft flags (`SOFT_LOW` / `BAND_LIMITED` / `SOFT_CLIP` / `SOFT_DC`): still ASR; log + `MicQuality` (`hardReject=false`) only. **Scored brief stays four fields** — no quality extras.
+
+Eval gated_v2 @ `bed868b` (cite only, not re-run): EDGE_noise dropped s01 main; WORST_CASE 0/20 empty transcript; badmic 6/20. This push does not claim new DER/WER.
 
 ---
 
