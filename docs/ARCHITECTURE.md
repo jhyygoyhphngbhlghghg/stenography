@@ -11,7 +11,11 @@
 - Характер телефонного микрофона: band-limit, compression, затухание с расстоянием, reverb. **Не** чистый Common Voice.
 - Пайплайн: один канал, far-field — VAD → диаризация → Zipformer-ru ASR (офлайн-файл / on-device).
 
-Цель, которую задал johann: **ideal recognition** — ясные смены спикеров и пригодный текст. **WER/DER для DEMO_STAGE6 нет.** Фикстуру и цифры делает Eval ([PR #4](https://cursor.com/codebase/johann-schilling/neuro-stenographer/pull/4)). Пока замера нет: сцена и цель зафиксированы, **scores pending Eval**. Студийную подмену сцены не заявлять. Запрещены «should be fine», «robust», «handles noisy rooms», «graceful under echo».
+Цель johann: **ideal recognition** — ясные смены спикеров и пригодный текст. **Ideal recognition только @ 3 м**, не на дистанции 3–6 м. Дальше 3 м — far-field gap: комната этим замером не закрыта. Не цитировать 3 м как результат всей комнаты.
+
+Первый замер H1/Eval ([PR #4](https://cursor.com/codebase/johann-schilling/neuro-stenographer/pull/4), baseline `a8b39d5`): aggregate **WER 0.73 / DER 0.52** (точно WER **0.7321**, DER **0.5174**). Ниже этих чисел не заявлять. Серия gain, agg WER baseline / ffgain / perturn: **0.73 / 0.70 / 0.73** (точно **0.7321 / 0.6964 / 0.7321**; ffgain @ `e0e64b8`, perturn @ `db3afe4`). **Gain комнату не вернул.** Следующий рычаг — только пометка, не обещание: spectral + diar; владеют Platform/Eval.
+
+Студийную подмену сцены не заявлять. Запрещены «should be fine», «robust», «handles noisy rooms», «graceful under echo». Фикстуры не подкручивали.
 
 Path A (one-room cocktail ≥20 говорящих в один поток → 1) — measured FAIL (**1/20**, DER **0.95**, main WER **1.00**, RTF **0.18**). Не демо.
 
@@ -54,7 +58,7 @@ Overlap real: max 12 concurrent; 91% of speech frames ≥2 speakers. Main vs ble
 
 ## Контекст
 
-Hex.Team case «Нейро-стенографист»: Android-приложение локально превращает аудиозапись разговора в структурированную расшифровку (кто сказал, когда, что). Облачный ASR запрещён. Демо офлайн-пути — в авиарежиме. Презентация — **DEMO_STAGE6** (6 RU, один микрофон телефона, 3–6 м). **PresentConnect / Path B** — опциональный сетевой режим, не эта заявка. Под edge Path B: только stream tracking **20/20**; **WORST_CASE FAIL** WER main **0.9130**, DER **1.2985** (PR #4 @ `9908353d`). Clean WER/DER на WORST_CASE и EDGE_* не заявлять. Это не подмена офлайн-ASR и не one-room cocktail. DEMO_STAGE6 WER/DER — **scores pending Eval**.
+Hex.Team case «Нейро-стенографист»: Android-приложение локально превращает аудиозапись разговора в структурированную расшифровку (кто сказал, когда, что). Облачный ASR запрещён. Демо офлайн-пути — в авиарежиме. Презентация — **DEMO_STAGE6** (6 RU, один микрофон телефона, сцена 3–6 м). Первый замер: aggregate **WER 0.73 / DER 0.52**; ideal recognition **только @ 3 м**. **PresentConnect / Path B** — опциональный сетевой режим, не эта заявка. Под edge Path B: только stream tracking **20/20**; **WORST_CASE FAIL** WER main **0.9130**, DER **1.2985** (PR #4 @ `9908353d`). Clean WER/DER на WORST_CASE и EDGE_* не заявлять. Это не подмена офлайн-ASR и не one-room cocktail.
 
 Команда: **MIK Coders**. Этот репозиторий — Android-«backend» (обработка на телефоне) + контракт API для web FE/BE.
 
