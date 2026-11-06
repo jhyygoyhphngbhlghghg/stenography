@@ -12,6 +12,8 @@
 
 Первый замер H1/Eval ([PR #4](https://cursor.com/codebase/johann-schilling/neuro-stenographer/pull/4), baseline `a8b39d5`): aggregate **WER 0.73 / DER 0.52** (точно **0.7321 / 0.5174**). **Ideal recognition только @ 3 м.** Дальше 3 м — far-field gap; 3 м не равен комнате. Gain baseline / ffgain / perturn, agg WER **0.73 / 0.70 / 0.73** (точно **0.7321 / 0.6964 / 0.7321**; ffgain `e0e64b8`, perturn `db3afe4`). **Gain комнату не вернул.** Следующий рычаг — пометка, не обещание: spectral + diar (Platform/Eval). Полная по-спикерная таблица — на PR #4, не здесь. Запрещены «should be fine», «robust», «handles noisy rooms», «graceful under echo».
 
+**SCORING LOCK** (H1, Mikhail Grigorev / Hex.Team): WER **включает пунктуацию**. Запятые следуют интонации говорящего (gold), не учебной орфографии и не редакторской правке. **е/ё** нормализуются и в скоринг не входят. Цель — совпадение с произнесённой пунктуацией / интонацией. Орфографическая перепись — не gold. Локальная LLM чистит только внутри этого правила.
+
 ## Методика (черновик)
 
 1. Собрать debug APK flavor `stenographer`.
