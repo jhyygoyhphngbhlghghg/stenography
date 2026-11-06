@@ -14,11 +14,11 @@ import team.mikcoders.neurosteno.BuildConfig
 import team.mikcoders.neurosteno.audio.AudioDecoder
 import team.mikcoders.neurosteno.export.TranscriptFile
 import team.mikcoders.neurosteno.export.TranscriptJson
+import team.mikcoders.neurosteno.pipeline.PipelineFactory
 import team.mikcoders.neurosteno.pipeline.PipelineProgress
 import team.mikcoders.neurosteno.pipeline.PipelineStage
 import team.mikcoders.neurosteno.pipeline.PcmAudio
 import team.mikcoders.neurosteno.pipeline.StenoPipeline
-import team.mikcoders.neurosteno.pipeline.StubStenoPipeline
 
 data class StenoUiState(
     val fileLabel: String? = null,
@@ -31,12 +31,21 @@ data class StenoUiState(
     val stubPath: Boolean = true,
     val presentConnect: Boolean = BuildConfig.PRESENT_CONNECT,
     val engineName: String = "stub",
+    val modelsReady: Boolean = false,
 )
 
 class StenoViewModel(app: Application) : AndroidViewModel(app) {
-    private val pipeline: StenoPipeline = StubStenoPipeline()
+    private val created = PipelineFactory.create(app)
+    private val pipeline: StenoPipeline = created.first
+    private val models = created.second
 
-    private val _state = MutableStateFlow(StenoUiState(engineName = pipeline.displayName))
+    private val _state = MutableStateFlow(
+        StenoUiState(
+            engineName = pipeline.displayName,
+            stubPath = pipeline is team.mikcoders.neurosteno.pipeline.StubStenoPipeline,
+            modelsReady = models.readyForOfflineDemo,
+        ),
+    )
     val state: StateFlow<StenoUiState> = _state
 
     fun onFilePicked(uri: Uri, displayName: String?) {
@@ -77,7 +86,7 @@ class StenoViewModel(app: Application) : AndroidViewModel(app) {
                         running = false,
                         transcript = result,
                         jsonPreview = TranscriptJson.encode(result),
-                        stubPath = true,
+                        stubPath = pipeline is team.mikcoders.neurosteno.pipeline.StubStenoPipeline,
                         engineName = pipeline.displayName,
                     )
                 }
