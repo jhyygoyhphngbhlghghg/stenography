@@ -221,7 +221,7 @@ python3 scripts/measure-farfield-gain.py --record
 cd src/android && ./gradlew --no-daemon :app:testStenographerDebugUnitTest
 ```
 
-Fixed pre-gain toward RMS 0.08 FS (max +24 dB, peak cap 0.95). Energy-VAD proxy: 20 ms frames, fire if RMS ≥ 0.008 FS (not Silero JNI). Evidence: `artifacts/test-results/farfield-gain.json`.
+**Per-turn / per-segment gain** (Eval ffgain @ `e0e64b85` cite only: agg WER 0.73→0.70, mix already 0.119 FS, whole-file AGC −3.46 dB, s5 still missing — not re-run here). Each quiet energy window independently targets RMS 0.08 FS (max +24 dB, peak 0.95). Loud turns stay ≤0 dB. Energy-VAD proxy: 20 ms frames, fire if RMS ≥ 0.008 FS (not Silero JNI). Evidence: `artifacts/test-results/farfield-gain.json`. Isolated 3–6 m files still boost; the sequential mix is the regression that whole-file AGC failed.
 
 | Scene | RMS before | RMS after | gain dB | VAD fire before → after | unbound hard-skip before |
 |---|---|---|---|---|---|
@@ -234,9 +234,19 @@ Fixed pre-gain toward RMS 0.08 FS (max +24 dB, peak cap 0.95). Energy-VAD proxy:
 | phone+HVAC 5 m | 0.0116 | 0.080 | 16.8 | 1.0 → 1.0 | none |
 | phone+HVAC 6 m | 0.0099 | 0.080 | 18.2 | 1.0 → 1.0 | none |
 
+Sequential mix (loud 3 m + quiet 5 m + quiet 6 m in **one** file). Mix RMS 0.120 FS (Eval ffgain mix was 0.119). Whole-file AGC would be **−3.55 dB** (would crush the near seat and leave 4–6 m below the lift they need). Per-turn:
+
+| Turn | RMS before | RMS after | gain dB | crushed? | unbound skip after |
+|---|---|---|---|---|---|
+| near 3 m | 0.240 | 0.240 | 0.00 | no | none |
+| far 5 m | 0.0116 | 0.080 | +16.8 | no | none |
+| far 6 m | 0.0099 | 0.080 | +18.2 | no | none |
+
+Demo hard-skip rate: **0**. Spectral tilt: **not applied** (per-turn already put quiet turns on 0.08 FS; HF ratio unchanged by gain). No Eval wav retune. No DER/WER claimed.
+
 DEMO_STAGE6 prep (`DemoPcmPrep` on the offline ViewModel path): distant talkers never hard-dropped for energy/band-limit (soft flag + ASR). `CLIPPED` / `BAD_MIC` / empty `n==0` still hard-skip. Path B worker code unchanged.
 
 | Command | Result | Wall |
 |---|---|---|
-| `python3 scripts/measure-farfield-gain.py --record` | **PASS** (synthetic 3/4/5/6 m) | <1 s |
-| `./gradlew :app:testStenographerDebugUnitTest` | **PASS** (40 tests, 0 failures) | 9–15 s |
+| `python3 scripts/measure-farfield-gain.py --record` | **PASS** (isolated 3/4/5/6 m + sequential mix) | <1 s |
+| `./gradlew :app:testStenographerDebugUnitTest` | **PASS** (42 tests, 0 failures; +2 per-turn mix) | 15 s |

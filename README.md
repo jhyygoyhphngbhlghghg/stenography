@@ -71,7 +71,7 @@ Models are **not** in git. Before an airplane-mode demo:
 
 ## Modes
 
-1. **Offline stenography / DEMO_STAGE6** — import or in-app mic → far-field gain → VAD → diarize → ASR → LLM stub → list → export JSON. No network. This is the live demo path.
+1. **Offline stenography / DEMO_STAGE6** — import or in-app mic → per-turn far-field gain → VAD → diarize → ASR → LLM stub → list → export JSON. No network. This is the live demo path.
 2. **Present-connect (optional)** — phone is the on-device worker: receive ≤20 audio streams from the presentation site, return transcripts. Network required. **Not** the slide claim. See the contract doc.
 
 Presentation web FE/BE is a **separate** track (designer + Артём/Пётр). This repo owns the Android worker and the API contract they must implement against.
