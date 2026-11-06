@@ -15,7 +15,7 @@
 - Zipformer-ru — RU-first; английский best-effort (для EN — Whisper tiny, не default).
 - Перекрывающаяся речь и сильный шум смазывают диаризацию; DEMO_STAGE6 — 6 sequential RU с лёгким end-overlap.
 - Cite-only STAGE6 @ `a8b39d5a`: agg WER **0.73**; 3.0 m **0**; 3.6 m **0.55**; 4.2–6.0 m **≈1.0** (s5 missing). Whole-file AGC @ `e0e64b85`: **0.70**, s5 still missing. No invented numbers on this PR.
-- LLM post-pass: модуль есть, **веса не приложены** (TODO Gemma/Qwen/Phi via llama.cpp или MediaPipe). Сейчас identity / лёгкая пунктуация, честно в UI.
+- LLM: llama.cpp + Qwen2-0.5B-Instruct Q4_0 GGUF. Zipformer emits no punct (cite Eval 0824df64 keep-punct 0.7321→0.7794; s1 0→0.2857) — post-pass **adds** spoken-intonation `, . ? !`. Commas are not rewritten to textbook placement. Identity stub is not the check-APK LLM.
 - Модели не в git (~74 MB+ ASR, плюс VAD/diar). Без `download-models.sh` / adb push приложение соберётся, но pipeline уйдёт в stub.
 - NNAPI на OEM плавает; default provider = CPU.
 - Длинное аудио без VAD-chunking деградирует (особенно если позже включим GigaAM). VAD обязателен.

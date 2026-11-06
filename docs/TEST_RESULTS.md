@@ -37,8 +37,10 @@ Eval owns the wavs. Do not invent WER/DER.
 |---|---|
 | `a8b39d5a` | agg WER **0.73**; 3.0 m **0**; 3.6 m **0.55**; 4.2–6.0 m **≈1.0**; **s5 missing** (5/6 hyp speakers) |
 | `e0e64b85` | whole-file RMS AGC: agg WER **0.73→0.70**; **s5 still missing** |
+| `54177a1e` | per-turn FarFieldGain: still **0.73**, s5 still missing — **gain exhausted** |
+| `0824df64` | Hex keep-punct WER **0.7321→0.7794**; s1 **0.00→0.2857** (four punct deletions). Zipformer emits **NONE** |
 
-This branch syncs Platform per-turn `FarFieldGain.stage` @ `db3afe44` / `ae86903` (sequential mix loud 3 m + quiet 5 m + quiet 6 m). Near turns ≤0 dB; quiet windows independently 0.08 FS. Then K=6 diar + VAD orphan expand. Path B gates untouched.
+This branch: frozen FarFieldGain; diar hole-fill/orphan for s5 (protect 3 m); llama.cpp GGUF ADD intonation punct. **Does not re-pack assets** (Platform PR #3 @ `af71d91`). Path B gates untouched.
 
 ```bash
 python3 scripts/measure-farfield-gain.py   # synthetics for the stage() primitive; not the demo fix

@@ -31,13 +31,14 @@ Audio (SAF import / in-app 16 kHz mic)
         │
         ▼
   OfflineSpeakerDiarization      # FastClustering numClusters=6
-  + VAD↔diar reconcile (orphan s5 / expand 202 ms stubs)
+  + VAD↔diar reconcile (orphan / energy-hole / split; protect 3 m)
         │
         ▼
-  Zipformer-ru int8 per (speaker, t0, t1)  # stage() on crop
+  Zipformer-ru int8 per (speaker, t0, t1)  # gain/EQ frozen
         │
         ▼
-  Local LLM post-pass → brief JSON {transcript:[{speaker_id,start_ms,end_ms,text}]}
+  llama.cpp GGUF (Qwen2-0.5B) ADD intonation punct
+  → brief JSON {transcript:[{speaker_id,start_ms,end_ms,text}]}
 ```
 
 Whole-file RMS AGC is **not** the demo fix. Eval **e0e64b85** (cite only): agg WER 0.73→0.70, **s5 still missing** — near seat already WER 0 @ 3.0 m (`a8b39d5a`). Per-turn gain lifts quiet 4–6 m seats without attenuating a hot 3 m peak.
@@ -68,11 +69,11 @@ Checkpoint polling (clients follow presenter) lives on the **web BE**, not in th
 | ASR emergency | Vosk small-ru | Если sherpa не встаёт на устройстве |
 | VAD | Soft energy-VAD + Silero | High-recall 4–6 m; HVAC not a turn; no distant hard-drop |
 | Gain | Per-turn `FarFieldGain.stage` (Platform @ db3afe44) | Quiet distant seats; do not crush 3 m |
-| Diarization | sherpa `OfflineSpeakerDiarization` K=6 | Recover quiet far seats (s5 missing @ a8b39d5a) |
-| LLM | Модуль `LocalLlmPostPass` | Чекбокс брифа; веса TODO, identity-stub до поставки GGUF |
+| Diarization | sherpa `OfflineSpeakerDiarization` K=6 + hole-fill | Recover quiet far seats (s5 missing @ a8b39d5a); protect 3 m |
+| LLM | llama.cpp GGUF Qwen2-0.5B Q4_0 | ADD spoken-intonation `, . ? !` (Zipformer emits NONE; cite 0824df64). Identity stub fails TZ. |
 | I/O | MediaExtractor/MediaCodec → PCM; SAF import; AudioRecord | M4A/MP3/WAV + запись в приложении |
 | Export | JSON schema брифа; TXT как бонус | `docs/JSON.md` |
-| Модели | Не в git; `scripts/download-models.sh` + filesDir/assets | APK остаётся собираемым без весов |
+| Модели | Не в git; Platform pack PR #3 @ af71d91 embeds ASR/VAD/diar | This PR does not re-pack assets. GGUF: `models/llm/*.gguf` via download-models.sh |
 
 Если модели не найдены, pipeline **явно** идёт в stub-режим (помечается в UI). Stub не выдаётся за ASR на защите.
 

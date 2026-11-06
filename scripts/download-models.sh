@@ -5,14 +5,14 @@
 # Primary: Zipformer-ru int8 (HF listing ~74 MB) + Silero VAD + pyannote diar.
 # Backup:  Whisper tiny via sherpa (DOWNLOAD_WHISPER=1).
 # Emergency: Vosk small-ru (DOWNLOAD_VOSK=1).
-# LLM GGUF is NOT downloaded (TODO weights).
+# LLM: Qwen2-0.5B-Instruct Q4_0 GGUF (~353 MB listing). Packed by Platform
+# (PR #3 @ af71d91) — this repo does not copy assets/.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="${MODELS_DIR:-$ROOT/models}"
 mkdir -p "$OUT/asr/zipformer-ru-int8" "$OUT/vad" "$OUT/diar" "$OUT/llm" "$OUT/asr/whisper-tiny"
 
 echo "==> models dir: $OUT"
-echo "==> LLM weights are NOT downloaded (TODO). See docs/MODELS.md"
 
 need() { command -v "$1" >/dev/null 2>&1 || { echo "need $1"; exit 1; }; }
 need curl
@@ -82,7 +82,13 @@ if [[ "${DOWNLOAD_VOSK:-0}" == "1" ]]; then
     "https://alphacephei.com/vosk/models/vosk-model-small-ru-0.22.zip"
 fi
 
+echo "==> Qwen2-0.5B-Instruct Q4_0 GGUF (local LLM punct post-pass)"
+GGUF="$OUT/llm/qwen2-0_5b-instruct-q4_0.gguf"
+if [[ ! -f "$GGUF" ]]; then
+  hf "Qwen/Qwen2-0.5B-Instruct-GGUF" "qwen2-0_5b-instruct-q4_0.gguf" "$GGUF"
+fi
+
 echo "done. Contents:"
 find "$OUT" -type f | sed "s|$ROOT/||" | head -80
-echo "Next: adb push models/ /sdcard/Android/data/team.mikcoders.neurosteno/files/models/"
-echo "LLM: drop GGUF into models/llm/ when chosen (Qwen2-0.5B / Phi / Gemma-2B). Not downloaded here."
+echo "Next: Platform pack (PR #3 @ af71d91) embeds models/ into APK assets."
+echo "This branch does not re-pack assets. GGUF path: models/llm/*.gguf"

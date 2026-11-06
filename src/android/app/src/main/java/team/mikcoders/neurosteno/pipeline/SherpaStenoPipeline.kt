@@ -24,10 +24,11 @@ import team.mikcoders.neurosteno.llm.IdentityLlmPostPass
 import team.mikcoders.neurosteno.llm.LocalLlmPostPass
 
 /**
- * Soft VAD → per-turn gain → OfflineSpeakerDiarization → Zipformer-ru per crop.
+ * Frozen FarFieldGain → OfflineSpeakerDiarization + VAD hole-fill →
+ * Zipformer-ru per crop → llama.cpp GGUF intonation punct.
  *
- * DEMO_STAGE6: no whole-file AGC (Eval e0e64b85 still missed s5). PresentConnect
- * scene keeps overnight clustering. Native load failure → [StubStenoPipeline].
+ * Gain and EQ are frozen (Hex WER still 0.7794, s5 missing). PresentConnect
+ * scene keeps overnight clustering. Native load failure → stub.
  */
 class SherpaStenoPipeline(
     private val paths: ModelPaths,
@@ -42,6 +43,8 @@ class SherpaStenoPipeline(
             paths.hasBackupAsr -> "sherpa whisper-tiny"
             else -> "sherpa (incomplete models)"
         }
+    override val llmDisplayName: String = llm.displayName
+    override val llmIsOnDevice: Boolean = llm.isOnDeviceLlm
 
     override suspend fun transcribe(
         audio: PcmAudio,
@@ -65,7 +68,7 @@ class SherpaStenoPipeline(
         onProgress(
             PipelineProgress(
                 PipelineStage.Vad,
-                "per-turn FarFieldGain ${staged?.segments?.count { it.boosted } ?: 0} boosted / ${energy.size} windows",
+                "energy windows ${energy.size} (gain/EQ frozen)",
                 0.18f,
             ),
         )
@@ -112,7 +115,13 @@ class SherpaStenoPipeline(
                     endMs = (s.end * 1000).toLong(),
                 )
             }
-            val reconciled = VadDiarReconcile.run(vadRegions, mapped, audio.sampleRate, scene)
+            val reconciled = VadDiarReconcile.run(
+                vadRegions,
+                mapped,
+                audio.sampleRate,
+                scene,
+                samples = audio.samples,
+            )
             val out = ArrayList<Utterance>(reconciled.size)
             reconciled.forEachIndexed { i, seg ->
                 onProgress(

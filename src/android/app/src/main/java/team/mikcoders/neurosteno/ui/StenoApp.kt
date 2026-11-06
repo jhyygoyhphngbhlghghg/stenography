@@ -1,7 +1,6 @@
 package team.mikcoders.neurosteno.ui
 
 import android.Manifest
-import android.content.Intent
 import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -54,6 +53,15 @@ fun StenoApp(vm: StenoViewModel = viewModel()) {
             }
         vm.onFilePicked(uri, name)
     }
+    val jsonSaver = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json"),
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        val json = vm.state.value.jsonPreview ?: return@rememberLauncherForActivityResult
+        context.contentResolver.openOutputStream(uri)?.use { os ->
+            os.write(json.toByteArray(Charsets.UTF_8))
+        }
+    }
     val recPerm = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
     ) { granted ->
@@ -77,18 +85,37 @@ fun StenoApp(vm: StenoViewModel = viewModel()) {
                 if (state.presentConnect) {
                     "PresentConnect Path B ≤20 — побочный codepath, не слайд. Live demo = DEMO_STAGE6: один телефонный mic."
                 } else {
-                    "Live demo = DEMO_STAGE6: один mic, 6 говорящих по-русски, 3–6 м. Per-turn gain (не whole-file AGC). Path B ≤20 — не сцена защиты."
+                    "Live demo = DEMO_STAGE6: один mic, 6 говорящих по-русски, 3–6 м. Diar/VAD s5 (gain/EQ frozen). Path B ≤20 — не сцена защиты."
                 },
                 style = MaterialTheme.typography.bodyMedium,
             )
             Spacer(Modifier.height(8.dp))
-            if (state.stubPath) {
+            if (state.modelsLoading) {
+                Text(
+                    "Загрузка pipeline…",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            } else if (state.stubPath) {
                 Text(
                     "Сейчас pipeline = ${state.engineName}. Не показывать судьям как ASR.",
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall,
                 )
+            } else if (state.modelsReady) {
+                Text(
+                    "Офлайн: Zipformer-ru + VAD + diar (Platform pack).",
+                    style = MaterialTheme.typography.bodySmall,
+                )
             }
+            Text(
+                "LLM: ${state.llmName}",
+                color = if (state.llmOnDevice) {
+                    MaterialTheme.colorScheme.onSurface
+                } else {
+                    MaterialTheme.colorScheme.error
+                },
+                style = MaterialTheme.typography.bodySmall,
+            )
             Spacer(Modifier.height(12.dp))
             if (state.presentConnect) {
                 Text(
@@ -124,21 +151,13 @@ fun StenoApp(vm: StenoViewModel = viewModel()) {
                 }
                 Button(
                     onClick = { vm.transcribe() },
-                    enabled = !state.running,
+                    enabled = !state.running && !state.modelsLoading,
                 ) {
                     Text("Расшифровать")
                 }
                 OutlinedButton(
                     enabled = state.jsonPreview != null,
-                    onClick = {
-                        val json = state.jsonPreview ?: return@OutlinedButton
-                        val send = Intent(Intent.ACTION_SEND).apply {
-                            type = "application/json"
-                            putExtra(Intent.EXTRA_TEXT, json)
-                            putExtra(Intent.EXTRA_TITLE, "transcript.json")
-                        }
-                        context.startActivity(Intent.createChooser(send, "Экспорт JSON"))
-                    },
+                    onClick = { jsonSaver.launch("transcript.json") },
                 ) {
                     Text("Экспорт JSON")
                 }

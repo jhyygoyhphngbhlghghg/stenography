@@ -118,6 +118,10 @@ dependencies {
     // com.github.k2-fsa.sherpa-onnx:sherpa-onnx:v2.0.1 is 404; v1.13.5 AAR is
     // what k2-fsa jitpack.yml wget's from GitHub Releases (settings ivy + fetch).
     implementation(files(sherpaAar))
+    // Tiny on-device GGUF (Qwen2-0.5B) via llama.cpp JNI. Weights are NOT packed
+    // here — Platform PR #3 @ af71d91 embeds ASR/VAD/diar; GGUF lives in
+    // filesDir/models/llm after that unpack (download-models.sh).
+    implementation("dev.ffmpegkit-maintained:llama-android:0.1.1")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     testImplementation("junit:junit:4.13.2")

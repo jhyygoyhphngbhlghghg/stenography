@@ -4,15 +4,16 @@ import team.mikcoders.neurosteno.export.Utterance
 import java.io.File
 
 /**
- * On-device LLM post-pass required by the brief (punctuation / cleanup).
+ * On-device LLM post-pass (Hex.Team TZ «локальная LLM»).
  *
- * TODO(weights): ship a small GGUF (Qwen2-0.5B / Phi-3-mini / Gemma-2B) via
- * llama.cpp or MediaPipe and run it in [GgufLlmPostPass]. Do **not** call a
- * cloud LLM. Until a GGUF file exists under models/llm/, [HeuristicPunctuationPostPass]
- * is the wired implementation — light punctuation/cleanup, not a fake rewrite.
+ * Identity / heuristic-only **fails** the brief. Tiny GGUF
+ * (Qwen2-0.5B-Instruct Q4_0) is loaded from filesDir/models/llm/ (gguf).
+ * Platform pack unpacks assets — this PR does not re-pack. llama.cpp adds
+ * spoken-intonation punct ([IntonationPunct]): Zipformer emits NONE.
  */
 interface LocalLlmPostPass {
     val weightsPresent: Boolean
+    val isOnDeviceLlm: Boolean
     val displayName: String
 
     suspend fun cleanup(utterances: List<Utterance>): List<Utterance>
@@ -20,73 +21,91 @@ interface LocalLlmPostPass {
 
 class IdentityLlmPostPass : LocalLlmPostPass {
     override val weightsPresent: Boolean = false
+    override val isOnDeviceLlm: Boolean = false
     override val displayName: String = "llm-identity"
 
     override suspend fun cleanup(utterances: List<Utterance>): List<Utterance> = utterances
 }
 
 /**
- * Deterministic punctuation / whitespace cleanup so the module exists in the
- * APK and satisfies the brief checkbox. Not an LLM. Does not invent words.
+ * Intonation-safe punct when GGUF is absent. **Not** the check-APK LLM.
+ * Must not strip hyp punctuation or rewrite commas.
  */
 class HeuristicPunctuationPostPass : LocalLlmPostPass {
     override val weightsPresent: Boolean = false
-    override val displayName: String = "llm-heuristic-punctuation (no GGUF)"
+    override val isOnDeviceLlm: Boolean = false
+    override val displayName: String = "llm-weights-missing (intonation punct only)"
 
     override suspend fun cleanup(utterances: List<Utterance>): List<Utterance> =
-        utterances.map { it.copy(text = punctuate(it.text)) }
+        applyIntonation(utterances)
 
     companion object {
-        fun punctuate(raw: String): String {
-            var t = raw.replace('\n', ' ').replace('\t', ' ')
-            t = t.replace(Regex("\\s+"), " ").trim()
-            if (t.isEmpty()) return t
-            // Drop leftover ASR tokens that are clearly markup, not speech.
-            t = t.replace(Regex("^\\[/?[A-Za-z0-9_]+]"), "").trim()
-            if (t.isEmpty()) return t
-            val first = t[0]
-            t = if (first.isLetter() && first.isLowerCase()) {
-                first.uppercaseChar() + t.substring(1)
-            } else {
-                t
+        fun punctuate(raw: String, nextGapMs: Long = Long.MAX_VALUE): String =
+            IntonationPunct.apply(raw, candidate = null, nextGapMs = nextGapMs)
+
+        fun applyIntonation(utterances: List<Utterance>): List<Utterance> =
+            utterances.mapIndexed { i, u ->
+                val nextGap = if (i + 1 < utterances.size) {
+                    (utterances[i + 1].startMs - u.endMs).coerceAtLeast(0L)
+                } else {
+                    Long.MAX_VALUE
+                }
+                u.copy(text = IntonationPunct.apply(u.text, nextGapMs = nextGap))
             }
-            val last = t.last()
-            if (last !in ".?!…") {
-                t += "."
-            }
-            return t
-        }
     }
 }
 
+class MissingWeightsLlmPostPass : LocalLlmPostPass by HeuristicPunctuationPostPass()
+
 /**
- * Placeholder for a local GGUF runner.
- *
- * TODO(weights): load [gguf] with llama.cpp JNI or MediaPipe LLM Inference.
- * Until that runner lands, we refuse to pretend — cleanup falls back to the
- * heuristic and [weightsPresent] is true only so the UI can say "GGUF on disk
- * but runner not wired".
+ * Real tiny GGUF via llama.cpp. Prompt asks only for spoken-intonation punct.
+ * Output is merged with [IntonationPunct] so the model cannot strip marks or
+ * rewrite commas to textbook placement.
  */
 class GgufLlmPostPass(
-    private val gguf: File?,
-    private val fallback: LocalLlmPostPass = HeuristicPunctuationPostPass(),
+    private val gguf: File,
+    private val runner: OnDeviceLlmRunner,
 ) : LocalLlmPostPass {
-    override val weightsPresent: Boolean = gguf != null && gguf.isFile
-    override val displayName: String =
-        if (weightsPresent) "llm-gguf TODO runner (${gguf!!.name})" else fallback.displayName
+    override val weightsPresent: Boolean = gguf.isFile && gguf.length() > 0L
+    override val isOnDeviceLlm: Boolean = true
+    override val displayName: String = runner.engineName
 
     override suspend fun cleanup(utterances: List<Utterance>): List<Utterance> {
-        // TODO(weights): run GGUF prompt "Исправь пунктуацию, не меняй слова: …"
-        return fallback.cleanup(utterances)
+        if (!weightsPresent) {
+            return HeuristicPunctuationPostPass.applyIntonation(utterances)
+        }
+        return utterances.mapIndexed { i, u ->
+            val nextGap = if (i + 1 < utterances.size) {
+                (utterances[i + 1].startMs - u.endMs).coerceAtLeast(0L)
+            } else {
+                Long.MAX_VALUE
+            }
+            val candidate = try {
+                runner.complete(SYSTEM, userPrompt(u.text, nextGap))
+            } catch (_: Throwable) {
+                null
+            }
+            u.copy(text = IntonationPunct.apply(u.text, candidate, nextGap))
+        }
+    }
+
+    companion object {
+        const val SYSTEM =
+            "ASR (Zipformer) не ставит знаки. ДОБАВЬ пунктуацию устной речи: запятые, точки, ? !. " +
+                "Запятая = пауза/интонация говорящего, не школьное правило. " +
+                "НЕ удаляй уже стоящие знаки. НЕ переставляй чужие запятые. " +
+                "Не меняй слова. ё и е — один звук, пиши е. Верни только исправленную реплику."
+
+        fun userPrompt(text: String, nextGapMs: Long): String =
+            "Пауза после реплики: ${nextGapMs.coerceAtMost(10_000L)} мс.\nРеплика: $text"
     }
 }
 
 object LlmPostPassFactory {
-    fun create(gguf: File?): LocalLlmPostPass {
-        return if (gguf != null && gguf.isFile) {
-            GgufLlmPostPass(gguf)
-        } else {
-            HeuristicPunctuationPostPass()
+    fun create(gguf: File?, runner: OnDeviceLlmRunner? = null): LocalLlmPostPass {
+        if (gguf != null && gguf.isFile && gguf.length() > 0L) {
+            return GgufLlmPostPass(gguf, runner ?: LlamaCppGgufRunner(gguf))
         }
+        return MissingWeightsLlmPostPass()
     }
 }

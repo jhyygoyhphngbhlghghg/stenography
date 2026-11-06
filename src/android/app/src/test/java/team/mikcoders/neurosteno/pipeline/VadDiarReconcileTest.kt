@@ -3,6 +3,7 @@ package team.mikcoders.neurosteno.pipeline
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import team.mikcoders.neurosteno.audio.FarFieldSynth
 
 class VadDiarReconcileTest {
     private val hz = 16_000
@@ -33,13 +34,34 @@ class VadDiarReconcileTest {
     }
 
     @Test
-    fun shortDiarStubExpandsToVadTurn() {
+    fun largeVadBlobDoesNotSwallowNearSeat() {
         val vad = listOf(SpeechRegion(0, 16_000 * 6))
-        val diar = listOf(DiarSeg(0, 2_000, 2_202))
+        val diar = listOf(
+            DiarSeg(0, 0, 1_000),
+            DiarSeg(1, 2_000, 2_202),
+        )
         val out = VadDiarReconcile.run(vad, diar, hz, scene)
-        assertEquals(1, out.size)
-        assertEquals(0L, out[0].startMs)
-        assertEquals(6_000L, out[0].endMs)
+        val near = out.minBy { it.startMs }
+        assertEquals(0L, near.startMs)
+        assertEquals(1_000L, near.endMs)
+        assertTrue(out.size >= 3)
+        assertTrue(out.none { it.startMs == 0L && it.endMs == 6_000L })
+    }
+
+    @Test
+    fun energyHoleRecoversQuietFarTurnWithoutMovingNear() {
+        val (pcm, turns) = FarFieldSynth.sequentialMix()
+        val near = turns.first { it.name == "near_3m" }
+        val t0 = near.range.first * 1000L / hz
+        val t1 = (near.range.last + 1) * 1000L / hz
+        val diar = listOf(DiarSeg(0, t0, t1))
+        val vad = listOf(SpeechRegion(near.range.first, near.range.last + 1))
+        val out = VadDiarReconcile.run(vad, diar, hz, scene, samples = pcm)
+        val kept = out.minBy { it.startMs }
+        assertEquals(t0, kept.startMs)
+        assertEquals(t1, kept.endMs)
+        assertTrue("recover s5-like far island", out.size >= 2)
+        assertTrue(out.any { it.startMs >= t1 && it.endMs - it.startMs >= 400 })
     }
 
     @Test

@@ -29,6 +29,8 @@ data class PcmAudio(
 
 interface StenoPipeline {
     val displayName: String
+    val llmDisplayName: String
+    val llmIsOnDevice: Boolean
 
     suspend fun transcribe(
         audio: PcmAudio,
