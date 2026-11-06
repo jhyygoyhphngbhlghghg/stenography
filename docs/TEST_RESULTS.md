@@ -164,6 +164,40 @@ s1 WER 0.2857→0.2143 is the added terminal period (3 comma deletions remain; Z
 
 Honest: DER improved (time coverage). hyp is **12 / 6**, not 6/6 — JER slightly worse. s5/s6 still WER 1.0. Do **not** cite WER_main 0 as the room result. Soft-flag only.
 
+### DEMO_STAGE6_impl_hardcap6 — Impl HARD CAP ≤6 + comma heuristics @ `3c3f9ce`
+
+Same **frozen** wav/gold @ `a8b39d5a`. Hex keep-punct tokenize @ `0824df64`. Host ingest mirrors Implementer PR #7 HEAD **`3c3f9ce61f803d716276f95fa7e6098cc2fe7be4`** (`impl/far-field-6spk-demo`). Python mirror (not cherry-picked onto this eval branch). Prior over-split row @ `552b142` / `9b29b9c1` kept.
+
+- `VadDiarReconcile.kt` — `adopt` / `capToExpected`: extra VAD/energy islands merge into existing K=6; never `speaker_7..12`; near 3 m protected
+- `IntonationPunct.kt` — heuristic ADD commas (greeting / vocative / discourse / contrast) when GGUF absent
+- unit: `twelveVadIslandsNeverInventSpeakerSeven` → unique 6
+
+Frozen per-turn FarFieldGain (no whole-file crush). PhoneDistanceEq **not** re-applied. Energy VAD ∪ Silero → HARD CAP reconcile → Zipformer (+200 ms crop pad) → IntonationPunct ADD (never strip). Host GGUF / llama.cpp **absent** (`gguf-missing`). Soft-flag only. **Not a fixture retune.**
+
+Reconcile on this mix: pyannote **5→6** segments / **5→6** speakers (energy 34 ∪ silero 3 → 4 VAD islands). Near 3 m seat kept (807–6443 ms). Unique hyp speakers **6** — measured, never `speaker_7`. Hungarian left hyp `speaker_2` (`да.` stub 6443–7456) unmapped and ref speaker_5 unmatched.
+
+Hex keep-punct WER vs baselines (same gold, same wav):
+
+| speaker | m | Hex @ 0824df64 | impl_second_pass @ 552b142 / 9b29b9c1 | impl_hardcap6 @ 3c3f9ce |
+|---|---|---|---|---|
+| speaker_1 | 3.0 | **0.2857** | **0.2143** | **0.2143** |
+| speaker_2 | 3.6 | **0.5833** | **0.3333** | **0.3333** |
+| speaker_3 | 4.2 | **1.0000** | **0.7692** | **1.0000** |
+| speaker_4 | 4.8 | **1.0000** | **0.5000** | **0.9000** |
+| speaker_5 | 5.4 | **1.0000** (missing) | **1.0000** (empty ASR) | **1.0000** (unmatched) |
+| speaker_6 | 6.0 | **1.0000** | **1.0000** (empty ASR) | **0.6923** |
+| **aggregate** | — | **0.7794** (53/68) | **0.6029** (41/68) | **0.6471** (44/68) |
+
+| test_id | DER | JER | purity | WER_main | WER_agg | RTF | hyp/ref |
+|---|---|---|---|---|---|---|---|
+| DEMO_STAGE6 Hex @ 0824df64 | **0.5174** | **0.6280** | 1.0000 | **0.2857** | **0.7794** | **0.0929** | **5 / 6** |
+| DEMO_STAGE6_impl_second_pass @ 552b142 | **0.2568** | **0.6821** | 0.9002 | **0.2143** | **0.6029** | **0.1198** | **12 / 6** |
+| DEMO_STAGE6_impl_hardcap6 @ 3c3f9ce | **0.2760** | **0.5454** | 0.7318 | **0.2143** | **0.6471** | **0.1173** | **6 / 6** |
+
+HARD CAP did what the unit claims: hyp **6 / 6**, never speaker_7..12. JER 0.6821→0.5454 (over-split tax gone). DER 0.2568→0.2760 and WER_agg 0.6029→0.6471 are slightly worse — merge smeared s2+s3 into one 7456–19066 island. s6 recovered some words (empty→0.6923). s5 still WER 1.0. Discourse/contrast commas did not fire on this Zipformer text (no `ну`/`вот`/`но` mid-utterance); s1 still period-only + 3 comma deletions. GGUF did not run. Wall **4659 ms** / **39718 ms**.
+
+Honest: hyp **6 / 6 is measured**. That is not a room solve. Do **not** cite WER_main 0 as the room result. Soft-flag only.
+
 ## Demo-stress (20 talkers) — SECONDARY regression, host Linux only
 
 Cloud agents / this VM have **no KVM and no ADB**.

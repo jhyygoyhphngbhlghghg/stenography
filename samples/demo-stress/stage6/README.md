@@ -20,9 +20,10 @@ python3 scripts/eval_demo_stress.py --run-host --only DEMO_STAGE6_ffgain
 python3 scripts/eval_demo_stress.py --run-host --only DEMO_STAGE6_perturn
 python3 scripts/eval_demo_stress.py --run-host --only DEMO_STAGE6_phone_eq
 python3 scripts/eval_demo_stress.py --run-host --only DEMO_STAGE6_impl_second_pass
+python3 scripts/eval_demo_stress.py --run-host --only DEMO_STAGE6_impl_hardcap6
 ```
 
-Baseline `DEMO_STAGE6` is frozen @ `a8b39d5a`. `DEMO_STAGE6_ffgain` is whole-file AGC @ `b66581c` / `e0e64b85`. `DEMO_STAGE6_perturn` is per-turn FarFieldGain @ `db3afe4`. `DEMO_STAGE6_phone_eq` is Platform PhoneDistanceEq @ `af71d91` (gain frozen). `DEMO_STAGE6_impl_second_pass` is Impl VadDiarReconcile + IntonationPunct @ `552b142`. Do not retune gold.
+Baseline `DEMO_STAGE6` is frozen @ `a8b39d5a`. `DEMO_STAGE6_ffgain` is whole-file AGC @ `b66581c` / `e0e64b85`. `DEMO_STAGE6_perturn` is per-turn FarFieldGain @ `db3afe4`. `DEMO_STAGE6_phone_eq` is Platform PhoneDistanceEq @ `af71d91` (gain frozen). `DEMO_STAGE6_impl_second_pass` is Impl VadDiarReconcile + IntonationPunct @ `552b142` (over-split 12/6 @ `9b29b9c1`). `DEMO_STAGE6_impl_hardcap6` is Impl HARD CAP ≤6 + comma heuristics @ `3c3f9ce`. Do not retune gold.
 
 Full `DEMO_STAGE6.wav` is gitignored. Committed: `recipe.json`, `ref/DEMO_STAGE6.json`, `smoke.wav`. Do not retune gold to fake low WER.
 
