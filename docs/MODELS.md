@@ -1,6 +1,8 @@
-# Models (not in git)
+# Models (not in git; packed into the judge APK)
 
-Weights are **gitignored**. Airplane-mode demo requires them on the device *before* disconnecting.
+Weights are **gitignored**. The **default/judge APK** embeds Zipformer-ru int8 + Silero VAD + diar ONNX in `assets/models` at assemble. First launch copies them to `filesDir/models` (`ModelStore.ensureUnpacked`). Airplane-mode / Hex.Team auto-check: install that APK, no network, no adb push.
+
+Slim: `./gradlew :app:assembleStenographerSlim` — no weights (karma).
 
 Do not invent WER/RTF here. Listing sizes below are from the cited pages. **Measured** sizes (2026-11-06, `scripts/download-models.sh`, wall **4 s**, exit 0) are in [artifacts/test-results/models-manifest.json](../artifacts/test-results/models-manifest.json).
 
@@ -51,4 +53,4 @@ models/
   vosk-small-ru/           (optional emergency)
 ```
 
-Copy into the app `filesDir/models/` (adb push) or `assets/models/` before freeze. Hybrid: bundle Zipformer-ru int8 if APK size allows; never commit weights.
+Judge path: `assembleStenographerDebug` (Gradle copies this tree into `assets/models`). First run unpacks to `filesDir/models`. Never commit weights. Slim/dev-only: adb push the same tree.

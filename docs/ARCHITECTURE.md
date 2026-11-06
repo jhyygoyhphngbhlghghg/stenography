@@ -66,7 +66,7 @@ Checkpoint polling (clients follow presenter) lives on the **web BE**, not in th
 | LLM | Модуль `LocalLlmPostPass` | Чекбокс брифа; веса TODO, identity-stub до поставки GGUF |
 | I/O | MediaExtractor/MediaCodec → PCM; SAF import; AudioRecord | M4A/MP3/WAV + запись в приложении |
 | Export | JSON schema брифа; TXT как бонус | `docs/JSON.md` |
-| Модели | Не в git; `scripts/download-models.sh` + filesDir/assets | APK остаётся собираемым без весов |
+| Модели | Gitignored; **judge APK embeds** Zipformer-ru + VAD + diar (`assets/models` → filesDir on first launch). Slim build type = no weights. | Hex.Team cold install, zero network |
 
 Если модели не найдены, pipeline **явно** идёт в stub-режим (помечается в UI). Stub не выдаётся за ASR на защите.
 
