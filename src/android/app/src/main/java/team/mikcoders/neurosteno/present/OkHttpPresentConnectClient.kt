@@ -1,0 +1,167 @@
+package team.mikcoders.neurosteno.present
+
+import android.util.Base64
+import android.util.Log
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.longOrNull
+import kotlinx.serialization.json.put
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.Response
+import okhttp3.WebSocket
+import okhttp3.WebSocketListener
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
+
+/**
+ * WebSocket worker from docs/PRESENT_CONNECT.md. Caps at [PresentConnectConfig.maxStreams] (20).
+ */
+class OkHttpPresentConnectClient(
+    private val http: OkHttpClient = OkHttpClient.Builder()
+        .readTimeout(0, TimeUnit.MILLISECONDS)
+        .build(),
+) : PresentConnectClient {
+    private val _events = MutableSharedFlow<PresentConnectEvent>(extraBufferCapacity = 64)
+    override val events: SharedFlow<PresentConnectEvent> = _events
+
+    private val json = Json { ignoreUnknownKeys = true }
+    private val openStreams = ConcurrentHashMap<String, StreamBuf>()
+    private val count = AtomicInteger(0)
+    private var socket: WebSocket? = null
+    private var maxStreams: Int = 20
+
+    override suspend fun connect(config: PresentConnectConfig) {
+        disconnect()
+        maxStreams = config.maxStreams
+        val req = Request.Builder()
+            .url(config.wsUrl)
+            .build()
+        socket = http.newWebSocket(req, Listener(config))
+    }
+
+    override suspend fun disconnect() {
+        socket?.close(1000, "bye")
+        socket = null
+        openStreams.clear()
+        count.set(0)
+        _events.tryEmit(PresentConnectEvent.Disconnected)
+    }
+
+    override fun activeStreamCount(): Int = count.get()
+
+    private inner class Listener(private val config: PresentConnectConfig) : WebSocketListener() {
+        override fun onOpen(webSocket: WebSocket, response: Response) {
+            val hello = buildJsonObject {
+                put("type", "hello")
+                put("protocol", "present-connect/1")
+                put("max_streams", config.maxStreams)
+                put("sample_rate", config.sampleRate)
+                put("encoding", "pcm_s16le")
+                put("models", JsonPrimitive("zipformer-ru-int8"))
+                put("accepts_diarization", true)
+            }
+            webSocket.send(hello.toString())
+        }
+
+        override fun onMessage(webSocket: WebSocket, text: String) {
+            val obj = runCatching { json.parseToJsonElement(text) as JsonObject }.getOrNull() ?: return
+            when (obj.str("type")) {
+                "hello.ok" -> _events.tryEmit(
+                    PresentConnectEvent.HelloOk(obj.str("session_id") ?: config.sessionId, obj.str("worker_id") ?: ""),
+                )
+                "ping" -> webSocket.send("""{"type":"pong","t":${obj["t"] ?: 0}}""")
+                "stream.start" -> onStart(webSocket, obj)
+                "audio.pcm16" -> onPcm(obj)
+                "stream.end" -> onEnd(webSocket, obj.str("stream_id"))
+                "stream.cancel" -> onCancel(obj.str("stream_id"))
+            }
+        }
+
+        override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
+            webSocket.close(code, reason)
+        }
+
+        override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+            _events.tryEmit(PresentConnectEvent.Disconnected)
+        }
+
+        override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+            Log.e(TAG, "ws failure", t)
+            _events.tryEmit(PresentConnectEvent.Error(null, PresentConnectCodes.PIPELINE, t.message ?: "ws"))
+        }
+    }
+
+    private fun onStart(ws: WebSocket, obj: JsonObject) {
+        val id = obj.str("stream_id") ?: return
+        if (count.get() >= maxStreams) {
+            ws.send(
+                """{"type":"error","stream_id":"$id","code":"${PresentConnectCodes.OVER_CAPACITY}","message":"max $maxStreams streams"}""",
+            )
+            _events.tryEmit(PresentConnectEvent.OverCapacity(id))
+            return
+        }
+        if (obj.str("encoding") != null && obj.str("encoding") != "pcm_s16le") {
+            ws.send(
+                """{"type":"error","stream_id":"$id","code":"${PresentConnectCodes.BAD_ENCODING}","message":"need pcm_s16le"}""",
+            )
+            return
+        }
+        openStreams[id] = StreamBuf()
+        count.incrementAndGet()
+        _events.tryEmit(PresentConnectEvent.StreamStarted(id))
+    }
+
+    private fun onPcm(obj: JsonObject) {
+        val id = obj.str("stream_id") ?: return
+        val buf = openStreams[id]
+        if (buf == null) {
+            _events.tryEmit(PresentConnectEvent.Error(id, PresentConnectCodes.UNKNOWN_STREAM, "no start"))
+            return
+        }
+        val b64 = obj.str("pcm16_b64") ?: return
+        val bytes = Base64.decode(b64, Base64.DEFAULT)
+        synchronized(buf) { buf.pcm.write(bytes) }
+    }
+
+    private fun onEnd(ws: WebSocket, id: String?) {
+        if (id == null) return
+        openStreams.remove(id) ?: return
+        count.updateAndGet { n -> (n - 1).coerceAtLeast(0) }
+        // Transcript is produced by the pipeline owner (ViewModel) listening to StreamEnded.
+        ws.send("""{"type":"stream.closed","stream_id":"$id"}""")
+        _events.tryEmit(PresentConnectEvent.StreamEnded(id))
+    }
+
+    private fun onCancel(id: String?) {
+        if (id == null) return
+        if (openStreams.remove(id) != null) {
+            count.updateAndGet { n -> (n - 1).coerceAtLeast(0) }
+        }
+        _events.tryEmit(PresentConnectEvent.StreamEnded(id))
+    }
+
+    private class StreamBuf {
+        val pcm = java.io.ByteArrayOutputStream()
+    }
+
+    companion object {
+        private const val TAG = "PresentConnect"
+    }
+}
+
+private fun JsonObject.str(key: String): String? = this[key]?.jsonPrimitive?.contentOrNull
+
+@Suppress("unused")
+private fun JsonObject.int(key: String): Int? = this[key]?.jsonPrimitive?.intOrNull
+
+@Suppress("unused")
+private fun JsonObject.long(key: String): Long? = this[key]?.jsonPrimitive?.longOrNull
