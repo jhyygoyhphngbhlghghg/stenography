@@ -77,6 +77,8 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     // JNI + Java API: ASR, Silero VAD, OfflineSpeakerDiarization
+    // JitPack AAR (packaging=aar), ~49 MB, contains libsherpa-onnx-jni.so for
+    // arm64-v8a / armeabi-v7a / x86 / x86_64. Measured: scripts/inspect-sherpa-aar.sh
     implementation("com.github.k2-fsa.sherpa-onnx:sherpa-onnx:v2.0.1")
 
     debugImplementation("androidx.compose.ui:ui-tooling")

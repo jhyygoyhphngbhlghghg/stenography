@@ -1,0 +1,4 @@
+START 2026-11-06T17:04:59Z
+java: openjdk version "21.0.12.1" 2026-08-18
+sdk.dir=sdk.dir=/home/ubuntu/android-sdk
+==> dependencies stenographerDebugRuntimeClasspath

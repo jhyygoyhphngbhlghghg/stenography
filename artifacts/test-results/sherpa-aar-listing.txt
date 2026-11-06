@@ -1,0 +1,47 @@
+coordinate: com.github.k2-fsa.sherpa-onnx:sherpa-onnx:v2.0.1
+url: https://jitpack.io/com/github/k2-fsa/sherpa-onnx/sherpa-onnx/v2.0.1/sherpa-onnx-v2.0.1.aar
+pom: https://jitpack.io/com/github/k2-fsa/sherpa-onnx/sherpa-onnx/v2.0.1/sherpa-onnx-v2.0.1.pom
+http_code: 200
+bytes: 49441341
+wall_ms: 444
+sha256: a8d09d1d32f3eb8520482c6d3d43fae674681c5b050385967c70a3c2c9bf0ee7
+
+== unzip -l (jni/*.so and classes) ==
+Archive:  /tmp/neurosteno-sherpa-aar/sherpa-onnx-v2.0.1.aar
+  Length      Date    Time    Name
+---------  ---------- -----   ----
+        0  1980-02-01 00:00   R.txt
+      203  1980-02-01 00:00   AndroidManifest.xml
+   245045  1980-02-01 00:00   classes.jar
+        0  1980-02-01 00:00   proguard.txt
+      156  1980-02-01 00:00   META-INF/com/android/build/gradle/aar-metadata.properties
+...
+      203  1980-02-01 00:00   AndroidManifest.xml
+   245045  1980-02-01 00:00   classes.jar
+        0  1980-02-01 00:00   jni/
+        0  1980-02-01 00:00   jni/arm64-v8a/
+ 22249560  1980-02-01 00:00   jni/arm64-v8a/libonnxruntime.so
+  4303136  1980-02-01 00:00   jni/arm64-v8a/libsherpa-onnx-c-api.so
+   272848  1980-02-01 00:00   jni/arm64-v8a/libsherpa-onnx-cxx-api.so
+  4609320  1980-02-01 00:00   jni/arm64-v8a/libsherpa-onnx-jni.so
+        0  1980-02-01 00:00   jni/armeabi-v7a/
+ 15359592  1980-02-01 00:00   jni/armeabi-v7a/libonnxruntime.so
+  3157748  1980-02-01 00:00   jni/armeabi-v7a/libsherpa-onnx-c-api.so
+   183600  1980-02-01 00:00   jni/armeabi-v7a/libsherpa-onnx-cxx-api.so
+  3381796  1980-02-01 00:00   jni/armeabi-v7a/libsherpa-onnx-jni.so
+        0  1980-02-01 00:00   jni/x86/
+ 26491148  1980-02-01 00:00   jni/x86/libonnxruntime.so
+  4954780  1980-02-01 00:00   jni/x86/libsherpa-onnx-c-api.so
+   250072  1980-02-01 00:00   jni/x86/libsherpa-onnx-cxx-api.so
+  5261876  1980-02-01 00:00   jni/x86/libsherpa-onnx-jni.so
+        0  1980-02-01 00:00   jni/x86_64/
+ 25581120  1980-02-01 00:00   jni/x86_64/libonnxruntime.so
+  4782648  1980-02-01 00:00   jni/x86_64/libsherpa-onnx-c-api.so
+   267552  1980-02-01 00:00   jni/x86_64/libsherpa-onnx-cxx-api.so
+  5053592  1980-02-01 00:00   jni/x86_64/libsherpa-onnx-jni.so
+
+== ABI summary ==
+      4 arm64-v8a
+      4 armeabi-v7a
+      4 x86
+      4 x86_64
