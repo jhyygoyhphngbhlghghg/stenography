@@ -1,0 +1,78 @@
+# Secrets and local configuration
+.env
+*.key
+*.pem
+
+# Editors and operating systems
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.iml
+local.properties
+
+# Logs and temporary files
+*.log
+tmp/
+temp/
+
+# Generic build output
+build/
+dist/
+out/
+target/
+bin/
+obj/
+.cxx/
+
+# Dependencies and caches
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.gradle/
+.kotlin/
+
+# Android / Gradle
+captures/
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+*.jks
+*.keystore
+!debug.keystore
+
+# Received files are generated during demonstrations
+examples/output/*
+!examples/output/.gitkeep
+
+# Keep large demo media outside Git unless intentionally included
+artifacts/demo/*.mp4
+artifacts/demo/*.mov
+artifacts/demo/*.mkv
+artifacts/demo/*.wav
+apk/*.apk
+apk/*.aab
+
+# Models — never commit weights (download via scripts/download-models.sh)
+**/models/**
+!**/models/.gitkeep
+*.onnx
+*.gguf
+*.pt
+*.pth
+*.bin
+*.tflite
+*.ncnn
+vosk-model*/
+sherpa-onnx-*/
+whisper-*.mlmodel
+*.int8.onnx
+tokens.txt
+!docs/**/tokens.txt
+
+# Uploaded kickoff notes (agent workspace only)
+uploads/
