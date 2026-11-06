@@ -56,11 +56,31 @@ class SpeechEndpointingTest {
     }
 
     @Test
-    fun vadPolicyIsTighterThanOvernightDefaults() {
+    fun vadPolicyEndpointsFasterWithoutRaisingMinSpeech() {
         assertTrue(SpeechEndpointing.VAD_THRESHOLD > 0.5f)
         assertTrue(SpeechEndpointing.MIN_SILENCE_SEC > 0.25f)
-        assertTrue(SpeechEndpointing.MIN_SPEECH_SEC > 0.25f)
+        assertEquals(0.25f, SpeechEndpointing.MIN_SPEECH_SEC, 0f)
         assertTrue(SpeechEndpointing.MAX_SPEECH_SEC < 20f)
+        assertEquals(0.008f, SpeechEndpointing.ABS_RMS_FLOOR, 0f)
+    }
+
+    @Test
+    fun quietOnMicStreamIsStillMainSpeechOnItsOwnContext() {
+        val quiet = sine(n = hz, freq = 180.0, amp = 0.02f)
+        val p80 = SpeechEndpointing.streamP80Rms(quiet, hz)
+        assertTrue(SpeechEndpointing.isMainSpeech(quiet, hz, contextP80Rms = p80))
+    }
+
+    @Test
+    fun twentyQuietIsolatedStreamsSurviveEndpointing() {
+        repeat(20) { i ->
+            val tone = sine(n = hz / 2, freq = 160.0 + i * 7, amp = 0.018f)
+            val p80 = SpeechEndpointing.streamP80Rms(tone, hz)
+            assertTrue(
+                "seat ${i + 1} must survive endpointing (Path B 20/20)",
+                SpeechEndpointing.isMainSpeech(tone, hz, contextP80Rms = p80),
+            )
+        }
     }
 
     @Test

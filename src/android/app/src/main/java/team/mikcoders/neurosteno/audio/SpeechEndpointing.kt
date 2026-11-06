@@ -11,24 +11,28 @@ import kotlin.math.sqrt
  * Synthetic-PCM unit tests only — not tuned on clean Common Voice.
  */
 object SpeechEndpointing {
-    /** Silero: higher than the 0.5 default so mid-confidence bleed is dropped. */
-    const val VAD_THRESHOLD = 0.65f
+    /** Slightly above Silero 0.5 so mid-confidence bleed is dropped; not so high quiet talkers die. */
+    const val VAD_THRESHOLD = 0.55f
 
-    /** End an utterance on a shorter pause; don't hold through overlap gaps. */
-    const val MIN_SILENCE_SEC = 0.45f
+    /** End an utterance on a pause; don't hold through overlap gaps. */
+    const val MIN_SILENCE_SEC = 0.35f
 
-    /** Ignore short crosstalk bursts (was 0.25 s). */
-    const val MIN_SPEECH_SEC = 0.45f
+    /** Keep overnight 0.25 s so short real turns survive (0.45 s dropped speakers). */
+    const val MIN_SPEECH_SEC = 0.25f
 
     /** Don't let overlapping mush become one 20 s decode. */
     const val MAX_SPEECH_SEC = 12f
 
     const val FRAME_MS = 20
-    const val MIN_VOICED_MS = 350
-    const val ABS_RMS_FLOOR = 0.02f
 
-    /** Segment RMS must reach this fraction of the stream's p80 RMS, else treat as bleed. */
-    const val BLEED_RELATIVE = 0.28f
+    /** Drop ~80 ms crosstalk blips; keep ≥120 ms real turns. */
+    const val MIN_VOICED_MS = 120
+
+    /** Match StreamPcmGate.RMS_REJECT_FS — do not raise or quiet Path B seats die. */
+    const val ABS_RMS_FLOOR = 0.008f
+
+    /** Crop RMS vs this stream's p80. Bleed is typically ≪ on-mic; 0.28 killed quiet speech. */
+    const val BLEED_RELATIVE = 0.12f
 
     const val TRIM_RELATIVE = 0.15f
 
