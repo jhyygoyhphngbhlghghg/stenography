@@ -151,6 +151,18 @@ Hard reject: no ASR, no brief row. Codes: `LOW_ENERGY` (RMS below 0.008 FS or pe
 
 Honest: dropping 9 quiet EDGE_noise streams cut collared DER 1.7005→1.2940; JER got worse (0.5675→0.7312) because those speakers are now misses; main WER held (s01 passed). StreamPcmGate does **not** catch EDGE_badmic (clip is 0.38 FS, not |s16|≥32760) or WORST_CASE (energy well above RMS/peak floors) — WER 1.0 / 0.91 unchanged. Do not claim clean WER/DER on WORST_CASE. Gated EDGE_noise is **11/20** speakers — the frozen 20/20 lock is the ungated baseline, not this ingest.
 
+### StreamPcmGate post-hush-fix (Implementer `b142a4d`) vs prior gated @ `3b31e24`
+
+Implementer removed pre-diar `SpeechEnergy` stream wipe; StreamPcmGate **thresholds unchanged**. Host eval never had that wipe; the 9-speaker loss was whole-file LOW_ENERGY on padded dry RMS (speech-active RMS still ≥ 0.016). `b142a4d` ingest: do not wipe the seat on padded-file LOW_ENERGY; still inspect() each ASR crop. Frozen wavs untouched. Prior `*_gated` rows @ `3b31e24` kept.
+
+| test_id | prior gated @ 3b31e24 DER / JER / WER / RTF / hyp | post-hush @ HEAD DER / JER / WER / RTF / hyp | gate |
+|---|---|---|---|
+| EDGE_noise | **1.2940** / 0.7312 / **0.1739** / 0.2656 / **11/20** | **0.7092** / 0.4395 / **0.1739** / 0.4204 / **17/20** | streams **20 passed / 0 dropped**; 62 crops skipped LOW_ENERGY |
+| EDGE_badmic | **0.6569** / 0.2863 / **1.0000** / 0.2726 / **20/20** | **0.6569** / 0.2863 / **1.0000** / 0.3729 / **20/20** | **20/0** streams; 0 crops skipped |
+| WORST_CASE | **1.2985** / 0.5981 / **0.9130** / 0.3491 / **20/20** | **1.2985** / 0.5981 / **0.9130** / 0.5201 / **20/20** | **20/0** streams; 0 crops skipped |
+
+Honest: EDGE_noise hyp **11/20 → 17/20** (closer to 20/20; 3 seats still have no surviving crop). DER 1.2940→0.7092 (crop-level LOW_ENERGY dropped HVAC FA). WER_main held 0.1739. badmic/WORST_CASE content unchanged. Do not claim clean WER/DER on WORST_CASE.
+
 #### Ablation (interpretive — no new run)
 
 Read off the frozen table above, not a new measurement. Single-factor vs CLEAN Path B (DER 0.0913 / WER_main 0.0870):

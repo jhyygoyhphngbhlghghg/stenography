@@ -23,4 +23,7 @@ H1 accepted the WORST_CASE table at `9908353`. These six Path B rows are the **f
 
 Accepted measured snapshot: `docs/TEST_RESULTS.md` (Johann hard-requirement table). Hold merge; overnight #2 still first.
 
-Harden-claim remeasures (StreamPcmGate @ dae416f / f5ff5e2) use **new** `*_gated` test_ids on the **same** frozen wavs. They do not replace the six frozen rows.
+Harden-claim remeasures use **new** test_ids on the **same** frozen wavs. They do not replace the six frozen rows.
+
+- `*_gated` @ `3b31e24` — StreamPcmGate whole-stream wipe (9 EDGE_noise LOW_ENERGY drops)
+- `*_gated_b142a4d` — no padded-file hush wipe; same thresholds; crop inspect before ASR

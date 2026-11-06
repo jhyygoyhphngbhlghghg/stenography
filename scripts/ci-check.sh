@@ -48,6 +48,11 @@ if [[ -f artifacts/eval/demo-stress/WORST_CASE_gated.json ]]; then
     artifacts/eval/demo-stress/EDGE_badmic_gated.json \
     artifacts/eval/demo-stress/WORST_CASE_gated.json
 fi
+if [[ -f artifacts/eval/demo-stress/WORST_CASE_gated_b142a4d.json ]]; then
+  python3 scripts/verify-transcript-json.py artifacts/eval/demo-stress/EDGE_noise_gated_b142a4d.json \
+    artifacts/eval/demo-stress/EDGE_badmic_gated_b142a4d.json \
+    artifacts/eval/demo-stress/WORST_CASE_gated_b142a4d.json
+fi
 
 if [[ -f src/android/local.properties ]] || [[ -n "${ANDROID_HOME:-}" ]]; then
   (cd src/android && ./gradlew :app:testStenographerDebugUnitTest :app:assembleStenographerDebug --quiet)
