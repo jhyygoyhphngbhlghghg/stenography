@@ -22,8 +22,9 @@ object PhoneDistanceEq {
     const val MAX_SHELF_DB = 9.0
     const val NEAR_IDENTITY_RMS_FS = 0.12
     const val PEAK_LIMIT = FarFieldGain.PEAK_LIMIT
-    const val SPEECH_LO_HZ = 300.0
-    const val SPEECH_HI_HZ = 3_400.0
+    /** Nothing-class speech band (johann H1): 250–4500 Hz. */
+    const val SPEECH_LO_HZ = 250.0
+    const val SPEECH_HI_HZ = 4_500.0
     const val PRESENCE_LO_HZ = 2_000.0
     const val PRESENCE_TARGET = 0.22
 
@@ -31,8 +32,8 @@ object PhoneDistanceEq {
         get() = FarFieldGain.dbToLinear(MAX_SHELF_DB)
 
     val GOERTZEL_HZ: DoubleArray = doubleArrayOf(
-        300.0, 500.0, 800.0, 1_000.0, 1_500.0, 2_000.0, 2_500.0, 3_000.0, 3_400.0,
-        4_000.0, 5_000.0, 6_000.0, 7_000.0,
+        250.0, 500.0, 800.0, 1_000.0, 1_500.0, 2_000.0, 2_500.0, 3_000.0, 3_500.0,
+        4_000.0, 4_500.0, 5_000.0, 6_000.0, 7_000.0,
     )
 
     fun apply(samples: FloatArray, sampleRateHz: Int = SAMPLE_RATE_HZ): PhoneDistanceEqResult {

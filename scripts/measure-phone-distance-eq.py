@@ -37,12 +37,12 @@ MAX_HIGH_GAIN = 10 ** (MAX_SHELF_DB / 20.0)
 NEAR_IDENTITY_RMS = 0.12
 PEAK_LIMIT = ffg.PEAK_LIMIT
 PRESENCE_TARGET = 0.22
-SPEECH_LO = 300.0
-SPEECH_HI = 3400.0
+SPEECH_LO = 250.0
+SPEECH_HI = 4500.0
 PRESENCE_LO = 2000.0
-GOERTZEL_HZ = (300, 500, 800, 1000, 1500, 2000, 2500, 3000, 3400, 4000, 5000, 6000, 7000)
-SPEECH_STACK_FREQS = (400, 800, 1200, 1600, 2000, 2400, 2800, 3200, 3600)
-SPEECH_STACK_REL = (1.0, 0.75, 0.55, 0.40, 0.32, 0.25, 0.20, 0.16, 0.12)
+GOERTZEL_HZ = (250, 500, 800, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 6000, 7000)
+SPEECH_STACK_FREQS = (250, 400, 800, 1200, 1600, 2000, 2400, 2800, 3200, 3600, 4000, 4400)
+SPEECH_STACK_REL = (0.85, 1.0, 0.75, 0.55, 0.40, 0.32, 0.25, 0.20, 0.16, 0.12, 0.10, 0.08)
 
 
 def speech_stack(n: int = N, peak: float = 0.22) -> list[float]:
@@ -80,7 +80,7 @@ def phone_distance_scene(distance_m: float, n: int = N) -> list[float]:
 
 
 def sequential_phone_mix() -> tuple[list[float], list[dict]]:
-    near = speech_stack(peak=0.28)
+    near = speech_stack(peak=0.36)
     g1 = [0.0] * ffg.GAP_N
     far5 = phone_distance_scene(5.0)
     g2 = [0.0] * ffg.GAP_N
@@ -127,8 +127,8 @@ def band_energy(xs: list[float]) -> dict:
             presence += p
     eps = 1e-18
     return {
-        "speech_300_3400": speech,
-        "presence_2000_3400": presence,
+        "speech_250_4500": speech,
+        "presence_2000_4500": presence,
         "full_goertzel": full,
         "rms": ffg.rms(xs),
         "peak": ffg.peak(xs),
@@ -256,12 +256,12 @@ def scene_row(name: str, distance_m: float, xs: list[float]) -> dict:
         "rms_after_eq": b1["rms"],
         "peak_after_gain": b0["peak"],
         "peak_after_eq": b1["peak"],
-        "speech_300_3400_before": b0["speech_300_3400"],
-        "speech_300_3400_after": b1["speech_300_3400"],
+        "speech_250_4500_before": b0["speech_250_4500"],
+        "speech_250_4500_after": b1["speech_250_4500"],
         "speech_to_full_before": b0["speech_to_full"],
         "speech_to_full_after": b1["speech_to_full"],
-        "presence_2000_3400_before": b0["presence_2000_3400"],
-        "presence_2000_3400_after": b1["presence_2000_3400"],
+        "presence_2000_4500_before": b0["presence_2000_4500"],
+        "presence_2000_4500_after": b1["presence_2000_4500"],
         "presence_to_speech_before": b0["presence_to_speech"],
         "presence_to_speech_after": b1["presence_to_speech"],
         "eq_applied": eq["applied"],
@@ -298,12 +298,12 @@ def main() -> int:
                 "rms_after_eq": b1["rms"],
                 "peak_raw": ffg.peak(sl0),
                 "peak_after_eq": b1["peak"],
-                "speech_300_3400_before": b0["speech_300_3400"],
-                "speech_300_3400_after": b1["speech_300_3400"],
+                "speech_250_4500_before": b0["speech_250_4500"],
+                "speech_250_4500_after": b1["speech_250_4500"],
                 "speech_to_full_before": b0["speech_to_full"],
                 "speech_to_full_after": b1["speech_to_full"],
-                "presence_2000_3400_before": b0["presence_2000_3400"],
-                "presence_2000_3400_after": b1["presence_2000_3400"],
+                "presence_2000_4500_before": b0["presence_2000_4500"],
+                "presence_2000_4500_after": b1["presence_2000_4500"],
                 "attenuated": b1["rms"] + 1e-6 < ffg.rms(sl0) and t["name"].startswith("near_"),
                 "eq_identity": abs(b1["rms"] - b0["rms"]) < 1e-9
                 and abs(b1["peak"] - b0["peak"]) < 1e-9,
@@ -316,7 +316,7 @@ def main() -> int:
         if t["name"].startswith("near_")
     )
     far_lifted = all(
-        t["speech_300_3400_after"] > t["speech_300_3400_before"]
+        t["speech_250_4500_after"] > t["speech_250_4500_before"]
         for t in mix_turns
         if t["name"].startswith("far_")
     )
@@ -359,7 +359,7 @@ def main() -> int:
     for r in rows:
         print(
             f"{r['name']:<16} {r['rms_after_gain']:8.4f} {r['rms_after_eq']:8.4f} "
-            f"{r['speech_300_3400_before']:12.3e} {r['speech_300_3400_after']:12.3e} "
+            f"{r['speech_250_4500_before']:12.3e} {r['speech_250_4500_after']:12.3e} "
             f"{r['speech_to_full_before']:8.3f} {r['speech_to_full_after']:8.3f}",
             file=sys.stderr,
         )
@@ -368,7 +368,7 @@ def main() -> int:
         print(
             f"{t['name']:<10} rms {t['rms_raw']:.4f}->{t['rms_after_eq']:.4f} "
             f"peak {t['peak_raw']:.4f}->{t['peak_after_eq']:.4f} "
-            f"speech {t['speech_300_3400_before']:.3e}->{t['speech_300_3400_after']:.3e} "
+            f"speech {t['speech_250_4500_before']:.3e}->{t['speech_250_4500_after']:.3e} "
             f"id={t['eq_identity']}",
             file=sys.stderr,
         )
