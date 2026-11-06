@@ -48,7 +48,7 @@ Checkpoint polling (clients follow presenter) lives on the **web BE**, not in th
 
 | Слой | Решение | Зачем |
 |---|---|---|
-| UI | Kotlin + Jetpack Compose, minSdk 26 | Требование кейса; UI намеренно минимальный |
+| UI | Kotlin + Jetpack Compose, minSdk 28 | Brief 26–28; sherpa Java demo / AAR path uses 28 |
 | Flavors | `stenographer` / `presentConnect` | Один код, флаг `BuildConfig.PRESENT_CONNECT` |
 | Runtime | sherpa-onnx (JitPack AAR / JNI) | ASR + VAD + diarization в одном runtime |
 | ASR primary | Zipformer-ru int8 (~74 MB listing) | RU-first, мобильный размер |
@@ -68,7 +68,7 @@ Checkpoint polling (clients follow presenter) lives on the **web BE**, not in th
 - AndroidX Compose / Material3 / Activity / DocumentFile
 - kotlinx.serialization (JSON)
 - OkHttp (только PresentConnect / опциональный download)
-- sherpa-onnx Android AAR (`com.github.k2-fsa.sherpa-onnx:sherpa-onnx`)
+- sherpa-onnx Android AAR from GitHub Releases v1.13.5 (JitPack `v2.0.1` unpublished; `scripts/fetch-sherpa-aar.sh`)
 - (emergency) Vosk Android — подключается только если primary/backup недоступны
 
 Явно **не** используем: Picovoice (AccessKey), whisper.cpp как primary, OEM `SpeechRecognizer`, облачные SpeechKit/Whisper API.
