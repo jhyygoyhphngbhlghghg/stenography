@@ -1,0 +1,339 @@
+{
+  "wav": "/agent/repos/neuro-stenographer/samples/demo-stress/stage6/DEMO_STAGE6.wav",
+  "wall_ms": 3765,
+  "duration_ms": 39718,
+  "num_clusters": 6,
+  "cluster_threshold": 0.5,
+  "min_duration_on": 0.15,
+  "min_duration_off": 0.3,
+  "skip_asr": false,
+  "n_segments": 5,
+  "n_hyp_speakers": 5,
+  "stack": "linux-sherpa-onnx-python Zipformer-ru + OfflineSpeakerDiarization; Platform FarFieldGain per-turn @ db3afe4 (quiet islands → 0.08 FS, near 0 dB, no crush)",
+  "sherpa_onnx": "2.0.1",
+  "models": {
+    "encoder": "/agent/repos/neuro-stenographer/models/asr/zipformer-ru-int8/encoder.int8.onnx",
+    "decoder": "/agent/repos/neuro-stenographer/models/asr/zipformer-ru-int8/decoder.onnx",
+    "joiner": "/agent/repos/neuro-stenographer/models/asr/zipformer-ru-int8/joiner.int8.onnx",
+    "tokens": "/agent/repos/neuro-stenographer/models/asr/zipformer-ru-int8/tokens.txt",
+    "segmentation": "/agent/repos/neuro-stenographer/models/diar/segmentation.onnx",
+    "embedding": "/agent/repos/neuro-stenographer/models/diar/embedding.onnx"
+  },
+  "no_kvm_adb": true,
+  "farfield_gain": true,
+  "farfield_per_turn": true,
+  "farfield": {
+    "platform": "db3afe4 / ae86903 FarFieldGain per-turn + DemoPcmPrep",
+    "mode": "per_turn",
+    "per_turn": true,
+    "skip_asr": false,
+    "skip_code": null,
+    "gain_db": 16.545785177788233,
+    "gain_linear": 6.718762025128157,
+    "rms_before": 0.11911195935993976,
+    "rms_after": 0.11916486134111759,
+    "peak_before": 0.88995361328125,
+    "peak_after": 0.88995361328125,
+    "clip_guard": false,
+    "boosted": true,
+    "loud_crushed": false,
+    "n_segments": 34,
+    "vad_fire_before": 1.0,
+    "vad_fire_after": 1.0,
+    "segments": [
+      {
+        "start": 0,
+        "end": 1280,
+        "rms_before": 0.011906955433277761,
+        "rms_after": 0.07999999869448901,
+        "gain_db": 16.545785177788233,
+        "boosted": true
+      },
+      {
+        "start": 15680,
+        "end": 24320,
+        "rms_before": 0.2921142888571723,
+        "rms_after": 0.2921142888571723,
+        "gain_db": 0.0,
+        "boosted": false
+      },
+      {
+        "start": 31040,
+        "end": 37760,
+        "rms_before": 0.25915051439735554,
+        "rms_after": 0.25915051439735554,
+        "gain_db": 0.0,
+        "boosted": false
+      },
+      {
+        "start": 38720,
+        "end": 44480,
+        "rms_before": 0.2854628963414229,
+        "rms_after": 0.2854628963414229,
+        "gain_db": 0.0,
+        "boosted": false
+      },
+      {
+        "start": 46400,
+        "end": 47680,
+        "rms_before": 0.18116182509066306,
+        "rms_after": 0.18116182509066306,
+        "gain_db": 0.0,
+        "boosted": false
+      },
+      {
+        "start": 56320,
+        "end": 58240,
+        "rms_before": 0.21605468885760148,
+        "rms_after": 0.21605468885760148,
+        "gain_db": 0.0,
+        "boosted": false
+      },
+      {
+        "start": 73600,
+        "end": 74880,
+        "rms_before": 0.220678767750828,
+        "rms_after": 0.220678767750828,
+        "gain_db": 0.0,
+        "boosted": false
+      },
+      {
+        "start": 76800,
+        "end": 78400,
+        "rms_before": 0.1821020543963493,
+        "rms_after": 0.1821020543963493,
+        "gain_db": 0.0,
+        "boosted": false
+      },
+      {
+        "start": 120640,
+        "end": 122560,
+        "rms_before": 0.22241255695352594,
+        "rms_after": 0.22241255695352594,
+        "gain_db": 0.0,
+        "boosted": false
+      },
+      {
+        "start": 125440,
+        "end": 130240,
+        "rms_before": 0.3032139618626475,
+        "rms_after": 0.3032139618626475,
+        "gain_db": 0.0,
+        "boosted": false
+      },
+      {
+        "start": 161920,
+        "end": 164160,
+        "rms_before": 0.2348394430443404,
+        "rms_after": 0.2348394430443404,
+        "gain_db": 0.0,
+        "boosted": false
+      },
+      {
+        "start": 175680,
+        "end": 176960,
+        "rms_before": 0.2017986388795474,
+        "rms_after": 0.2017986388795474,
+        "gain_db": 0.0,
+        "boosted": false
+      },
+      {
+        "start": 192960,
+        "end": 195200,
+        "rms_before": 0.24532103155758495,
+        "rms_after": 0.24532103155758495,
+        "gain_db": 0.0,
+        "boosted": false
+      },
+      {
+        "start": 208640,
+        "end": 209920,
+        "rms_before": 0.2005573881639212,
+        "rms_after": 0.2005573881639212,
+        "gain_db": 0.0,
+        "boosted": false
+      },
+      {
+        "start": 228160,
+        "end": 229440,
+        "rms_before": 0.2060380735856345,
+        "rms_after": 0.2060380735856345,
+        "gain_db": 0.0,
+        "boosted": false
+      },
+      {
+        "start": 270080,
+        "end": 271360,
+        "rms_before": 0.1804104972835861,
+        "rms_after": 0.1804104972835861,
+        "gain_db": 0.0,
+        "boosted": false
+      },
+      {
+        "start": 273280,
+        "end": 275840,
+        "rms_before": 0.2692934468271023,
+        "rms_after": 0.2692934468271023,
+        "gain_db": 0.0,
+        "boosted": false
+      },
+      {
+        "start": 283520,
+        "end": 285440,
+        "rms_before": 0.20714233249783054,
+        "rms_after": 0.20714233249783054,
+        "gain_db": 0.0,
+        "boosted": false
+      },
+      {
+        "start": 286400,
+        "end": 288000,
+        "rms_before": 0.1898084906380728,
+        "rms_after": 0.1898084906380728,
+        "gain_db": 0.0,
+        "boosted": false
+      },
+      {
+        "start": 290880,
+        "end": 293440,
+        "rms_before": 0.2043669709877184,
+        "rms_after": 0.2043669709877184,
+        "gain_db": 0.0,
+        "boosted": false
+      },
+      {
+        "start": 298240,
+        "end": 299520,
+        "rms_before": 0.1797612621897145,
+        "rms_after": 0.1797612621897145,
+        "gain_db": 0.0,
+        "boosted": false
+      },
+      {
+        "start": 308160,
+        "end": 311040,
+        "rms_before": 0.1843235302808456,
+        "rms_after": 0.1843235302808456,
+        "gain_db": 0.0,
+        "boosted": false
+      },
+      {
+        "start": 318720,
+        "end": 321600,
+        "rms_before": 0.18646943914985753,
+        "rms_after": 0.18646943914985753,
+        "gain_db": 0.0,
+        "boosted": false
+      },
+      {
+        "start": 322560,
+        "end": 324480,
+        "rms_before": 0.18810035570113423,
+        "rms_after": 0.18810035570113423,
+        "gain_db": 0.0,
+        "boosted": false
+      },
+      {
+        "start": 387840,
+        "end": 389440,
+        "rms_before": 0.19497880396384917,
+        "rms_after": 0.19497880396384917,
+        "gain_db": 0.0,
+        "boosted": false
+      },
+      {
+        "start": 395520,
+        "end": 401280,
+        "rms_before": 0.2821535511760087,
+        "rms_after": 0.2821535511760087,
+        "gain_db": 0.0,
+        "boosted": false
+      },
+      {
+        "start": 404160,
+        "end": 407040,
+        "rms_before": 0.18786478886796953,
+        "rms_after": 0.18786478886796953,
+        "gain_db": 0.0,
+        "boosted": false
+      },
+      {
+        "start": 408960,
+        "end": 411200,
+        "rms_before": 0.17739402073903998,
+        "rms_after": 0.17739402073903998,
+        "gain_db": 0.0,
+        "boosted": false
+      },
+      {
+        "start": 423040,
+        "end": 424320,
+        "rms_before": 0.24185489868570173,
+        "rms_after": 0.24185489868570173,
+        "gain_db": 0.0,
+        "boosted": false
+      },
+      {
+        "start": 429120,
+        "end": 431680,
+        "rms_before": 0.19332207024838433,
+        "rms_after": 0.19332207024838433,
+        "gain_db": 0.0,
+        "boosted": false
+      },
+      {
+        "start": 473920,
+        "end": 478720,
+        "rms_before": 0.29379435727803127,
+        "rms_after": 0.29379435727803127,
+        "gain_db": 0.0,
+        "boosted": false
+      },
+      {
+        "start": 481600,
+        "end": 484160,
+        "rms_before": 0.2110004317642468,
+        "rms_after": 0.2110004317642468,
+        "gain_db": 0.0,
+        "boosted": false
+      },
+      {
+        "start": 564480,
+        "end": 565760,
+        "rms_before": 0.26866259701681516,
+        "rms_after": 0.26866259701681516,
+        "gain_db": 0.0,
+        "boosted": false
+      },
+      {
+        "start": 574400,
+        "end": 576320,
+        "rms_before": 0.15317905995225725,
+        "rms_after": 0.15317905995225725,
+        "gain_db": 0.0,
+        "boosted": false
+      }
+    ],
+    "raw_gate": {
+      "verdict": "Pass",
+      "code": null,
+      "soft_flags": [
+        "BAND_LIMITED"
+      ],
+      "asr_allowed": true,
+      "rms_fs": 0.1191108060794355,
+      "n": 635488
+    },
+    "after_gate": {
+      "verdict": "Pass",
+      "code": null,
+      "soft_flags": [
+        "BAND_LIMITED"
+      ],
+      "asr_allowed": true,
+      "rms_fs": 0.11916370518832928,
+      "n": 635488
+    }
+  },
+  "rtf": 0.0947932927136311
+}
