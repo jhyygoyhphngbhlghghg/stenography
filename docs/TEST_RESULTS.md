@@ -74,22 +74,31 @@ Same **frozen** wav/gold as baseline @ `a8b39d5a`. Host ingest mirrors Platform 
 
 Measured ingest on this mix: RMS **0.1191 → 0.0800** (**−3.46 dB**, `boosted=false`) because the frozen room mix already sat **above** the 0.08 target (peak 0.89). Energy-VAD fire 1.000 → 0.977. Whole-file AGC cannot lift 5–6 m seats relative to the 3 m talker here. Synth 5–6 m VAD 0→1 still holds on Platform sine scenes (`artifacts/test-results/farfield-gain.json`).
 
-| speaker | m | baseline WER @ a8b39d5a | ffgain WER post-b66581c |
-|---|---|---|---|
-| speaker_1 | 3.0 | **0.0000** | **0.0000** |
-| speaker_2 | 3.6 | **0.5455** | **0.3636** |
-| speaker_3 | 4.2 | **1.0000** | **1.0000** |
-| speaker_4 | 4.8 | **1.0000** | **1.0000** |
-| speaker_5 | 5.4 | **1.0000** (missing) | **1.0000** (missing) |
-| speaker_6 | 6.0 | **1.0000** | **1.0000** |
-| **aggregate** | — | **0.7321** (41/56) | **0.6964** (39/56) |
+| speaker | m | baseline @ a8b39d5a | ffgain @ e0e64b85 | perturn @ db3afe4 |
+|---|---|---|---|---|
+| speaker_1 | 3.0 | **0.0000** | **0.0000** | **0.0000** |
+| speaker_2 | 3.6 | **0.5455** | **0.3636** | **0.5455** |
+| speaker_3 | 4.2 | **1.0000** | **1.0000** | **1.0000** |
+| speaker_4 | 4.8 | **1.0000** | **1.0000** | **1.0000** |
+| speaker_5 | 5.4 | **1.0000** (missing) | **1.0000** (missing) | **1.0000** (missing) |
+| speaker_6 | 6.0 | **1.0000** | **1.0000** | **1.0000** |
+| **aggregate** | — | **0.7321** (41/56) | **0.6964** (39/56) | **0.7321** (41/56) |
 
 | test_id | DER | JER | WER_agg | RTF | hyp/ref |
 |---|---|---|---|---|---|
 | DEMO_STAGE6 (baseline @ a8b39d5a) | **0.5174** | **0.6280** | **0.7321** | **0.0929** | **5 / 6** |
-| DEMO_STAGE6_ffgain (Platform @ b66581c) | **0.5174** | **0.6280** | **0.6964** | **0.0951** | **5 / 6** |
+| DEMO_STAGE6_ffgain (whole-file @ e0e64b85) | **0.5174** | **0.6280** | **0.6964** | **0.0951** | **5 / 6** |
+| DEMO_STAGE6_perturn (per-turn @ db3afe4) | **0.5231** | **0.6330** | **0.7321** | **0.0948** | **5 / 6** |
 
-Honest: diarization **unchanged** (same 5 segments, speaker_5 still missing). 4–6 m still WER 1.0. Tiny speaker_2 ASR delta only. Do **not** claim far-field gain recovered the room. Do **not** cite WER_main 0 as the room result. Lock still: ideal only at 3 m on baseline.
+Honest: diarization **unchanged** on ffgain (same 5 segments, speaker_5 still missing). 4–6 m still WER 1.0. Tiny speaker_2 ASR delta on whole-file AGC only. Do **not** claim far-field gain recovered the room. Do **not** cite WER_main 0 as the room result. Lock still: ideal only at 3 m on baseline.
+
+### DEMO_STAGE6_perturn — Platform per-turn @ `db3afe4`
+
+Same **frozen** wav/gold. Host ingest mirrors `FarFieldGain.stagePerSegment` (`ae86903` / `db3afe4`): quiet energy windows independently target 0.08 FS (max +24 dB, peak 0.95); loud turns stay **0 dB** (never crush). CLIPPED/BAD_MIC/empty still hard. Soft-flag only.
+
+On Platform **synth** sequential mix: near 3 m 0 dB; far 5 m **+16.8 dB**; far 6 m **+18.2 dB**; whole-file AGC would have been −3.55 dB. On this **frozen STAGE6 mix**, 34 energy islands: **33 already ≥ 0.08 FS → 0 dB**; only the 80 ms lead-in got **+16.55 dB**. Mix RMS 0.1191 → 0.1192, `loud_crushed=false`. Far seats on this fixture are not the quiet 0.01 FS sine scenes.
+
+Measured: WER_agg **0.7321** (same as baseline), DER **0.5231** / JER **0.6330** (slightly worse than 0.5174 / 0.6280), hyp **5 / 6**, speaker_5 still missing, 4–6 m still WER 1.0. **Gain did not recover the room.**
 
 ## Demo-stress (20 talkers) — SECONDARY regression, host Linux only
 
