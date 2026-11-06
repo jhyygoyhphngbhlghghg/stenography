@@ -2,81 +2,71 @@ package team.mikcoders.neurosteno.present
 
 import java.util.Locale
 import kotlin.math.abs
+import kotlin.math.cos
+import kotlin.math.exp
 import kotlin.math.log10
 import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.math.sqrt
 
 /**
- * Path B pre-ASR gate: energy + mic-quality on **one stream's** pcm_s16le only.
+ * Path B pre-ASR gate: energy + mic-quality + spectral crush on **one stream's** pcm_s16le.
  *
- * Silero VAD in [team.mikcoders.neurosteno.pipeline.SherpaStenoPipeline] needs JNI +
- * `silero_vad.onnx` and runs *after* we already decided to ASR. This gate is
- * pure Kotlin so JVM tests and stub workers can reject noise/bad-mic **before**
- * ASR (cuts noise-only false alarms that inflate DER).
+ * Bound known seats (`s01`..`s20` after `bindStart`): near / below the RMS floor is
+ * **SOFT_LOW** — still ASR. Hard `LOW_ENERGY` only for unbound/anonymous streams or
+ * a true empty buffer (`n == 0`).
  *
- * Thresholds from `python3 scripts/measure-stream-pcm-gate.py` (16 kHz, FS=32768):
- * silence RMS 0; tiny_noise RMS 6.11e-5 (−84.3 dBFS); low-peak tone 0.00283
- * (−51.0 dBFS); clean 1 kHz −20 dBpeak RMS 0.0707 (−23.0 dBFS); clipped square
- * clip_ratio 1.0; stuck/extreme DC variance 0 with |dc| 0.24 / 0.61 FS.
+ * Phone-mic crush often has no hard clip / DC: Goertzel HF/speech occupancy →
+ * `BAND_LIMITED` (skip ASR). Thresholds: `python3 scripts/measure-stream-pcm-gate.py`.
  */
 object StreamPcmGate {
     const val SAMPLE_RATE_HZ = 16_000
-    /** Full-scale divisor for s16 → FS fraction. */
     const val FULL_SCALE = 32768.0
-
-    /** |s16| ≥ this counts as clipped (7 counts from 32767). */
     const val CLIP_S16 = 32_760
 
-    /**
-     * Reject RMS below this (FS fraction). 0.008 ≈ −41.94 dBFS.
-     * Measured gap: tiny_noise −84 dBFS / low-peak −51 dBFS vs clean −23 dBFS.
-     */
+    /** Unbound-only hard RMS floor. 0.008 ≈ −41.94 dBFS. */
     const val RMS_REJECT_FS = 0.008
 
-    /** Soft-low band (still ASR): 0.008 .. 0.020 FS (−42 .. −34 dBFS). */
+    /** Soft-low (still ASR): below 0.020 FS (−34 dBFS), including bound seats under RMS_REJECT. */
     const val RMS_SOFT_FS = 0.020
 
-    /** Reject if peak < this (FS). 0.012 ≈ −38.4 dBFS. Clean peak 0.10. */
     const val PEAK_REJECT_FS = 0.012
-
-    /** Hard clip: ≥2% of samples at full scale (square measures 1.0). */
     const val CLIP_REJECT = 0.02
-
-    /** Soft clip (still ASR). */
     const val CLIP_SOFT = 0.002
-
-    /** Extreme DC (FS). Stuck 8000/32768 = 0.244; extreme 20000/32768 = 0.610. */
     const val DC_REJECT_FS = 0.20
-
     const val DC_SOFT_FS = 0.05
-
-    /** Near-zero AC energy (stuck mic). Tiny noise variance is 3.7e-9 but peak ≪ PEAK_REJECT. */
     const val STUCK_VARIANCE_FS = 1e-7
-
-    /** 50 ms @ 16 kHz. Shorter buffers are not speech. */
     const val MIN_SAMPLES = 800
-
     const val SNR_EPS = 1e-12
 
-    fun inspect(pcmS16le: ByteArray, sampleRateHz: Int = SAMPLE_RATE_HZ): StreamPcmStats {
+    /**
+     * Goertzel bins @ 16 kHz (same as the measure script). Speech 250–3500 Hz;
+     * HF 4000–7000 Hz. Occupancy = bins > 5% of peak-bin power.
+     *
+     * Measured: broadband_stack hf_ratio 0.400 occ_hf 2; phone_crush_stack
+     * hf_ratio 0 occ_speech 3 occ_hf 0; phone_crush_lpf hf_ratio 0.008
+     * occ_speech 2 occ_hf 0; clean 1 kHz occ_speech 1 (not crush).
+     */
+    val GOERTZEL_HZ: DoubleArray = doubleArrayOf(
+        250.0, 500.0, 750.0, 1000.0, 1500.0, 2000.0, 2500.0, 3000.0, 3500.0,
+        4000.0, 5000.0, 6000.0, 7000.0,
+    )
+    const val SPEECH_BANDS = 9
+    const val OCCUPANCY_FRAC = 0.05
+    const val BAND_LIMITED_HF_RATIO = 0.08
+    const val BAND_LIMITED_SPEECH_OCC = 2
+    const val BAND_LIMITED_HF_OCC = 0
+
+    fun inspect(
+        pcmS16le: ByteArray,
+        sampleRateHz: Int = SAMPLE_RATE_HZ,
+        boundSeat: Boolean = false,
+    ): StreamPcmStats {
         val n = pcmS16le.size / 2
         if (n <= 0) {
-            return StreamPcmStats(
-                n = 0,
-                durationMs = 0.0,
-                rmsFs = 0.0,
-                rmsDbfs = Double.NEGATIVE_INFINITY,
-                peakFs = 0.0,
-                dcFs = 0.0,
-                varianceFs = 0.0,
-                acRmsFs = 0.0,
-                clipRatio = 0.0,
-                snrProxy = 0.0,
-                verdict = StreamGateVerdict.Reject(PresentConnectCodes.LOW_ENERGY, "empty pcm"),
-                softFlags = emptyList(),
-            )
+            return emptyStats()
         }
+        val xs = DoubleArray(n)
         var sum = 0.0
         var sumSq = 0.0
         var peakAbs = 0
@@ -87,6 +77,7 @@ object StreamPcmGate {
             val lo = pcmS16le[i].toInt() and 0xff
             val hi = pcmS16le[i + 1].toInt()
             val s = ((hi shl 8) or lo).toShort().toInt()
+            xs[o] = s / FULL_SCALE
             val a = abs(s)
             if (a > peakAbs) peakAbs = a
             if (a >= CLIP_S16) clip++
@@ -100,8 +91,8 @@ object StreamPcmGate {
         val peakFs = peakAbs / FULL_SCALE
         val mean = sum / n
         var varAcc = 0.0
-        i = 0
         o = 0
+        i = 0
         while (o < n) {
             val lo = pcmS16le[i].toInt() and 0xff
             val hi = pcmS16le[i + 1].toInt()
@@ -116,6 +107,7 @@ object StreamPcmGate {
         val clipRatio = clip.toDouble() / n
         val rmsDbfs = if (rmsFs > 0.0) 20.0 * log10(rmsFs) else Double.NEGATIVE_INFINITY
         val snrProxy = acRmsFs / (abs(dcFs) + SNR_EPS)
+        val bands = if (n >= MIN_SAMPLES) bandEnergy(xs, sampleRateHz) else BandEnergy.NONE
         val durationMs = 1000.0 * n / sampleRateHz
         val (verdict, soft) = decide(
             n = n,
@@ -124,6 +116,8 @@ object StreamPcmGate {
             dcFs = dcFs,
             varianceFs = varianceFs,
             clipRatio = clipRatio,
+            bands = bands,
+            boundSeat = boundSeat,
         )
         return StreamPcmStats(
             n = n,
@@ -136,10 +130,32 @@ object StreamPcmGate {
             acRmsFs = acRmsFs,
             clipRatio = clipRatio,
             snrProxy = snrProxy,
+            hfRatio = bands.hfRatio,
+            speechOccupancy = bands.speechOccupancy,
+            hfOccupancy = bands.hfOccupancy,
             verdict = verdict,
             softFlags = soft,
         )
     }
+
+    private fun emptyStats(): StreamPcmStats =
+        StreamPcmStats(
+            n = 0,
+            durationMs = 0.0,
+            rmsFs = 0.0,
+            rmsDbfs = Double.NEGATIVE_INFINITY,
+            peakFs = 0.0,
+            dcFs = 0.0,
+            varianceFs = 0.0,
+            acRmsFs = 0.0,
+            clipRatio = 0.0,
+            snrProxy = 0.0,
+            hfRatio = 0.0,
+            speechOccupancy = 0,
+            hfOccupancy = 0,
+            verdict = StreamGateVerdict.Reject(PresentConnectCodes.LOW_ENERGY, "empty pcm"),
+            softFlags = emptyList(),
+        )
 
     private fun decide(
         n: Int,
@@ -148,13 +164,9 @@ object StreamPcmGate {
         dcFs: Double,
         varianceFs: Double,
         clipRatio: Double,
+        bands: BandEnergy,
+        boundSeat: Boolean,
     ): Pair<StreamGateVerdict, List<String>> {
-        if (n < MIN_SAMPLES) {
-            return StreamGateVerdict.Reject(
-                PresentConnectCodes.LOW_ENERGY,
-                "buffer < ${MIN_SAMPLES} samples (${n})",
-            ) to emptyList()
-        }
         if (clipRatio >= CLIP_REJECT) {
             return StreamGateVerdict.Reject(
                 PresentConnectCodes.CLIPPED,
@@ -168,17 +180,93 @@ object StreamPcmGate {
                 "dc_fs=${"%.3f".format(Locale.US, dcFs)} variance_fs=${"%.3g".format(Locale.US, varianceFs)}",
             ) to emptyList()
         }
-        if (rmsFs < RMS_REJECT_FS || peakFs < PEAK_REJECT_FS) {
+        if (n >= MIN_SAMPLES && isBandLimited(rmsFs, bands)) {
             return StreamGateVerdict.Reject(
-                PresentConnectCodes.LOW_ENERGY,
-                "rms_fs=${"%.5f".format(Locale.US, rmsFs)} peak_fs=${"%.5f".format(Locale.US, peakFs)}",
+                PresentConnectCodes.BAND_LIMITED,
+                "hf_ratio=${"%.4f".format(Locale.US, bands.hfRatio)} occ_speech=${bands.speechOccupancy} occ_hf=${bands.hfOccupancy}",
             ) to emptyList()
         }
-        val soft = ArrayList<String>(3)
+        val belowFloor = n < MIN_SAMPLES || rmsFs < RMS_REJECT_FS || peakFs < PEAK_REJECT_FS
+        if (belowFloor && !boundSeat) {
+            return StreamGateVerdict.Reject(
+                PresentConnectCodes.LOW_ENERGY,
+                "rms_fs=${"%.5f".format(Locale.US, rmsFs)} peak_fs=${"%.5f".format(Locale.US, peakFs)} n=$n unbound",
+            ) to emptyList()
+        }
+        val soft = ArrayList<String>(4)
         if (clipRatio >= CLIP_SOFT) soft += "SOFT_CLIP"
-        if (rmsFs < RMS_SOFT_FS) soft += "SOFT_LOW"
+        if (belowFloor || rmsFs < RMS_SOFT_FS) soft += "SOFT_LOW"
         if (abs(dcFs) >= DC_SOFT_FS) soft += "SOFT_DC"
         return StreamGateVerdict.Pass to soft
+    }
+
+    private fun isBandLimited(rmsFs: Double, bands: BandEnergy): Boolean {
+        if (rmsFs < RMS_SOFT_FS) return false
+        return bands.hfRatio < BAND_LIMITED_HF_RATIO &&
+            bands.speechOccupancy >= BAND_LIMITED_SPEECH_OCC &&
+            bands.hfOccupancy <= BAND_LIMITED_HF_OCC
+    }
+
+    private fun bandEnergy(xs: DoubleArray, sampleRateHz: Int): BandEnergy {
+        val powers = DoubleArray(GOERTZEL_HZ.size)
+        var total = 0.0
+        var peakP = 0.0
+        var i = 0
+        while (i < GOERTZEL_HZ.size) {
+            val p = goertzelPower(xs, GOERTZEL_HZ[i], sampleRateHz)
+            powers[i] = p
+            total += p
+            if (p > peakP) peakP = p
+            i++
+        }
+        val thresh = OCCUPANCY_FRAC * peakP
+        var occSpeech = 0
+        var occHf = 0
+        var speech = 0.0
+        var hf = 0.0
+        i = 0
+        while (i < SPEECH_BANDS) {
+            speech += powers[i]
+            if (powers[i] > thresh) occSpeech++
+            i++
+        }
+        while (i < powers.size) {
+            hf += powers[i]
+            if (powers[i] > thresh) occHf++
+            i++
+        }
+        return BandEnergy(
+            hfRatio = hf / (total + SNR_EPS),
+            speechRatio = speech / (total + SNR_EPS),
+            speechOccupancy = occSpeech,
+            hfOccupancy = occHf,
+        )
+    }
+
+    private fun goertzelPower(samples: DoubleArray, freq: Double, sr: Int): Double {
+        val w = 2.0 * Math.PI * freq / sr
+        val coeff = 2.0 * cos(w)
+        var s1 = 0.0
+        var s2 = 0.0
+        var i = 0
+        while (i < samples.size) {
+            val s0 = samples[i] + coeff * s1 - s2
+            s2 = s1
+            s1 = s0
+            i++
+        }
+        return s1 * s1 + s2 * s2 - coeff * s1 * s2
+    }
+
+    private data class BandEnergy(
+        val hfRatio: Double,
+        val speechRatio: Double,
+        val speechOccupancy: Int,
+        val hfOccupancy: Int,
+    ) {
+        companion object {
+            val NONE = BandEnergy(0.0, 0.0, 0, 0)
+        }
     }
 }
 
@@ -192,8 +280,10 @@ data class StreamPcmStats(
     val varianceFs: Double,
     val acRmsFs: Double,
     val clipRatio: Double,
-    /** AC-RMS / (|DC| + eps); ~0 on stuck DC, large on zero-mean speech/tone. */
     val snrProxy: Double,
+    val hfRatio: Double,
+    val speechOccupancy: Int,
+    val hfOccupancy: Int,
     val verdict: StreamGateVerdict,
     val softFlags: List<String>,
 ) {
@@ -216,9 +306,14 @@ data class StreamMicFlag(
     val flags: List<String> = emptyList(),
 )
 
-/** Synthetic pcm_s16le used by JVM tests; same generators as scripts/measure-stream-pcm-gate.py. */
+/** Synthetic pcm_s16le; same generators as scripts/measure-stream-pcm-gate.py. */
 object StreamPcmSynth {
+    val BROADBAND_HZ: DoubleArray = doubleArrayOf(400.0, 1000.0, 2000.0, 3500.0, 5000.0, 7000.0)
+    val PHONE_HZ: DoubleArray = doubleArrayOf(400.0, 1000.0, 2000.0, 3000.0)
+
     fun silence(n: Int = 6_400): ByteArray = shortsToS16le(ShortArray(n))
+
+    fun empty(): ByteArray = ByteArray(0)
 
     fun tinyNoise(n: Int = 6_400, seed: Int = 1): ByteArray {
         var state = seed.toLong() and 0xFFFFFFFFL
@@ -268,6 +363,56 @@ object StreamPcmSynth {
         return shortsToS16le(s)
     }
 
+    fun toneStack(
+        freqs: DoubleArray,
+        amplitude: Double = 0.08,
+        n: Int = 6_400,
+        sampleRateHz: Int = StreamPcmGate.SAMPLE_RATE_HZ,
+    ): ByteArray {
+        val xs = DoubleArray(n)
+        val twoPi = 2.0 * Math.PI
+        for (hz in freqs) {
+            var i = 0
+            while (i < n) {
+                xs[i] += amplitude * sin(twoPi * hz * i / sampleRateHz)
+                i++
+            }
+        }
+        return floatsToS16le(xs)
+    }
+
+    fun phoneCrushLpf(
+        freqs: DoubleArray = BROADBAND_HZ,
+        amplitude: Double = 0.08,
+        fc: Double = 2400.0,
+        stages: Int = 4,
+        n: Int = 6_400,
+        sampleRateHz: Int = StreamPcmGate.SAMPLE_RATE_HZ,
+    ): ByteArray {
+        val xs = DoubleArray(n)
+        val twoPi = 2.0 * Math.PI
+        for (hz in freqs) {
+            var i = 0
+            while (i < n) {
+                xs[i] += amplitude * sin(twoPi * hz * i / sampleRateHz)
+                i++
+            }
+        }
+        val a = 1.0 - exp(-twoPi * fc / sampleRateHz)
+        var stage = 0
+        while (stage < stages) {
+            var y = 0.0
+            var i = 0
+            while (i < n) {
+                y += a * (xs[i] - y)
+                xs[i] = y
+                i++
+            }
+            stage++
+        }
+        return floatsToS16le(xs)
+    }
+
     fun shortsToS16le(samples: ShortArray): ByteArray {
         val out = ByteArray(samples.size * 2)
         var i = 0
@@ -280,5 +425,15 @@ object StreamPcmSynth {
             o += 2
         }
         return out
+    }
+
+    private fun floatsToS16le(xs: DoubleArray): ByteArray {
+        val s = ShortArray(xs.size)
+        var i = 0
+        while (i < xs.size) {
+            s[i] = (xs[i] * 32767.0).roundToInt().coerceIn(-32767, 32767).toShort()
+            i++
+        }
+        return shortsToS16le(s)
     }
 }
