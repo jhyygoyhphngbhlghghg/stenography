@@ -17,6 +17,8 @@
 
 Студийную подмену сцены не заявлять. Запрещены «should be fine», «robust», «handles noisy rooms», «graceful under echo». Фикстуры не подкручивали.
 
+**SCORING LOCK** (H1, Mikhail Grigorev / Hex.Team). Пунктуация входит в WER. Запятые следуют **интонации говорящего** (gold), не «лучшей» орфографии и не редакторской правке. **е/ё** для скоринга нормализуются (различие игнорируется). Заявка: совпадаем с **произнесённой** пунктуацией / интонацией. Орфографическая перепись учебником — не gold и не цель оценки. Локальная LLM (требование ТЗ) может чистить только внутри этого правила. Не описывать её как перепись к учебной пунктуации против spoken gold.
+
 Path A (one-room cocktail ≥20 говорящих в один поток → 1) — measured FAIL (**1/20**, DER **0.95**, main WER **1.00**, RTF **0.18**). Не демо.
 
 **Path B PresentConnect** (≤20 отдельных потоков, `speaker_id` ← `stream_id`) — **опциональный** сетевой режим, не заявка презентации. Контракт: `docs/PRESENT_CONNECT.md`. Измеренные цифры Path B — в следующем разделе и в `docs/LIMITATIONS.md`.
@@ -82,7 +84,7 @@ Audio (SAF import / AudioRecord)
   ASR per (speaker, t0, t1)    # Zipformer-ru int8 primary
         │                      # Whisper tiny backup; Vosk emergency
         ▼
-  Local LLM post-pass          # TZ: required on-device punctuation / cleanup
+  Local LLM post-pass          # TZ required; match spoken punct / intonation, not textbook rewrite
         │
         ▼
   Dialogue JSON + Compose list + share/export
@@ -121,7 +123,7 @@ presentation BE ──WS/HTTP──► phone worker
 | ASR emergency | Vosk small-ru | Если sherpa не встаёт на устройстве |
 | VAD | Silero via sherpa | Нарезка до ASR; обязательна на длинном аудио |
 | Diarization | sherpa `OfflineSpeakerDiarization` | DEMO_STAGE6: одна far-field запись (VAD → diar → ASR). Path B: опционально внутри одного потока. Path A (cocktail ≥20 в один поток) — FAIL |
-| LLM | `LocalLlmPostPass` | **Требование ТЗ:** локальный on-device post-pass (пунктуация / cleanup), не stub. Веса — в assets check APK. Сейчас в коде `IdentityLlmPostPass` — разрыв Impl/Platform против ТЗ, закрыть до сдачи. ТЗ обратно в stub не смягчать |
+| LLM | `LocalLlmPostPass` | **Требование ТЗ:** локальный on-device post-pass, не stub. Чистка только под spoken gold: пунктуация по интонации, не учебная орфография. Веса — в assets check APK. Сейчас в коде `IdentityLlmPostPass` — разрыв Impl/Platform против ТЗ, закрыть до сдачи. ТЗ обратно в stub не смягчать |
 | I/O | MediaExtractor/MediaCodec → PCM; SAF import; AudioRecord | M4A/MP3/WAV + запись в приложении |
 | Export | JSON schema брифа; TXT как бонус | `docs/JSON.md` |
 | Модели | Не в git | **Сдача / check APK: assets-bundled primary** (ASR, VAD, diar, LLM). Сетевая докачка — только UX karma, для ТЗ не нужна. `download-models.sh` + adb push — путь разработки |
