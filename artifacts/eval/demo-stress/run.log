@@ -1,9 +1,9 @@
-demo-stress eval  commit=ef70323  utc=2026-11-06T18:10:41.877471+00:00
+demo-stress eval  commit=5b0e09e  utc=2026-11-06T18:15:48.675304+00:00
 Cloud agents have no KVM/ADB — host Linux sherpa-onnx only.
-run_host=False models=/agent/repos/neuro-stenographer/models
+run_host=False only=None models=/agent/repos/neuro-stenographer/models
 ROW mix_20talker status=measured der=0.9500 jer=0.9520 purity=0.9983 wer_main=1.0000 rtf=0.1784 blocked='' notes='diarization collapsed to 1 speaker (ref 20); Path A: one-room mix, 20 distinct CV talkers, main +3 dB vs babble sum, staggered offsets.'
 ROW mix_20talker_main_dry status=measured der=0.0192 jer=0.0843 purity=0.9157 wer_main=0.1739 rtf=0.0587 blocked='' notes='Oracle PresentConnect s01 dry main (no babble). Zipformer ASR-only.'
-ROW mix_20talker_per_stream status=measured der=0.2350 jer=0.2716 purity=0.9984 wer_main=0.0870 rtf=2.6481 blocked='' notes='Path B: diar+ASR each dry track (oracle stream id), merge by time. PresentConnect-style separate mics.'
+ROW mix_20talker_per_stream status=measured der=0.0913 jer=0.1840 purity=0.9983 wer_main=0.0870 rtf=0.1212 blocked='' notes='Path B tech demo: per-stream RMS VAD + ASR, oracle s0N↔speaker_N, unlooped dry tracks.'
 ROW smoke status=measured der= jer=0.9620 purity=0.3774 wer_main=1.0000 rtf=0.7855 blocked='' notes='collared DER undefined (250 ms collar ate all frames); see der_no_collar; Tiny committed mix (truncated CV clips). Pipeline smoke; not the headline WER.'
 copied mix_20talker.json -> hyp.json
 wrote /agent/repos/neuro-stenographer/artifacts/eval/demo-stress/metrics.csv and /agent/repos/neuro-stenographer/artifacts/eval/demo-stress/metrics.json
