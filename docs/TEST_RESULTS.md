@@ -128,6 +128,42 @@ ASR text is the same as baseline (s1 words unchanged; Zipformer still emits no p
 
 Honest: PhoneDistanceEq **did not recover the room** on this frozen mix. Do **not** cite WER_main 0 as the room result (that is the old strip-punct s1 score). Soft-flag only.
 
+### DEMO_STAGE6_impl_second_pass — Impl VadDiarReconcile + IntonationPunct @ `552b142`
+
+Same **frozen** wav/gold @ `a8b39d5a`. Hex keep-punct tokenize @ `0824df64`. Host ingest mirrors Implementer PR #7 HEAD **`552b142898f3cf3a8bddb939f0864730dbafb261`** (`impl/far-field-6spk-demo`). Files used (Python mirror, not cherry-picked onto this eval branch):
+
+- `src/android/.../pipeline/VadDiarReconcile.kt`
+- `src/android/.../pipeline/FarFieldScene.kt` (K=6, orphan 400 ms, expand ≤1500 ms, merge 280 ms)
+- `src/android/.../audio/FarFieldVad.kt`
+- `src/android/.../llm/IntonationPunct.kt` / `LocalLlmPostPass.kt`
+- unit: `orphanFifthTurnIsRecoveredAsSpeaker`, `punctlessZipformerAcceptsAddedIntonationPunct`
+
+Frozen per-turn FarFieldGain (no whole-file crush). EQ not re-applied (stays frozen). Energy VAD ∪ Silero → `VadDiarReconcile` → Zipformer (+200 ms crop pad) → **IntonationPunct ADD** spoken `,` `.` `?` `!` (never strip). Host GGUF / llama.cpp JNI **absent** (`gguf-missing`); heuristic ADD only, same merge rules as `GgufLlmPostPass`. Soft-flag only. **Not a fixture retune.**
+
+Reconcile on this mix: pyannote **5→12** segments (energy 34 ∪ silero 3 → 4 VAD islands). Near 3 m seat kept (807–6443 ms). Orphans filled holes after s1/s2/s4; s5/s6 time is covered but ASR empty on those islands.
+
+Hex keep-punct WER vs baselines (same gold, same wav):
+
+| speaker | m | Hex @ 0824df64 | phone_eq @ 5ffae114 | impl_second_pass @ 552b142 |
+|---|---|---|---|---|
+| speaker_1 | 3.0 | **0.2857** | **0.2857** | **0.2143** |
+| speaker_2 | 3.6 | **0.5833** | **0.5833** | **0.3333** |
+| speaker_3 | 4.2 | **1.0000** | **1.0000** | **0.7692** |
+| speaker_4 | 4.8 | **1.0000** | **1.0000** | **0.5000** |
+| speaker_5 | 5.4 | **1.0000** (missing) | **1.0000** (missing) | **1.0000** (empty ASR) |
+| speaker_6 | 6.0 | **1.0000** | **1.0000** | **1.0000** (empty ASR) |
+| **aggregate** | — | **0.7794** (53/68) | **0.7794** (53/68) | **0.6029** (41/68) |
+
+| test_id | DER | JER | purity | WER_main | WER_agg | RTF | hyp/ref |
+|---|---|---|---|---|---|---|---|
+| DEMO_STAGE6 Hex @ 0824df64 | **0.5174** | **0.6280** | 1.0000 | **0.2857** | **0.7794** | **0.0929** | **5 / 6** |
+| DEMO_STAGE6_phone_eq @ af71d91 | **0.5208** | **0.6310** | 1.0000 | **0.2857** | **0.7794** | **0.0945** | **5 / 6** |
+| DEMO_STAGE6_impl_second_pass | **0.2568** | **0.6821** | 0.9002 | **0.2143** | **0.6029** | **0.1198** | **12 / 6** |
+
+s1 WER 0.2857→0.2143 is the added terminal period (3 comma deletions remain; Zipformer still emits no mid-sentence commas). Heuristic `что …` got `?` on s3/s8 — not gold intonation. GGUF did not run.
+
+Honest: DER improved (time coverage). hyp is **12 / 6**, not 6/6 — JER slightly worse. s5/s6 still WER 1.0. Do **not** cite WER_main 0 as the room result. Soft-flag only.
+
 ## Demo-stress (20 talkers) — SECONDARY regression, host Linux only
 
 Cloud agents / this VM have **no KVM and no ADB**.

@@ -41,6 +41,7 @@ DEMO_STAGE6 fixture (wav/gold/recipe) is **frozen** @ `a8b39d5a`. Harden-claim r
 - `DEMO_STAGE6_ffgain` @ `e0e64b85` — whole-file AGC (`b66581c`); mix already 0.119 FS so −3.46 dB
 - `DEMO_STAGE6_perturn` @ `db3afe4` — per-turn FarFieldGain (`ae86903`); near 0 dB, quiet islands → 0.08 FS, no crush
 - `DEMO_STAGE6_phone_eq` — Platform PhoneDistanceEq @ `af71d91` (`040274d` 250–4500 Hz; near seat identity; gain frozen). Hex keep-punct vs `0824df64`. Do not re-enable whole-file crush.
+- `DEMO_STAGE6_impl_second_pass` — Impl VadDiarReconcile + IntonationPunct @ `552b142` (PR #7). K=6, near 3 m protected, ADD spoken punct. Hex vs `0824df64` / phone_eq @ `5ffae114`.
 
 Do not replace prior rows. Do not retune gold.
 
