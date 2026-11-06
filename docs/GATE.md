@@ -22,3 +22,5 @@ H1 accepted the WORST_CASE table at `9908353`. These six Path B rows are the **f
 - Regression smoke: `python3 scripts/test_path_b_regression.py` (schema + 20/20 speakers on every frozen row; does **not** require low WER/DER).
 
 Accepted measured snapshot: `docs/TEST_RESULTS.md` (Johann hard-requirement table). Hold merge; overnight #2 still first.
+
+Harden-claim remeasures (StreamPcmGate @ dae416f / f5ff5e2) use **new** `*_gated` test_ids on the **same** frozen wavs. They do not replace the six frozen rows.

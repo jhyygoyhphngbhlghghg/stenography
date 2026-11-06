@@ -137,6 +137,20 @@ Honest read (not spun):
 
 JSON validates (four fields). No invented numbers. Fixtures were not relaxed after seeing FAIL.
 
+### StreamPcmGate remeasure (harden claim — fixtures still FROZEN)
+
+Implementer Path B E2E PR #6 @ `dae416f` (StreamPcmGate byte-identical to Platform `f5ff5e2`). Host ingest now runs that gate on each dry stream **before** VAD/ASR. Frozen wavs/refs/VAD knobs **unchanged**. New rows `*_gated` sit beside the frozen baseline (do not replace it). Baseline snapshot: H1-accepted table @ `a863b2a6` / measured @ `9908353`.
+
+Hard reject: no ASR, no brief row. Codes: `LOW_ENERGY` (RMS below 0.008 FS or peak below 0.012 FS or fewer than 800 samples), `CLIPPED` (at least 2% of samples `|s16| >= 32760`), `BAD_MIC` (`|DC| >= 0.20` FS or stuck). Soft flags still ASR.
+
+| test_id | baseline @ a863b2a6 DER / JER / WER / RTF / hyp | gated @ HEAD DER / JER / WER / RTF / hyp | gate |
+|---|---|---|---|
+| EDGE_noise | **1.7005** / 0.5675 / **0.1739** / 0.2602 / **20/20** | **1.2940** / 0.7312 / **0.1739** / 0.2656 / **11/20** | passed **11/20**, dropped **9** `LOW_ENERGY` |
+| EDGE_badmic | **0.6569** / 0.2863 / **1.0000** / 0.1910 / **20/20** | **0.6569** / 0.2863 / **1.0000** / 0.2726 / **20/20** | passed **20/20**, dropped **0** |
+| WORST_CASE | **1.2985** / 0.5981 / **0.9130** / 0.2907 / **20/20** | **1.2985** / 0.5981 / **0.9130** / 0.3491 / **20/20** | passed **20/20**, dropped **0** |
+
+Honest: dropping 9 quiet EDGE_noise streams cut collared DER 1.7005→1.2940; JER got worse (0.5675→0.7312) because those speakers are now misses; main WER held (s01 passed). StreamPcmGate does **not** catch EDGE_badmic (clip is 0.38 FS, not |s16|≥32760) or WORST_CASE (energy well above RMS/peak floors) — WER 1.0 / 0.91 unchanged. Do not claim clean WER/DER on WORST_CASE. Gated EDGE_noise is **11/20** speakers — the frozen 20/20 lock is the ungated baseline, not this ingest.
+
 #### Ablation (interpretive — no new run)
 
 Read off the frozen table above, not a new measurement. Single-factor vs CLEAN Path B (DER 0.0913 / WER_main 0.0870):
