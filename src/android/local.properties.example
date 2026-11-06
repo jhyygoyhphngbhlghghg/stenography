@@ -1,0 +1,2 @@
+# Copy to local.properties (gitignored) or export ANDROID_HOME.
+sdk.dir=/home/ubuntu/Android/Sdk
