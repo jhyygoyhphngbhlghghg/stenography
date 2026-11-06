@@ -11,7 +11,9 @@
 - Микрофон телефона: band-limit, compression, затухание с расстоянием, reverb. **Не** чистый Common Voice.
 - Один канал, far-field: VAD → диаризация → Zipformer-ru ASR (офлайн / on-device).
 
-Цель johann: **ideal recognition** (ясные смены спикеров + пригодный текст). **WER/DER для DEMO_STAGE6 не выдуманы.** Eval владеет фикстурой и цифрами ([PR #4](https://cursor.com/codebase/johann-schilling/neuro-stenographer/pull/4)). **Scores pending Eval.** Студийную подмену не заявлять. Запрещены «should be fine», «robust», «handles noisy rooms», «graceful under echo».
+Цель johann: **ideal recognition** (ясные смены спикеров + пригодный текст). **Только @ 3 м.** На 3–6 м целиком — нет: дальше 3 м far-field gap. Не выдавать 3 м за комнату.
+
+Первый замер H1/Eval ([PR #4](https://cursor.com/codebase/johann-schilling/neuro-stenographer/pull/4), baseline `a8b39d5`): aggregate **WER 0.73 / DER 0.52** (точно **0.7321 / 0.5174**). Ниже не заявлять. Gain baseline / ffgain / perturn, agg WER **0.73 / 0.70 / 0.73** (точно **0.7321 / 0.6964 / 0.7321**). **Gain комнату не вернул.** Следующий рычаг — пометка, не обещание: spectral + diar (Platform/Eval). Студийную подмену не заявлять. Запрещены «should be fine», «robust», «handles noisy rooms», «graceful under echo».
 
 Path A (cocktail ≥20 в один поток) — measured FAIL: **1/20**, DER **0.95**, main WER **1.00**, RTF **0.18**. Не демо.
 
@@ -70,11 +72,11 @@ Bound seats (`s01`..`s20`) must **soft-flag only** (still ASR), same spirit as `
 
 ## Известные ограничения
 
-- **Новые WER/RTF не выдумывать.** DEMO_STAGE6: **scores pending Eval**, цифр нет. Цитировать только замер H1 / PR #4 для Path A и optional Path B: ранний clean, overnight-клипы (~3.5% / 0% / 0% WER, без перекрытия), edge suite @ `9908353d` (таблица выше). Он-девайс строки в `artifacts/test-results/results.csv` пусты, пока нет своего прогона.
+- **Новые WER/RTF не выдумывать и DEMO_STAGE6 не занижать.** Замер комнаты — aggregate **WER 0.73 / DER 0.52**. Цитировать H1 / PR #4: DEMO_STAGE6, Path A, optional Path B, overnight-клипы (~3.5% / 0% / 0% WER, без перекрытия), edge suite @ `9908353d`. Он-девайс строки в `artifacts/test-results/results.csv` пусты, пока нет своего прогона.
 - Zipformer-ru — RU-first; английский best-effort (для EN — Whisper tiny, не default).
-- DEMO_STAGE6 допускает только лёгкое перекрытие в конце реплики. Это не замер и не обещание качества. Path A на ≥20 говорящих в одном миксе — FAIL (1/20). На optional Path B killers — overlap/bleed (EDGE_overlap WER main 0.7391, DER 0.9936), noise false alarms (EDGE_noise DER 1.7005), bad mic (EDGE_badmic WER main 1.0000). WORST_CASE: WER main **0.9130**, DER **1.2985**, hyp/ref **20/20**. Clean WER/DER на эти строки не переносить. Не переносить их на DEMO_STAGE6.
-- LLM post-pass: модуль есть, **веса не приложены** (TODO Gemma/Qwen/Phi via llama.cpp или MediaPipe). Сейчас identity / лёгкая пунктуация, честно в UI.
-- Модели не в git (~74 MB+ ASR, плюс VAD/diar). Без `download-models.sh` / adb push приложение соберётся, но pipeline уйдёт в stub.
+- DEMO_STAGE6 допускает только лёгкое перекрытие в конце реплики. Замер комнаты — WER **0.73** / DER **0.52**, ideal только @ 3 м. Path A на ≥20 говорящих в одном миксе — FAIL (1/20). На optional Path B killers — overlap/bleed (EDGE_overlap WER main 0.7391, DER 0.9936), noise false alarms (EDGE_noise DER 1.7005), bad mic (EDGE_badmic WER main 1.0000). WORST_CASE: WER main **0.9130**, DER **1.2985**, hyp/ref **20/20**. Clean WER/DER на эти строки не переносить. Не переносить их на DEMO_STAGE6.
+- **Локальная LLM — требование ТЗ**, on-device post-pass (пунктуация / cleanup), не stub и не облако. Веса входят в assets check APK. В коде сейчас `IdentityLlmPostPass` — разрыв Impl/Platform против ТЗ. Закрыть до сдачи. ТЗ обратно в stub не смягчать.
+- Модели не в git. **Сдача: assets-bundled primary** (Zipformer-ru, VAD, diar, LLM). Сетевая докачка — UX karma, для check APK не требуется. `download-models.sh` и adb push — разработка.
 - NNAPI на OEM плавает; default provider = CPU.
 - Длинное аудио без VAD-chunking деградирует (особенно если позже включим GigaAM). VAD обязателен.
 - PresentConnect не заменяет офлайн-проверку судей. Судьи ставят APK, импорт трёх клипов, экспорт JSON.
@@ -89,7 +91,7 @@ Bound seats (`s01`..`s20`) must **soft-flag only** (still ASR), same spirit as `
 
 ## Риски демонстрации
 
-- Забыть скачать модели до авиарежима → stub на защите (дисквалификация по смыслу «подмена расшифровкой»). Чеклист: `docs/INSTALL.md`.
+- Check APK без assets-весов (включая LLM) — не сдача. Докачка по сети это не заменяет. Чеклист: `docs/INSTALL.md`.
 - OOM на mid-range, если подложить GigaAM (~216 MB) вместо Zipformer-ru.
 - Gated pyannote segmentation: нужна атрибуция / принятие terms до редистрибуции.
 
