@@ -19,9 +19,12 @@
 
 | Проверка | Статус |
 |---|---|
-| Gradle assemble (shell) | pending first green build |
-| Import → stub list → JSON (no models) | pending |
-| Zipformer-ru on-device | pending models |
-| Diarization ≥2 speakers | pending |
-| Airplane mode | pending |
-| PresentConnect ≤20 streams (mock) | pending |
+| Gradle `assembleDebug` | green on this machine (sherpa-onnx 1.13.5 AAR + Kotlin API) |
+| Unit tests (`testStenographerDebugUnitTest`) | run via `scripts/ci-check.sh` |
+| JSON schema (`verify-transcript-json.py`) | fixture OK; extra keys rejected |
+| Eval WER+RTF (clip_01..03) | skeleton only — **no invented numbers**; CSV pending |
+| Import → stub list → JSON (no models) | pending on-device |
+| Zipformer-ru on-device | pending models (`scripts/download-models.sh`) |
+| Diarization ≥2 speakers | pending on-device |
+| Airplane mode | pending on-device |
+| PresentConnect ≤20 streams | unit cap test; WS needs web BE |

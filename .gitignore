@@ -56,6 +56,14 @@ artifacts/demo/*.mp4
 artifacts/demo/*.mov
 artifacts/demo/*.mkv
 artifacts/demo/*.wav
+samples/*.wav
+samples/*.mp3
+samples/*.m4a
+samples/ref/*.json
+!samples/ref/.gitkeep
+artifacts/eval/hyp/*.json
+artifacts/eval/hyp/*.wall_ms
+!artifacts/eval/hyp/.gitkeep
 apk/*.apk
 apk/*.aab
 
