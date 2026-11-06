@@ -12,6 +12,19 @@ cd src/android
 
 APK: `src/android/app/build/outputs/apk/<flavor>/debug/`. Для сдачи скопировать в `apk/` (сами `.apk` в git не кладём).
 
+## Device probe (Nothing Phone)
+
+On-device JNI (`SherpaJni.probe()` / `UnsatisfiedLinkError`) cannot run on the Cursor cloud VM. From a machine with **adb** and USB or wireless debugging to johann's Nothing Phone (3a):
+
+```bash
+# APKs must already exist (see Сборка above), then:
+./scripts/device-sideload-probe.sh
+```
+
+The script checks `adb devices`, `adb install -r` the stenographer debug APK, launches `MainActivity` so `NeuroStenoApp` loads `libsherpa-onnx-jni.so`, and writes `artifacts/test-results/device-jni-probe-logcat.txt`. Optional: `PRESENT=1` also installs the presentConnect APK; `PUSH_MODELS=1` pushes `models/` (not required for the JNI probe); `DEVICE_SERIAL=…` if more than one phone.
+
+If APKs are missing it prints the exact `./gradlew :app:assembleStenographerDebug` commands and exits non-zero.
+
 ## Модели
 
 Веса **не** в репозитории. Перед демо:
