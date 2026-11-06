@@ -1,12 +1,14 @@
 package team.mikcoders.neurosteno.present
 
 import kotlinx.coroutines.flow.Flow
+import team.mikcoders.neurosteno.export.TranscriptFile
+import team.mikcoders.neurosteno.export.Utterance
 
 /**
  * Phone-side worker for the presentation website.
  *
  * Contract: docs/PRESENT_CONNECT.md
- * Cap: [PresentConnectConfig.maxStreams] streams (brief/demo: 20).
+ * Cap: [PresentConnectLimits.MAX_STREAMS] streams (brief/demo: 20).
  *
  * Network mode only. Offline stenography must not call this.
  */
@@ -19,6 +21,11 @@ interface PresentConnectClient {
 
     /** Currently accepted streams, 0..maxStreams. */
     fun activeStreamCount(): Int
+
+    /** Push brief-shaped utterances after local ASR. */
+    fun sendTranscriptFinal(streamId: String, file: TranscriptFile)
+
+    fun sendTranscriptPartial(streamId: String, utterance: Utterance)
 }
 
 data class PresentConnectConfig(
@@ -26,8 +33,8 @@ data class PresentConnectConfig(
     val httpBaseUrl: String,
     val sessionId: String,
     val deviceId: String,
-    val maxStreams: Int = 20,
-    val sampleRate: Int = 16_000,
+    val maxStreams: Int = PresentConnectLimits.MAX_STREAMS,
+    val sampleRate: Int = PresentConnectLimits.SAMPLE_RATE,
 )
 
 sealed class PresentConnectEvent {
@@ -35,7 +42,7 @@ sealed class PresentConnectEvent {
 
     data class StreamStarted(val streamId: String) : PresentConnectEvent()
 
-    data class StreamEnded(val streamId: String) : PresentConnectEvent()
+    data class StreamEnded(val streamId: String, val pcmS16le: ByteArray) : PresentConnectEvent()
 
     data class Partial(
         val streamId: String,
