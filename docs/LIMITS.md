@@ -2,6 +2,6 @@
 
 Canonical copy: [LIMITATIONS.md](./LIMITATIONS.md) (hacathon_template name).
 
-Multi-talker demo is **Path B** (≤20 separate PresentConnect streams). The 20/20, DER ≈ 0.24, main WER 0.087 figures (PR #4) are **clean per-stream** only (dry/separate tracks). **Path A** one-room cocktail mix is a measured hard fail (1/20, DER 0.95) — do not claim it.
+Multi-talker demo is **Path B** (≤20 separate PresentConnect streams). **Path A** one-room cocktail mix is a measured hard fail (1/20, DER 0.95) — do not claim it.
 
-Worst-case edge suite (echo, overlap, white noise / room noise, bad mics): **unmeasured until edge suite**. No scores here. Expect **FAIL / hard degradation**. **Do not claim in slides.** Banned: "should be fine", "robust", "handles noisy rooms", "graceful under echo". Full write-up: LIMITATIONS and `TEST_RESULTS.md`.
+**Claim lock:** under edge, Path B stream tracking is still **20/20**. That is the only multi-talker claim that survives. **WORST_CASE WER/DER are FAIL** (Eval PR #4 @ `9908353d`): WER main **0.9130** (slides ≈0.91), DER 250ms **1.2985** (slides ≈1.30). Do **not** claim clean WER/DER on WORST_CASE or EDGE_*. **Killers:** overlap/bleed, noise false alarms, bad mic. Reverb alone does **not** collapse Path B. Banned: "should be fine", "robust", "handles noisy rooms", "graceful under echo". Full table: LIMITATIONS and `TEST_RESULTS.md`.
