@@ -5,6 +5,10 @@ package team.mikcoders.neurosteno.llm
  * 0.7321→0.7794; s1 0.00→0.2857 = four punct deletions. Zipformer emits
  * **NONE**, so this path **must ADD** spoken-intonation `,` `.` `?` `!`.
  *
+ * Eval `a2219ef`: GGUF still absent; greeting/vocative/discourse did not
+ * fire on real hyp. Widen patterns that match Zipformer text (clause
+ * pauses, opening adverbials) — still spoken-intonation only.
+ *
  * Never strip hyp punct. Never rewrite existing commas to textbook placement
  * (commas = speaker intonation gold). е/ё does not count — fold ё→е.
  */
@@ -16,22 +20,32 @@ object IntonationPunct {
         RegexOption.IGNORE_CASE,
     )
     private val greeting = Regex(
-        "^(здравствуйте|добрый день|доброе утро|добрый вечер|привет)(?=\\s+\\S)",
+        "(^|\\s)(здравствуйте|здрасте|добрый день|доброе утро|добрый вечер|привет)(?=\\s+\\S)",
         RegexOption.IGNORE_CASE,
     )
     private val vocative = Regex(
-        "(^|\\s)(коллеги|друзья|ребята|господа)(?=\\s+\\S)",
+        "(^|\\s)(уважаемые|дорогие|коллеги|друзья|ребята|господа|товарищи)(?=\\s+\\S)",
         RegexOption.IGNORE_CASE,
     )
     private val discourse = Regex(
-        "(^|\\s)(ну|вот|да|так|итак|значит|короче|кстати|вообще|слушай|слушайте|смотрите|понимаете|ладно|хорошо|ага|допустим|например)(?=\\s+\\S)",
+        "(^|\\s)(ну|вот|да|так|итак|значит|короче|кстати|вообще|слушай|слушайте|смотрите|" +
+            "понимаете|ладно|хорошо|ага|допустим|например|собственно|типа)(?=\\s+\\S)",
+        RegexOption.IGNORE_CASE,
+    )
+    private val openingAdverb = Regex(
+        "^(сегодня|сейчас|затем|потом|далее|сначала|итак|в общем|на самом деле)(?=\\s+\\S)",
+        RegexOption.IGNORE_CASE,
+    )
+    private val clause = Regex(
+        "(?<=\\S)\\s+(потому что|так что|как только|чтобы|если|когда|хотя|пока|что)(?=\\s+\\S)",
         RegexOption.IGNORE_CASE,
     )
     private val contrast = Regex(
-        "(?<=\\S)\\s+(но|а|однако)(?=\\s+\\S)",
+        "(?<=\\S)\\s+(но|а|однако|зато)(?=\\s+\\S)",
         RegexOption.IGNORE_CASE,
     )
     private val please = Regex("(?<=\\S)\\s+(пожалуйста)($|\\s|[.,?!])", RegexOption.IGNORE_CASE)
+    private val asBy = Regex("(?<=\\S)\\s+(как бы)(?=\\s+\\S)", RegexOption.IGNORE_CASE)
 
     fun foldYo(text: String): String =
         text.replace('ё', 'е').replace('Ё', 'Е')
@@ -65,7 +79,11 @@ object IntonationPunct {
     fun addSpokenCommas(text: String): String {
         var t = squeezeSpace(text)
         if (t.isEmpty() || hasComma(t)) return t
-        t = greeting.replace(t) { it.value + "," }
+        t = greeting.replace(t) { m ->
+            val pre = m.groupValues[1]
+            val w = m.groupValues[2]
+            "$pre$w,"
+        }
         t = vocative.replace(t) { m ->
             val prefix = m.groupValues[1]
             val word = m.groupValues[2]
@@ -78,9 +96,27 @@ object IntonationPunct {
                 "$pre$w,"
             }
         }
-        t = contrast.replace(t) { m -> ", ${m.groupValues[1]}" }
+        t = openingAdverb.replace(t) { it.value + "," }
+        t = asBy.replace(t) { ", ${mGroup(it, 1)}" }
+        t = clause.replace(t) { ", ${mGroup(it, 1)}" }
+        t = contrast.replace(t) { ", ${mGroup(it, 1)}" }
         t = please.replace(t) { m -> ", ${m.groupValues[1]}${m.groupValues[2]}" }
+        t = squeezeSpace(t)
+        if (!hasComma(t)) t = openingBeat(t)
         return squeezeSpace(t)
+    }
+
+    /**
+     * Zipformer-like long turns often have no greeting/filler. Spoken pause
+     * after the first breath-group word when the line is long enough.
+     */
+    internal fun openingBeat(text: String): String {
+        val t = squeezeSpace(text)
+        val parts = t.split(' ')
+        if (parts.size < 5) return t
+        val first = parts[0]
+        if (first.lastOrNull() in punctChars) return t
+        return first + ", " + parts.drop(1).joinToString(" ")
     }
 
     fun restoreTerminal(text: String, nextGapMs: Long): String {
@@ -95,6 +131,8 @@ object IntonationPunct {
         val t = squeezeSpace(text).trimStart(*punctChars.toCharArray())
         return questionStart.containsMatchIn(t)
     }
+
+    private fun mGroup(m: MatchResult, i: Int): String = m.groupValues[i]
 
     private fun takeTerminalOnly(src: String, cand: String): String {
         if (src.isNotEmpty() && src.last() in terminal) return src
