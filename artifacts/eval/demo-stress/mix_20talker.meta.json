@@ -1,8 +1,12 @@
 {
   "wav": "/agent/repos/neuro-stenographer/samples/demo-stress/mix_20talker.wav",
-  "wall_ms": 2696,
-  "duration_ms": 16930,
+  "wall_ms": 3343,
+  "duration_ms": 18736,
   "num_clusters": 20,
+  "cluster_threshold": 0.5,
+  "min_duration_on": 0.2,
+  "min_duration_off": 0.5,
+  "skip_asr": false,
   "n_segments": 1,
   "n_hyp_speakers": 1,
   "stack": "linux-sherpa-onnx-python Zipformer-ru + OfflineSpeakerDiarization",
@@ -16,5 +20,5 @@
     "embedding": "/agent/repos/neuro-stenographer/models/diar/embedding.onnx"
   },
   "no_kvm_adb": true,
-  "rtf": 0.1592439456585942
+  "rtf": 0.1784265584970111
 }

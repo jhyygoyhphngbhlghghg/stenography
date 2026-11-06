@@ -1,12 +1,12 @@
 {
-  "der": 0.02172338884866079,
-  "der_no_collar": 0.10293159609120718,
-  "jer": 0.09332545776728551,
-  "speaker_purity": 0.9066745422327145,
+  "der": 0.019218449711723616,
+  "der_no_collar": 0.09207459207459277,
+  "jer": 0.08431163287087706,
+  "speaker_purity": 0.9156883671291229,
   "der_miss_s": 0.0,
   "der_fa_s": 0.3000000000000001,
   "der_speaker_error_s": 0.0,
-  "der_ref_speech_s": 13.80999999999975,
+  "der_ref_speech_s": 15.609999999999712,
   "collar_ms": 250,
   "frame_ms": 10,
   "n_ref_speakers": 1,
@@ -15,5 +15,5 @@
   "mapping_hyp_to_ref": {
     "speaker_1": "speaker_1"
   },
-  "wer_main": 1.0
+  "wer_main": 0.17391304347826086
 }
