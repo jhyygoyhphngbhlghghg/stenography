@@ -75,7 +75,7 @@ fun StenoApp(vm: StenoViewModel = viewModel()) {
         ) {
             Text(
                 if (state.presentConnect) {
-                    "Режим PresentConnect (сеть, ≤20 потоков). Офлайн-стенография — flavor stenographer."
+                    "PresentConnect Path B: ≤20 отдельных mic-потоков → Zipformer-ru + diar, без mix. Офлайн — flavor stenographer."
                 } else {
                     "Офлайн-стенография. Авиарежим после загрузки моделей. PresentConnect — другой flavor."
                 },
@@ -92,7 +92,8 @@ fun StenoApp(vm: StenoViewModel = viewModel()) {
             Spacer(Modifier.height(12.dp))
             if (state.presentConnect) {
                 Text(
-                    "Потоки ${state.presentStreams}/${PresentConnectLimits.MAX_STREAMS}" +
+                    "Потоки ${state.presentStreams}/${PresentConnectLimits.MAX_STREAMS} (isolated, Path B)" +
+                        (if (state.presentLastStreamId.isNotBlank()) " · last ${state.presentLastStreamId}" else "") +
                         (if (state.presentWorkerId.isNotBlank()) " · worker ${state.presentWorkerId}" else ""),
                     style = MaterialTheme.typography.labelLarge,
                 )

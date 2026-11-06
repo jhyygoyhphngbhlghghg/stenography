@@ -15,16 +15,19 @@ import team.mikcoders.neurosteno.audio.AudioDecoder
 import team.mikcoders.neurosteno.audio.MicRecorder
 import team.mikcoders.neurosteno.export.TranscriptFile
 import team.mikcoders.neurosteno.export.TranscriptJson
-import team.mikcoders.neurosteno.audio.Pcm
 import team.mikcoders.neurosteno.pipeline.PipelineFactory
 import team.mikcoders.neurosteno.pipeline.PipelineProgress
 import team.mikcoders.neurosteno.pipeline.PipelineStage
 import team.mikcoders.neurosteno.pipeline.PcmAudio
 import team.mikcoders.neurosteno.pipeline.StenoPipeline
+import team.mikcoders.neurosteno.present.IsolatedResult
 import team.mikcoders.neurosteno.present.OkHttpPresentConnectClient
+import team.mikcoders.neurosteno.present.PresentConnectCodes
 import team.mikcoders.neurosteno.present.PresentConnectConfig
 import team.mikcoders.neurosteno.present.PresentConnectEvent
 import team.mikcoders.neurosteno.present.PresentConnectLimits
+import team.mikcoders.neurosteno.present.PresentStreamTranscriber
+import java.util.concurrent.ConcurrentHashMap
 
 data class StenoUiState(
     val fileLabel: String? = null,
@@ -45,6 +48,7 @@ data class StenoUiState(
     val presentConnected: Boolean = false,
     val presentStreams: Int = 0,
     val presentWorkerId: String = "",
+    val presentLastStreamId: String = "",
 )
 
 class StenoViewModel(app: Application) : AndroidViewModel(app) {
@@ -62,6 +66,12 @@ class StenoViewModel(app: Application) : AndroidViewModel(app) {
     val state: StateFlow<StenoUiState> = _state
     private val mic = MicRecorder()
     private val present = if (BuildConfig.PRESENT_CONNECT) OkHttpPresentConnectClient() else null
+    private val streamAsr = PresentStreamTranscriber(
+        pipeline,
+        modelsMissing = pipeline is team.mikcoders.neurosteno.pipeline.StubStenoPipeline,
+    )
+    private val partialInFlight = ConcurrentHashMap.newKeySet<String>()
+    @Volatile private var modelsMissingSent = false
 
     init {
         val client = present
@@ -72,16 +82,28 @@ class StenoViewModel(app: Application) : AndroidViewModel(app) {
                         is PresentConnectEvent.HelloOk -> _state.update {
                             it.copy(presentConnected = true, presentWorkerId = ev.workerId, error = null)
                         }
-                        is PresentConnectEvent.Disconnected -> _state.update {
-                            it.copy(presentConnected = false, presentStreams = 0)
+                        is PresentConnectEvent.Disconnected -> {
+                            modelsMissingSent = false
+                            _state.update { it.copy(presentConnected = false, presentStreams = 0) }
                         }
                         is PresentConnectEvent.StreamStarted -> _state.update {
-                            it.copy(presentStreams = client.activeStreamCount())
+                            it.copy(
+                                presentStreams = client.activeStreamCount(),
+                                presentLastStreamId = ev.streamId,
+                            )
+                        }
+                        is PresentConnectEvent.PartialDue -> {
+                            transcribeStream(ev.streamId, ev.pcmS16le, ev.speakerHint, final = false)
                         }
                         is PresentConnectEvent.StreamEnded -> {
-                            _state.update { it.copy(presentStreams = client.activeStreamCount()) }
+                            _state.update {
+                                it.copy(
+                                    presentStreams = client.activeStreamCount(),
+                                    presentLastStreamId = ev.streamId,
+                                )
+                            }
                             if (ev.pcmS16le.isNotEmpty()) {
-                                transcribeStream(ev.streamId, ev.pcmS16le)
+                                transcribeStream(ev.streamId, ev.pcmS16le, ev.speakerHint, final = true)
                             }
                         }
                         is PresentConnectEvent.OverCapacity -> _state.update {
@@ -123,25 +145,67 @@ class StenoViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private fun transcribeStream(streamId: String, pcmS16le: ByteArray) {
+    /**
+     * Path B: ASR+diar **this** stream's PCM only. Never mix with other stream_id buffers.
+     * [speakerHint] is seat/QR metadata from BE; speaker_id in the utterance is diarization
+     * inside the stream. Web maps stream_id → seat.
+     */
+    private fun transcribeStream(
+        streamId: String,
+        pcmS16le: ByteArray,
+        speakerHint: String?,
+        final: Boolean,
+    ) {
+        if (!final && !partialInFlight.add(streamId)) return
         viewModelScope.launch {
             try {
-                val audio = withContext(Dispatchers.Default) {
-                    PcmAudio(Pcm.s16leToFloat(pcmS16le), Pcm.TARGET_HZ, "stream-$streamId")
+                val result = withContext(Dispatchers.Default) {
+                    streamAsr.transcribeIsolated(streamId, pcmS16le, speakerHint) { p ->
+                        _state.update { it.copy(progress = p, running = true) }
+                    }
                 }
-                val result = pipeline.transcribe(audio) { p ->
-                    _state.update { it.copy(progress = p, running = true) }
-                }
-                present?.sendTranscriptFinal(streamId, result)
-                _state.update {
-                    it.copy(
-                        running = false,
-                        transcript = result,
-                        jsonPreview = TranscriptJson.encode(result),
-                    )
+                when (result) {
+                    is IsolatedResult.ModelsMissing -> {
+                        if (!modelsMissingSent) {
+                            modelsMissingSent = true
+                            present?.sendError(
+                                streamId,
+                                PresentConnectCodes.MODELS_MISSING,
+                                "ONNX missing — stub worker, not for stage",
+                            )
+                        }
+                        _state.update {
+                            it.copy(
+                                running = false,
+                                error = "${PresentConnectCodes.MODELS_MISSING}: положите Zipformer-ru на устройство",
+                            )
+                        }
+                    }
+                    is IsolatedResult.Empty -> _state.update { it.copy(running = false) }
+                    is IsolatedResult.Ok -> {
+                        if (final) {
+                            present?.sendTranscriptFinal(streamId, result.file)
+                            _state.update {
+                                it.copy(
+                                    running = false,
+                                    transcript = result.file,
+                                    jsonPreview = TranscriptJson.encode(result.file),
+                                    presentLastStreamId = streamId,
+                                )
+                            }
+                        } else {
+                            result.file.transcript.lastOrNull()?.let { u ->
+                                present?.sendTranscriptPartial(streamId, u)
+                            }
+                            _state.update { it.copy(running = false, presentLastStreamId = streamId) }
+                        }
+                    }
                 }
             } catch (t: Throwable) {
+                present?.sendError(streamId, PresentConnectCodes.PIPELINE, t.message ?: "pipeline")
                 _state.update { it.copy(running = false, error = t.message ?: "pipeline") }
+            } finally {
+                if (!final) partialInFlight.remove(streamId)
             }
         }
     }
