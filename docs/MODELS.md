@@ -26,12 +26,16 @@ After `scripts/download-models.sh`:
 
 ```
 models/
-  asr/zipformer-ru-int8/   encoder*.onnx decoder*.onnx joiner*.onnx tokens.txt
-  asr/whisper-tiny/        (optional)
+  asr/zipformer-ru-int8/
+      encoder.int8.onnx   decoder.onnx   joiner.int8.onnx   tokens.txt
+  asr/whisper-tiny/        (optional; DOWNLOAD_WHISPER=1, then extract)
   vad/silero_vad.onnx
-  diar/segmentation.onnx embedding.onnx
+  diar/segmentation.onnx   # symlink to pyannote model.onnx
+      embedding.onnx       # symlink to 3dspeaker_*.onnx
   llm/                     TODO GGUF — empty overnight
-  vosk-small-ru/           (optional emergency)
+  vosk-small-ru/           (optional; DOWNLOAD_VOSK=1)
 ```
+
+HF filenames for Zipformer-ru are **exact** (`encoder.int8.onnx` / `decoder.onnx` / `joiner.int8.onnx` / `tokens.txt`). The script no longer guesses `encoder-epoch-99-avg-1.int8.onnx`.
 
 Copy into the app `filesDir/models/` (adb push) or `assets/models/` before freeze. Hybrid: bundle Zipformer-ru int8 if APK size allows; never commit weights.
