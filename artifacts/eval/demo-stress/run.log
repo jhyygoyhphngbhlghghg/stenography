@@ -1,9 +1,12 @@
-demo-stress eval  commit=60fb96f  utc=2026-11-06T19:24:09.280063+00:00
+demo-stress eval  commit=da3c920  utc=2026-11-06T19:29:32.805155+00:00
 Cloud agents have no KVM/ADB — host Linux sherpa-onnx only.
-run_host=False only=None models=/agent/repos/neuro-stenographer/models
+run_host=True only=['DEMO_STAGE6_phone_eq'] models=/agent/repos/neuro-stenographer/models
 ROW DEMO_STAGE6 status=measured der=0.5174 jer=0.6280 purity=1.0000 wer_main=0.2857 rtf=0.0929 blocked='' notes='PRIMARY demo fixture: 6 RU CV17 talkers, one-mic mix, turn-taking + 200 ms end overlap, large-room IR, medium HVAC+babble, Nothing-class phone mic, 3–6 m. Path A diar+ASR. 20-stream suite is secondary regression. Baseline @ a8b39d5a — no far-field gain.'
 ROW DEMO_STAGE6_ffgain status=measured der=0.5174 jer=0.6280 purity=1.0000 wer_main=0.2857 rtf=0.0951 blocked='' notes='Historical whole-file AGC post-b66581c / measured @ e0e64b85: same frozen DEMO_STAGE6 wav/gold. Mix RMS 0.119 already above 0.08 so AGC −3.46 dB. Do not retune fixture.'
 ROW DEMO_STAGE6_perturn status=measured der=0.5231 jer=0.6330 purity=1.0000 wer_main=0.2857 rtf=0.0948 blocked='' notes='Platform per-turn FarFieldGain post-db3afe4: same frozen DEMO_STAGE6 wav/gold. Quiet energy windows independently target 0.08 FS (max +24 dB); loud near seat stays 0 dB (no crush). Soft-flag only. Do not retune fixture.'
+==> host inference DEMO_STAGE6_phone_eq (/agent/repos/neuro-stenographer/samples/demo-stress/stage6/DEMO_STAGE6.wav)
+    segments=5 wall_ms=3754 ffgain[per_turn]=16.55dB nseg=34 crushed=False rms 0.1191->0.1192 vad 1.000->1.000 phone_eq applied=True n_applied=1 near_id=33 near_crushed=False
+ROW DEMO_STAGE6_phone_eq status=measured der=0.5208 jer=0.6310 purity=1.0000 wer_main=0.2857 rtf=0.0945 blocked='' notes='Platform PhoneDistanceEq @ af71d91 (040274d / 5deb55a): 250–4500 Hz high-shelf on far islands; near 3 m identity; gain frozen (no whole-file crush). Same frozen DEMO_STAGE6 wav/gold @ a8b39d5a. Hex keep-punct WER @ 0824df64. Soft-flag only. Do not retune fixture.'
 ROW mix_20talker status=measured der=0.9500 jer=0.9520 purity=0.9983 wer_main=1.0000 rtf=0.1784 blocked='' notes='diarization collapsed to 1 speaker (ref 20); Path A: one-room mix, 20 distinct CV talkers, main +3 dB vs babble sum, staggered offsets.'
 ROW mix_20talker_main_dry status=measured der=0.0192 jer=0.0843 purity=0.9157 wer_main=0.3448 rtf=0.0587 blocked='' notes='Oracle PresentConnect s01 dry main (no babble). Zipformer ASR-only.'
 ROW mix_20talker_per_stream status=measured der=0.0913 jer=0.1840 purity=0.9983 wer_main=0.2759 rtf=0.1212 blocked='' notes='Path B tech demo: per-stream RMS VAD + ASR, oracle s0N↔speaker_N, unlooped dry tracks.'
