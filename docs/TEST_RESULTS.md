@@ -28,7 +28,7 @@
 
 ## Eval-measured (H1 / Eval Owner) — не выдумано
 
-Источник: [PR #4](https://cursor.com/codebase/johann-schilling/neuro-stenographer/pull/4), real Common Voice 17 RU, host Linux sherpa-onnx Zipformer-ru. H1 принял эти числа как **clean per-stream** (dry/separate tracks) и залочил демо Path B **в этой области**. Округление как в DEMO LOCK; в том же замере DER Path B также **0.235**. Это не echo, overlap, white/room noise, bad mics.
+Источник: [PR #4](https://cursor.com/codebase/johann-schilling/neuro-stenographer/pull/4), real Common Voice 17 RU, host Linux sherpa-onnx Zipformer-ru. Это **ранний** clean/Path A замер. DER Path B в нём также **0.235**. Эти WER/DER **не** ставить на WORST_CASE и EDGE_*. Edge suite — следующая таблица @ `9908353d`.
 
 | path | speakers recovered | DER | main WER | RTF |
 |---|---|---|---|---|
@@ -36,10 +36,23 @@
 | **B per-stream PresentConnect** | **20/20** | **0.24** (also 0.235) | **0.087** | 2.65 |
 | dry main alone | 1/1 | 0.02 | 0.174 | 0.06 |
 
-Path A — documented hard fail, не демо. Строка Path B (≤20 отдельных потоков, **20/20**, DER **0.24** / 0.235, main WER **0.087**) — **только clean per-stream** (dry/separate tracks PR #4).
+Path A — documented hard fail, не демо. Строка Path B этой таблицы (DER **0.24** / 0.235, main WER **0.087**, RTF **2.65**) — ранний clean per-stream, не WORST_CASE.
 
-Overnight-клипы без перекрытия (тот же PR, speaker-blind WER): **~3.5% / 0% / 0%** (в теле PR #4: clip_01 **0.0345**, clip_02 **0**, clip_03 **0**). Тоже без overlap и без edge-шума.
+Overnight-клипы без перекрытия (тот же PR, speaker-blind WER): **~3.5% / 0% / 0%** (в теле PR #4: clip_01 **0.0345**, clip_02 **0**, clip_03 **0**). Это не edge suite.
 
-## Worst-case edge suite — pending, чисел нет
+## Edge suite @ `9908353d` — measured FAIL
 
-Echo, overlap, white noise / room noise, bad mics: **unmeasured until edge suite**. DER/WER/RTF для suite в этом файле нет и не подставляются. Когда Eval прогонит suite, публикуем **honest FAIL / hard numbers**. До замера: **expect FAIL / hard degradation**. **Do not claim in slides.** Запрещены формулировки «should be fine», «robust», «handles noisy rooms», «graceful under echo».
+Источник: Eval [PR #4](https://cursor.com/codebase/johann-schilling/neuro-stenographer/pull/4) @ `9908353d`. Таблица скопирована. Фикстуры **не** подкручивали после FAIL.
+
+**Path B under edge: stream tracking still 20/20.** Это единственная multi-talker заявка, которая переживает edge. **WER/DER under WORST_CASE are FAIL** (WER main **0.9130**, DER 250ms **1.2985**; слайды: WER≈0.91, DER≈1.30). Clean WER/DER на WORST_CASE и EDGE_* не заявлять. **Killers:** overlap/bleed, noise false alarms, bad mic. Reverb alone does **not** collapse Path B.
+
+| test_id | DER 250ms | JER | WER main | RTF | hyp/ref |
+|---|---|---|---|---|---|
+| CLEAN Path B | 0.0913 | 0.1840 | 0.0870 | 0.1212 | 20/20 |
+| EDGE_reverb | 0.0849 | 0.1756 | 0.1304 | 0.1263 | 20/20 |
+| EDGE_overlap | 0.9936 | 0.5476 | 0.7391 | 0.2430 | 20/20 |
+| EDGE_noise | 1.7005 | 0.5675 | 0.1739 | 0.2602 | 20/20 |
+| EDGE_badmic | 0.6569 | 0.2863 | 1.0000 | 0.1910 | 20/20 |
+| **WORST_CASE** | **1.2985** | **0.5981** | **0.9130** | **0.2907** | 20/20 |
+
+Overlap real: max 12 concurrent; 91% of speech frames ≥2 speakers. Main vs bleed: +3.0 dB (EDGE_overlap) / +1.5 dB (WORST_CASE). WORST_CASE main hyp collapses to one ~18s blob (`хочу говорить`). DER>1 = false-alarm time > ref speech. Запрещены «should be fine», «robust», «handles noisy rooms», «graceful under echo». **Do not claim in slides** clean WER/DER на edge.
