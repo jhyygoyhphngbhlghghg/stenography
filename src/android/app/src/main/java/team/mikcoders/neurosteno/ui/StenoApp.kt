@@ -1,5 +1,6 @@
 package team.mikcoders.neurosteno.ui
 
+import android.Manifest
 import android.content.Intent
 import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -51,6 +52,11 @@ fun StenoApp(vm: StenoViewModel = viewModel()) {
             }
         vm.onFilePicked(uri, name)
     }
+    val recPerm = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        if (granted) vm.toggleRecord()
+    }
 
     Scaffold(
         topBar = {
@@ -85,6 +91,9 @@ fun StenoApp(vm: StenoViewModel = viewModel()) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = { picker.launch(arrayOf("audio/*", "application/octet-stream")) }) {
                     Text("Импорт")
+                }
+                OutlinedButton(onClick = { recPerm.launch(Manifest.permission.RECORD_AUDIO) }) {
+                    Text(if (state.recording) "Стоп записи" else "Запись")
                 }
                 Button(
                     onClick = { vm.transcribe() },

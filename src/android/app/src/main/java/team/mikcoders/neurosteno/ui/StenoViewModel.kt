@@ -12,6 +12,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import team.mikcoders.neurosteno.BuildConfig
 import team.mikcoders.neurosteno.audio.AudioDecoder
+import team.mikcoders.neurosteno.audio.MicRecorder
 import team.mikcoders.neurosteno.export.TranscriptFile
 import team.mikcoders.neurosteno.export.TranscriptJson
 import team.mikcoders.neurosteno.pipeline.PipelineFactory
@@ -32,6 +33,8 @@ data class StenoUiState(
     val presentConnect: Boolean = BuildConfig.PRESENT_CONNECT,
     val engineName: String = "stub",
     val modelsReady: Boolean = false,
+    val recording: Boolean = false,
+    val heldPcm: PcmAudio? = null,
 )
 
 class StenoViewModel(app: Application) : AndroidViewModel(app) {
@@ -47,6 +50,7 @@ class StenoViewModel(app: Application) : AndroidViewModel(app) {
         ),
     )
     val state: StateFlow<StenoUiState> = _state
+    private val mic = MicRecorder()
 
     fun onFilePicked(uri: Uri, displayName: String?) {
         _state.update {
@@ -56,7 +60,25 @@ class StenoViewModel(app: Application) : AndroidViewModel(app) {
                 error = null,
                 transcript = null,
                 jsonPreview = null,
+                heldPcm = null,
             )
+        }
+    }
+
+    fun toggleRecord() {
+        if (mic.isRecording) {
+            val audio = mic.stop()
+            _state.update {
+                it.copy(
+                    recording = false,
+                    heldPcm = audio,
+                    fileLabel = "mic ${audio.durationMs} ms",
+                    importedUri = null,
+                )
+            }
+        } else {
+            mic.start()
+            _state.update { it.copy(recording = true, error = null) }
         }
     }
 
@@ -67,11 +89,12 @@ class StenoViewModel(app: Application) : AndroidViewModel(app) {
             _state.update { it.copy(running = true, error = null, progress = PipelineProgress(PipelineStage.Decode, "start", 0f)) }
             try {
                 val audio = withContext(Dispatchers.Default) {
+                    val held = _state.value.heldPcm
                     val uriStr = _state.value.importedUri
-                    if (uriStr != null) {
-                        AudioDecoder.decode(getApplication(), Uri.parse(uriStr), label)
-                    } else {
-                        PcmAudio(
+                    when {
+                        held != null && uriStr == null -> held
+                        uriStr != null -> AudioDecoder.decode(getApplication(), Uri.parse(uriStr), label)
+                        else -> PcmAudio(
                             samples = FloatArray(16_000 * 4),
                             sampleRate = 16_000,
                             sourceName = label,
