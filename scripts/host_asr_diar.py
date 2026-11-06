@@ -402,6 +402,7 @@ def transcribe_per_stream(
     pcm_gate: bool = False,
     pcm_gate_no_hush: bool = False,
     pcm_gate_v2: bool = False,
+    pcm_gate_v3: bool = False,
 ) -> tuple[dict, dict]:
     """Path B: one dry track per PresentConnect stream, then merge.
 
@@ -413,9 +414,14 @@ def transcribe_per_stream(
     drop the stream. pcm_gate_no_hush (b142a4d): do **not** wipe a quiet on-mic
     seat because padded-file RMS is LOW_ENERGY; apply inspect() to each ASR crop.
 
-    pcm_gate_v2: StreamPcmGate v2 Implementer e3ad908 (sha256 == Platform b12a2bb). Bound seats s01–s20: SOFT_LOW still
-    ASR; BAND_LIMITED / CLIPPED / BAD_MIC / empty still hard-reject. Headline
-    ingest; no crop skip. Fixtures are not rewritten.
+    pcm_gate_v2: StreamPcmGate v2 Implementer e3ad908 (sha256 == Platform b12a2bb).
+    Bound seats s01–s20: SOFT_LOW still ASR; BAND_LIMITED / CLIPPED / BAD_MIC /
+    empty still hard-reject.
+
+    pcm_gate_v3: StreamPcmGate @ a5b7aed (sha256 == Platform 686ac4a). Bound
+    s01–s20: BAND_LIMITED is a soft flag + still ASR (like SOFT_LOW); never
+    hard-drop main/s01 for energy or band-limit. CLIPPED/BAD_MIC stay hard.
+    Headline ingest; no crop skip. Fixtures are not rewritten.
     """
     dry_dir = Path(dry_dir)
     t0 = time.perf_counter()
@@ -455,9 +461,9 @@ def transcribe_per_stream(
         sid = f"speaker_{i}"
         t1 = time.perf_counter()
         gate_stats = None
-        use_gate = pcm_gate or pcm_gate_v2
+        use_gate = pcm_gate or pcm_gate_v2 or pcm_gate_v3
         if use_gate:
-            if pcm_gate_v2:
+            if pcm_gate_v2 or pcm_gate_v3:
                 # Path B oracle seats s01–s20 are boundKnown (PathBSession).
                 # Inspect the wav's pcm_s16le (Kotlin inspects bytes, not float32).
                 import wave as _wave
@@ -465,8 +471,9 @@ def transcribe_per_stream(
 
                 with _wave.open(str(wav), "rb") as _w:
                     s16 = _np.frombuffer(_w.readframes(_w.getnframes()), dtype="<i2")
+                gate_ver = 3 if pcm_gate_v3 else 2
                 gate_stats = PCM_GATE.inspect_s16(
-                    s16, sample_rate_hz=sr, bound_seat=True, version=2
+                    s16, sample_rate_hz=sr, bound_seat=True, version=gate_ver
                 )
                 wipe = not gate_stats["asr_allowed"]
             else:
@@ -559,7 +566,7 @@ def transcribe_per_stream(
             a = max(0, int(start * sr))
             b = min(samples.size, int(end * sr))
             crop = samples[a:b]
-            if pcm_gate and pcm_gate_no_hush and (not pcm_gate_v2) and crop.size:
+            if pcm_gate and pcm_gate_no_hush and (not pcm_gate_v2) and (not pcm_gate_v3) and crop.size:
                 cq = PCM_GATE.inspect_float(crop, sample_rate_hz=sr)
                 if not cq["asr_allowed"]:
                     crops_skipped += 1
@@ -612,13 +619,18 @@ def transcribe_per_stream(
         "min_duration_on": min_duration_on,
         "min_duration_off": min_duration_off,
         "rel_thresh": rel_thresh,
-        "pcm_gate": bool(pcm_gate or pcm_gate_v2),
-        "pcm_gate_no_hush": pcm_gate_no_hush and not pcm_gate_v2,
-        "pcm_gate_v2": pcm_gate_v2,
+        "pcm_gate": bool(pcm_gate or pcm_gate_v2 or pcm_gate_v3),
+        "pcm_gate_no_hush": pcm_gate_no_hush and not pcm_gate_v2 and not pcm_gate_v3,
+        "pcm_gate_v2": pcm_gate_v2 and not pcm_gate_v3,
+        "pcm_gate_v3": pcm_gate_v3,
         "pcm_gate_source": (
-            "StreamPcmGate.kt v2 @ e3ad908 (sha256 == Platform b12a2bb; BAND_LIMITED + boundSeat SOFT_LOW)"
-            if pcm_gate_v2
-            else "StreamPcmGate.kt thresholds f5ff5e2; no-hush ingest b142a4d"
+            "StreamPcmGate.kt v3 @ a5b7aed (sha256 == Platform 686ac4a; bound BAND_LIMITED soft + still ASR)"
+            if pcm_gate_v3
+            else (
+                "StreamPcmGate.kt v2 @ e3ad908 (sha256 == Platform b12a2bb; BAND_LIMITED + boundSeat SOFT_LOW)"
+                if pcm_gate_v2
+                else "StreamPcmGate.kt thresholds f5ff5e2; no-hush ingest b142a4d"
+            )
         ),
         "streams_passed": sum(1 for s in per if s.get("vad") != "pcm_gate_reject"),
         "streams_dropped": sum(1 for s in per if s.get("vad") == "pcm_gate_reject"),
@@ -634,13 +646,26 @@ def transcribe_per_stream(
                 for x in per
             )
         },
+        "pcm_gate_soft_flags": {
+            flag: sum(
+                1
+                for x in per
+                if flag in ((x.get("pcm_gate") or {}).get("soft_flags") or [])
+            )
+            for flag in ("SOFT_LOW", "BAND_LIMITED", "SOFT_CLIP", "SOFT_DC")
+            if any(flag in ((x.get("pcm_gate") or {}).get("soft_flags") or []) for x in per)
+        },
         "stack": (
-            "linux-sherpa-onnx per-stream StreamPcmGate v2+RMS-VAD+ASR (oracle stream id), merge by time"
-            if pcm_gate_v2
+            "linux-sherpa-onnx per-stream StreamPcmGate v3+RMS-VAD+ASR (oracle stream id), merge by time"
+            if pcm_gate_v3
             else (
-                "linux-sherpa-onnx per-stream StreamPcmGate+RMS-VAD+ASR (oracle stream id), merge by time"
-                if pcm_gate
-                else "linux-sherpa-onnx per-stream RMS-VAD+ASR (oracle stream id), merge by time"
+                "linux-sherpa-onnx per-stream StreamPcmGate v2+RMS-VAD+ASR (oracle stream id), merge by time"
+                if pcm_gate_v2
+                else (
+                    "linux-sherpa-onnx per-stream StreamPcmGate+RMS-VAD+ASR (oracle stream id), merge by time"
+                    if pcm_gate
+                    else "linux-sherpa-onnx per-stream RMS-VAD+ASR (oracle stream id), merge by time"
+                )
             )
         ),
         "streams": per,
