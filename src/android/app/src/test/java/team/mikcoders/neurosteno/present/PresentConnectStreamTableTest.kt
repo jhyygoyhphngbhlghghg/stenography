@@ -36,7 +36,7 @@ class PresentConnectStreamTableTest {
             assertTrue(table.tryStart("s$i") is AdmitResult.Accepted)
         }
         assertTrue(table.tryStart("s21") is AdmitResult.OverCapacity)
-        assertTrue(table.end("s01"))
+        assertTrue(table.end("s1"))
         val again = table.tryStart("s21")
         assertTrue(again is AdmitResult.Accepted)
         assertEquals(20, table.activeCount())

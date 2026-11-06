@@ -1,0 +1,31 @@
+APK: src/android/app/build/outputs/apk/stenographer/debug/app-stenographer-debug.apk
+bytes: 143621712
+sha256: 2aebe2cff6fe0f79817e6c3fb8da9fb760fb0f06169fbfb7fe2afe3eab2a4549
+
+presentConnect APK bytes: 143621716
+sha256: b9417868db2df8724caac961f86f5088f7a92e6da73b0cf179d045d01ffc692d
+
+unzip -l (native libs):
+    10096  lib/arm64-v8a/libandroidx.graphics.path.so
+ 22249560  lib/arm64-v8a/libonnxruntime.so
+  4303136  lib/arm64-v8a/libsherpa-onnx-c-api.so
+   272848  lib/arm64-v8a/libsherpa-onnx-cxx-api.so
+  4609320  lib/arm64-v8a/libsherpa-onnx-jni.so
+     7252  lib/armeabi-v7a/libandroidx.graphics.path.so
+ 15359592  lib/armeabi-v7a/libonnxruntime.so
+  3157748  lib/armeabi-v7a/libsherpa-onnx-c-api.so
+   183600  lib/armeabi-v7a/libsherpa-onnx-cxx-api.so
+  3381796  lib/armeabi-v7a/libsherpa-onnx-jni.so
+     9284  lib/x86/libandroidx.graphics.path.so
+ 26491148  lib/x86/libonnxruntime.so
+  4954780  lib/x86/libsherpa-onnx-c-api.so
+   250072  lib/x86/libsherpa-onnx-cxx-api.so
+  5261876  lib/x86/libsherpa-onnx-jni.so
+    10760  lib/x86_64/libandroidx.graphics.path.so
+ 25581120  lib/x86_64/libonnxruntime.so
+  4782648  lib/x86_64/libsherpa-onnx-c-api.so
+   267552  lib/x86_64/libsherpa-onnx-cxx-api.so
+  5053592  lib/x86_64/libsherpa-onnx-jni.so
+
+Runtime UnsatisfiedLinkError: not observed (no Android emulator/device).
+Load is attempted in NeuroStenoApp.onCreate via SherpaJni.probe().
