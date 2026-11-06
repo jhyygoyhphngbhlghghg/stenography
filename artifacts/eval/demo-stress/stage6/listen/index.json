@@ -1,0 +1,100 @@
+{
+  "fixture": "DEMO_STAGE6 frozen @ a8b39d5a",
+  "mix": "/agent/repos/neuro-stenographer/artifacts/eval/demo-stress/stage6/listen/DEMO_STAGE6.wav",
+  "source_wav": "/agent/repos/neuro-stenographer/samples/demo-stress/stage6/DEMO_STAGE6.wav",
+  "notes": "Excerpts are mix windows (Path A one-mic, HVAC+phone already on the mix). Not dry CV. Gold not retuned.",
+  "worked": [
+    {
+      "file": "/agent/repos/neuro-stenographer/artifacts/eval/demo-stress/stage6/listen/speaker_1_3.0m_worked.wav",
+      "speaker_id": "speaker_1",
+      "distance_m": 3.0,
+      "listen": "worked",
+      "start_ms": 250,
+      "end_ms": 7018,
+      "n_samples": 108288,
+      "gold": "И она, подойдя к кровати, потушила свечу, легла и затихла.",
+      "source": "mix-window excerpt of frozen DEMO_STAGE6.wav @ a8b39d5a (not retuned)"
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/artifacts/eval/demo-stress/stage6/listen/speaker_2_3.6m_worked.wav",
+      "speaker_id": "speaker_2",
+      "distance_m": 3.6,
+      "listen": "worked",
+      "start_ms": 6818,
+      "end_ms": 15650,
+      "n_samples": 141312,
+      "gold": "Государству принадлежит исключительная ответственность за сохранение безопасности на своей национальной территории.",
+      "source": "mix-window excerpt of frozen DEMO_STAGE6.wav @ a8b39d5a (not retuned)"
+    }
+  ],
+  "failed": [
+    {
+      "file": "/agent/repos/neuro-stenographer/artifacts/eval/demo-stress/stage6/listen/speaker_5_5.4m_failed.wav",
+      "speaker_id": "speaker_5",
+      "distance_m": 5.4,
+      "listen": "failed",
+      "start_ms": 28970,
+      "end_ms": 33650,
+      "n_samples": 74880,
+      "gold": "У нас полгорода в трауре.",
+      "source": "mix-window excerpt of frozen DEMO_STAGE6.wav @ a8b39d5a (not retuned)"
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/artifacts/eval/demo-stress/stage6/listen/speaker_6_6.0m_failed.wav",
+      "speaker_id": "speaker_6",
+      "distance_m": 6.0,
+      "listen": "failed",
+      "start_ms": 33450,
+      "end_ms": 39318,
+      "n_samples": 93888,
+      "gold": "Конечно, будучи неофициальным, он будет наличествовать только на английском языке.",
+      "source": "mix-window excerpt of frozen DEMO_STAGE6.wav @ a8b39d5a (not retuned)"
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "/agent/repos/neuro-stenographer/artifacts/eval/demo-stress/stage6/listen/speaker_1_3.0m_worked.wav",
+      "speaker_id": "speaker_1",
+      "distance_m": 3.0,
+      "listen": "worked",
+      "start_ms": 250,
+      "end_ms": 7018,
+      "n_samples": 108288,
+      "gold": "И она, подойдя к кровати, потушила свечу, легла и затихла.",
+      "source": "mix-window excerpt of frozen DEMO_STAGE6.wav @ a8b39d5a (not retuned)"
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/artifacts/eval/demo-stress/stage6/listen/speaker_2_3.6m_worked.wav",
+      "speaker_id": "speaker_2",
+      "distance_m": 3.6,
+      "listen": "worked",
+      "start_ms": 6818,
+      "end_ms": 15650,
+      "n_samples": 141312,
+      "gold": "Государству принадлежит исключительная ответственность за сохранение безопасности на своей национальной территории.",
+      "source": "mix-window excerpt of frozen DEMO_STAGE6.wav @ a8b39d5a (not retuned)"
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/artifacts/eval/demo-stress/stage6/listen/speaker_5_5.4m_failed.wav",
+      "speaker_id": "speaker_5",
+      "distance_m": 5.4,
+      "listen": "failed",
+      "start_ms": 28970,
+      "end_ms": 33650,
+      "n_samples": 74880,
+      "gold": "У нас полгорода в трауре.",
+      "source": "mix-window excerpt of frozen DEMO_STAGE6.wav @ a8b39d5a (not retuned)"
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/artifacts/eval/demo-stress/stage6/listen/speaker_6_6.0m_failed.wav",
+      "speaker_id": "speaker_6",
+      "distance_m": 6.0,
+      "listen": "failed",
+      "start_ms": 33450,
+      "end_ms": 39318,
+      "n_samples": 93888,
+      "gold": "Конечно, будучи неофициальным, он будет наличествовать только на английском языке.",
+      "source": "mix-window excerpt of frozen DEMO_STAGE6.wav @ a8b39d5a (not retuned)"
+    }
+  ]
+}
