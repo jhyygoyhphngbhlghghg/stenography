@@ -100,6 +100,35 @@ Forcing `num_clusters=20` still yields **one** cluster: pyannote segmentation se
 
 Demo implication: the 20-mic PresentConnect path is the one that can track talkers; a single room mic with 20 overlapping voices is still a measured fail.
 
+### Johann hard requirement — adversarial Path B (worst-case demo room)
+
+CLEAN Path B (`mix_20talker_per_stream`) is **optimistic**: isolated dry CV clips, 90 ms stagger, no bleed, no room. H1/Johann: measure the **real demo room**, expect FAIL, **do not tune fixtures to look good**.
+
+Same Path B stack (20 streams, RMS VAD + Zipformer, oracle `s0N`↔`speaker_N`). Speech still CV17 CC0. All IR / HVAC / chair / door / phone / white are **SYNTHETIC** (`scripts/generate_adversarial_path_b.py`). Overlap timeline: max **12** concurrent talkers; **90.99%** of speech frames have ≥2 speakers; mean **8.28** active. Bleed on s01 measured **+3.00 dB** (EDGE_overlap) / **+1.50 dB** (WORST_CASE) vs other talkers on main-active frames. Recipe: `samples/demo-stress/adversarial/`.
+
+DER can exceed 1.0 when false-alarm time (noise/VAD) exceeds ref speech.
+
+| test_id | status | DER 250ms | DER uncollared | JER | purity | WER main | RTF | hyp/ref spk |
+|---|---|---|---|---|---|---|---|---|
+| mix_20talker_per_stream **CLEAN Path B** | measured | **0.0913** | 0.1728 | **0.1840** | 0.9983 | **0.0870** | **0.1212** | 20 / 20 |
+| EDGE_reverb | measured | **0.0849** | 0.1633 | **0.1756** | 0.9984 | **0.1304** | 0.1263 | 20 / 20 |
+| EDGE_overlap | measured | **0.9936** | 1.1753 | **0.5476** | 0.9807 | **0.7391** | 0.2430 | 20 / 20 |
+| EDGE_noise | measured | **1.7005** | 1.2941 | **0.5675** | 0.9203 | **0.1739** | 0.2602 | 20 / 20 |
+| EDGE_badmic | measured | **0.6569** | 0.5246 | **0.2863** | 0.9497 | **1.0000** | 0.1910 | 20 / 20 |
+| WORST_CASE | measured | **1.2985** | 1.4881 | **0.5981** | 0.9491 | **0.9130** | 0.2907 | 20 / 20 |
+
+Wall: EDGE_reverb 2367 ms / 18736 ms; EDGE_overlap 4392 / 18076; EDGE_noise 4875 / 18736; EDGE_badmic 3578 / 18736; WORST_CASE **5255 / 18076**.
+
+Honest read (not spun):
+
+- Isolated-mic **reverb alone** does not collapse Path B (WER 0.0870→0.1304). Echo is not the demo-room killer if each stream is still a clean close mic.
+- **True overlap + bleed** is: DER **0.99**, WER_main **0.74**. Leaky mics + 8-way concurrent speech.
+- **Room noises** blow DER to **1.70** (VAD false alarms on HVAC/chairs/phone); main WER stays 0.1739.
+- **Bad phone mic** zeros ASR: WER_main **1.0000**.
+- **WORST_CASE** (all stacked, main +1.5 dB on s01): DER **1.30**, JER **0.60**, WER_main **0.91**. Hyp main is one 18 s blob whose text is `хочу говорить`. This is the demo-room row.
+
+JSON validates (four fields). No invented numbers. Fixtures were not relaxed after seeing FAIL.
+
 ### Superseded eSpeak SYNTHETIC baseline (historical)
 
 H1-ACK'd cocktail FAIL. Files: `artifacts/eval/demo-stress/espeak-baseline/`. Do not use as headline.

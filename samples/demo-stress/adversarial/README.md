@@ -21,6 +21,8 @@ Speech: Mozilla Common Voice 17.0 RU test, **CC0-1.0**. All IR / HVAC / chair / 
 
 Large wavs are **gitignored**. Refs + `recipe.json` + `smoke_worst.wav` are committed.
 
+Measured host-Linux rows (not invented; fixtures not retuned after FAIL): see `docs/TEST_RESULTS.md` and `artifacts/eval/demo-stress/metrics.csv`. WORST_CASE DER **1.2985** / JER **0.5981** / WER_main **0.9130** / RTF **0.2907**.
+
 ```bash
 python3 scripts/generate_adversarial_path_b.py
 python3 scripts/eval_demo_stress.py --run-host --only EDGE_reverb --only EDGE_overlap --only EDGE_noise --only EDGE_badmic --only WORST_CASE
