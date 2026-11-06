@@ -17,7 +17,6 @@ import com.k2fsa.sherpa.onnx.Vad
 import com.k2fsa.sherpa.onnx.VadModelConfig
 import team.mikcoders.neurosteno.audio.AudioQualityGate
 import team.mikcoders.neurosteno.audio.Pcm
-import team.mikcoders.neurosteno.audio.SpeechEnergy
 import team.mikcoders.neurosteno.audio.SpeechEndpointing
 import team.mikcoders.neurosteno.export.TranscriptFile
 import team.mikcoders.neurosteno.export.Utterance
@@ -25,10 +24,11 @@ import team.mikcoders.neurosteno.llm.IdentityLlmPostPass
 import team.mikcoders.neurosteno.llm.LocalLlmPostPass
 
 /**
- * Endpoint trim → VAD → OfflineSpeakerDiarization → Zipformer-ru (or Whisper tiny) per crop → LLM stub.
+ * DC-block → diar/VAD → Zipformer-ru per crop → LLM stub.
  *
- * Overlap/bleed: tighter Silero params + drop crops that fail [SpeechEndpointing.isMainSpeech]
- * (cite-only bar: EDGE_overlap WER 0.74 DER 0.99).
+ * Overlap/bleed: endpoint trim + drop *crops* that fail [SpeechEndpointing.isMainSpeech]
+ * (cite-only bar: EDGE_overlap WER 0.74 DER 0.99). Do not zero the whole stream
+ * before diar — that cost 9 Path B speakers.
  *
  * Wired to the sherpa-onnx **Kotlin** Android AAR (data classes, not Java builders).
  * Models live on disk (filesDir), so AssetManager is null → newFromFile.
@@ -58,22 +58,18 @@ class SherpaStenoPipeline(
             }
             AudioQualityGate.Quality.Ok -> Unit
         }
+        // Path B 20/20: do **not** zero/skip the buffer before diar. StreamPcmGate
+        // already hard-rejects hush/clip at ingest. Pre-diar noise-bed wipe dropped speakers.
         val gated = audio.copy(samples = AudioQualityGate.dcBlock(audio.samples))
-        onProgress(PipelineProgress(PipelineStage.Vad, "energy/VAD gate before diar", 0.12f))
-        if (!SpeechEnergy.hasEnoughSpeech(gated.samples, gated.sampleRate)) {
-            onProgress(PipelineProgress(PipelineStage.Done, "energy gate: no speech (skip diar/ASR)", 1f))
-            return TranscriptFile(transcript = emptyList())
-        }
-        val masked = gated.copy(samples = SpeechEnergy.zeroNonSpeech(gated.samples, gated.sampleRate))
 
         val recognizer = createRecognizer()
         try {
             val raw = if (paths.hasDiar) {
                 onProgress(PipelineProgress(PipelineStage.Diarize, "OfflineSpeakerDiarization", 0.2f))
-                diarizeThenAsr(masked, recognizer, onProgress)
+                diarizeThenAsr(gated, recognizer, onProgress)
             } else {
                 onProgress(PipelineProgress(PipelineStage.Vad, "Silero VAD chunks", 0.2f))
-                vadThenAsr(masked, recognizer, onProgress)
+                vadThenAsr(gated, recognizer, onProgress)
             }
             onProgress(
                 PipelineProgress(
@@ -276,7 +272,7 @@ class SherpaStenoPipeline(
                 provider = "cpu",
             ),
             clustering = FastClusteringConfig(numClusters = -1, threshold = 0.5f),
-            minDurationOn = 0.4f,
+            minDurationOn = 0.2f,
             minDurationOff = 0.5f,
         )
         return OfflineSpeakerDiarization(assetManager = null, config = cfg)
