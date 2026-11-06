@@ -259,7 +259,7 @@
       "pad_ms": 250,
       "rel_thresh": 0.04,
       "vad": "rms",
-      "notes": "Headline StreamPcmGate v2 @ b12a2bb (BAND_LIMITED + boundSeat SOFT_LOW) on frozen EDGE_noise wavs. Do not retune."
+      "notes": "Headline StreamPcmGate v2 @ e3ad908 (sha256 == Platform b12a2bb; BAND_LIMITED + boundSeat SOFT_LOW) on frozen EDGE_noise wavs. Do not retune."
     },
     {
       "test_id": "EDGE_badmic_gated_v2",
@@ -277,7 +277,7 @@
       "pad_ms": 250,
       "rel_thresh": 0.04,
       "vad": "rms",
-      "notes": "Headline StreamPcmGate v2 @ b12a2bb (BAND_LIMITED + boundSeat SOFT_LOW) on frozen EDGE_badmic wavs. Do not retune."
+      "notes": "Headline StreamPcmGate v2 @ e3ad908 (sha256 == Platform b12a2bb; BAND_LIMITED + boundSeat SOFT_LOW) on frozen EDGE_badmic wavs. Do not retune."
     },
     {
       "test_id": "WORST_CASE_gated_v2",
@@ -295,7 +295,7 @@
       "pad_ms": 250,
       "rel_thresh": 0.04,
       "vad": "rms",
-      "notes": "Headline StreamPcmGate v2 @ b12a2bb (BAND_LIMITED + boundSeat SOFT_LOW) on frozen WORST_CASE wavs. Do not retune."
+      "notes": "Headline StreamPcmGate v2 @ e3ad908 (sha256 == Platform b12a2bb; BAND_LIMITED + boundSeat SOFT_LOW) on frozen WORST_CASE wavs. Do not retune."
     }
   ]
 }

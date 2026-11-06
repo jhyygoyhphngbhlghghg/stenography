@@ -163,6 +163,18 @@ Implementer removed pre-diar `SpeechEnergy` stream wipe; StreamPcmGate **thresho
 
 Honest: EDGE_noise hyp **11/20 → 17/20** (closer to 20/20; 3 seats still have no surviving crop). DER 1.2940→0.7092 (crop-level LOW_ENERGY dropped HVAC FA). WER_main held 0.1739. badmic/WORST_CASE content unchanged. Do not claim clean WER/DER on WORST_CASE.
 
+### StreamPcmGate v2 (Implementer `e3ad908` == Platform `b12a2bb`) — headline ingest
+
+Python Path B ingest mirrors StreamPcmGate.kt @ Implementer PR #6 `e3ad908` (sha256 `3caa3a6a…` == Platform `b12a2bb`, not a divergent port): Goertzel `BAND_LIMITED` (hf_ratio &lt; 0.08, occ_speech ≥ 2, occ_hf ≤ 0, only if rms ≥ 0.020) plus bound-seat `SOFT_LOW` (s01–s20 near/below RMS floor still ASR; hard `LOW_ENERGY` only if unbound or n==0). CLIPPED/BAD_MIC still hard-reject. `BAND_LIMITED_SPEECH_OCC = 2` matches Kotlin, not the measure-script JSON comment of 3. Frozen wavs/refs/VAD **unchanged**. Prior `*_gated` @ `3b31e24` and `*_gated_b142a4d` @ `a42900e` kept as history. Headline rows: `*_gated_v2`.
+
+| test_id | baseline DER / JER / WER / RTF / hyp | gated_v2 DER / JER / WER / RTF / hyp | gate pass/drop + reasons |
+|---|---|---|---|
+| EDGE_noise | **1.7005** / 0.5675 / **0.1739** / 0.2602 / **20/20** | **1.6234** / 0.5851 / **0.9565** / 0.4672 / **19/20** | **19/20** pass (s02–s20 `SOFT_LOW`); drop **1** `BAND_LIMITED` **s01** (rms 0.064, hf_ratio 0.0166, occ_speech 7, occ_hf 0) |
+| EDGE_badmic | **0.6569** / 0.2863 / **1.0000** / 0.1910 / **20/20** | **0.7444** / 0.7707 / **0.2609** / 0.2961 / **6/20** | **6/20** pass (s01,s05,s06,s08,s09,s17); drop **14** `BAND_LIMITED` (s02–s04,s07,s10–s16,s18–s20) |
+| WORST_CASE | **1.2985** / 0.5981 / **0.9130** / 0.2907 / **20/20** | **1.0000** / 1.0000 / **1.0000** / 0.1976 / **0/20** | **0/20** pass; drop **20** `BAND_LIMITED` (empty `{transcript:[]}`) |
+
+Honest: v2 does what v1 could not — phone-crush seats fail `BAND_LIMITED` instead of sailing through RMS/clip/DC. Bound quiet EDGE_noise seats survive (`SOFT_LOW`, 19/20 vs v1 gated 11/20). Cost: EDGE_noise **s01** is loud enough for the band check and is rejected (HVAC/phone-like whole-file spectrum), so WER_main 0.1739→**0.9565**. EDGE_badmic WER_main 1.0000→0.2609 because s01 still ASR (hf_occupancy=1, so not `BAND_LIMITED`) and 14 crushed babble seats are gone; JER got worse (0.2863→0.7707) from those misses. WORST_CASE is a **full refuse**: 20/20 `BAND_LIMITED`, hyp **0/20**, DER/JER/WER **1.0**. Do not claim clean WER/DER on WORST_CASE. Frozen 20/20 lock remains the ungated baseline.
+
 #### Ablation (interpretive — no new run)
 
 Read off the frozen table above, not a new measurement. Single-factor vs CLEAN Path B (DER 0.0913 / WER_main 0.0870):
