@@ -176,3 +176,32 @@ cd src/android && ./gradlew --no-daemon :app:testStenographerDebugUnitTest
 JVM tests cover: brief four keys only (no `stream_id`), sorted by `start_ms`, `speaker_1` present and ≥3 distinct speakers (golden has 7), StreamLabeler `s01`→`speaker_1` / `s05`→`speaker_5` / `s20`→`speaker_20`, fake two-stream Path B session (oracle relabel, cancel does not absorb, PCM not mixed), stream table 20 accept / 21 `OVER_CAPACITY`.
 
 No device JNI this push. No Eval re-run.
+
+## 6. Path B pre-ASR energy / mic-quality gate (JVM)
+
+Platform wire only. **Eval WORST_CASE fixtures, `samples/demo-stress` wavs, `ref/`, Eval metrics, and P1.bench harness scripts were not modified.** No on-device DER/WER claimed.
+
+```bash
+python3 scripts/measure-stream-pcm-gate.py --record
+cd src/android && ./gradlew --no-daemon :app:testStenographerDebugUnitTest
+```
+
+Thresholds (pcm_s16le, FS=32768, 16 kHz) from that measure command — see `artifacts/test-results/stream-pcm-gate.json`:
+
+| Fixture | RMS FS | dBFS | clip_ratio | verdict |
+|---|---|---|---|---|
+| silence | 0 | −∞ | 0 | `LOW_ENERGY` |
+| tiny_noise (±3 LSB) | 6.11e-5 | −84.3 | 0 | `LOW_ENERGY` |
+| clipped square ±32767 | 1.0 | 0 | 1.0 | `CLIPPED` |
+| clean 1 kHz −20 dBpeak | 0.0707 | −23.0 | 0 | pass (ASR) |
+| stuck DC 8000 | 0.244 | −12.2 | 0 | `BAD_MIC` |
+
+Reject RMS 0.008 FS (≈ −42 dBFS). Codes: `LOW_ENERGY`, `CLIPPED`, `BAD_MIC`. Soft flags still ASR; brief JSON four fields only.
+
+| Command | Result | Wall |
+|---|---|---|
+| `python3 scripts/measure-stream-pcm-gate.py --record` | **PASS** (synthetic only) | <1 s |
+| `./gradlew :app:testStenographerDebugUnitTest` | **PASS** (25 tests, 0 failures; 8 gate cases) | 15 s |
+| `./gradlew :app:compilePresentConnectDebugKotlin` | **PASS** | 12 s |
+
+`PathBGoldenBriefTest` (2) and `StreamLabelerTest` (4) unchanged and still green. No Eval DER/WER re-measure.
