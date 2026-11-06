@@ -1,6 +1,10 @@
-# Path B regression gate (FROZEN)
+# Demo fixtures
 
-H1 accepted the WORST_CASE table at `9908353`. These six Path B rows are the **frozen** demo-stress gate.
+**Primary presentation target:** `DEMO_STAGE6` — 6 RU talkers, **one mic** (Path A room mix), turn-taking with slight end overlap. Recipe: `samples/demo-stress/stage6/`. Soft-bound 20-stream / `*_gated_v3` is **secondary regression only**, not the demo.
+
+# Path B regression gate (FROZEN, secondary)
+
+H1 accepted the WORST_CASE table at `9908353`. These six Path B rows are the **frozen** 20-stream regression gate. They are **not** the DEMO_STAGE6 presentation fixture.
 
 | Frozen `test_id` | Role |
 |---|---|
@@ -30,4 +34,4 @@ Harden-claim remeasures use **new** test_ids on the **same** frozen wavs. They d
 - `*_gated_v2` — StreamPcmGate v2 Implementer `e3ad908` (sha256 == Platform `b12a2bb`; hard `BAND_LIMITED` even on bound seats). History @ `bed868b`.
 - `*_gated_v3` — StreamPcmGate v3 Implementer `a5b7aed` (sha256 == Platform `686ac4a`). Bound `s01`–`s20`: `BAND_LIMITED` is a **soft** flag + still ASR. CLIPPED/BAD_MIC stay hard. Headline ingest. Does not replace frozen baseline or prior gated history.
 
-H1 GO @ `a5b7aed`: Platform softened bound-seat `BAND_LIMITED`. Remeasure EDGE_noise / EDGE_badmic / WORST_CASE as `*_gated_v3` only. Fixtures stay frozen. Hold merge; #2 first.
+`*_gated_v3` @ `a5b7aed` / `686ac4a`: bound `BAND_LIMITED` is a soft flag. **Secondary regression.** DEMO_STAGE6 is the primary demo fixture. 20-stream EDGE_* stay green; do not retune those frozen wavs.

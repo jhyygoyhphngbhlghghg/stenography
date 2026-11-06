@@ -147,6 +147,8 @@ def run_one(
         "jer": "",
         "speaker_purity": "",
         "wer_main": "",
+        "wer_aggregate": "",
+        "wer_per_speaker": "",
         "speakers_ref": "",
         "speakers_hyp": "",
         "json_valid": "",
@@ -255,6 +257,28 @@ def run_one(
             row["speakers_ref"] = str(diar["n_ref_speakers"])
             row["speakers_hyp"] = str(diar["n_hyp_speakers"])
             row["metric_impl"] = diar["metric_impl"]
+            sw = None
+            if clip.get("wer_per_speaker"):
+                sw = M.speaker_wers(ref, hyp, mapping)
+                row["wer_aggregate"] = _fmt(sw["wer_aggregate"])
+                compact = {k: (None if v is None else round(float(v), 4)) for k, v in sw["per_speaker"].items()}
+                row["wer_per_speaker"] = json.dumps(compact, ensure_ascii=False, separators=(",", ":"))
+                (out_dir / f"{test_id}.speakers.json").write_text(
+                    json.dumps(
+                        {
+                            "test_id": test_id,
+                            "wer_aggregate": sw["wer_aggregate"],
+                            "per_speaker": sw["per_speaker"],
+                            "n_ref_words": sw["n_ref_words"],
+                            "n_edits": sw["n_edits"],
+                            "mapping_hyp_to_ref": mapping,
+                        },
+                        ensure_ascii=False,
+                        indent=2,
+                    )
+                    + "\n",
+                    encoding="utf-8",
+                )
             if diar["n_hyp_speakers"] == 1 and diar["n_ref_speakers"] > 1:
                 notes.append(
                     f"diarization collapsed to {diar['n_hyp_speakers']} speaker "
@@ -266,6 +290,9 @@ def run_one(
             dump = {k: v for k, v in diar.items() if k != "mapping_hyp_to_ref"}
             dump["mapping_hyp_to_ref"] = mapping
             dump["wer_main"] = w
+            if sw is not None:
+                dump["wer_aggregate"] = sw["wer_aggregate"]
+                dump["wer_per_speaker"] = sw["per_speaker"]
             diar_path.write_text(json.dumps(dump, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         wall = None
         if wall_path.is_file():
@@ -371,6 +398,8 @@ def run_demo_stress(
             "jer",
             "speaker_purity",
             "wer_main",
+            "wer_aggregate",
+            "wer_per_speaker",
             "speakers_ref",
             "speakers_hyp",
             "json_valid",
