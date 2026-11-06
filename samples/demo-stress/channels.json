@@ -8,160 +8,140 @@
       "speaker_id": "speaker_1",
       "offset_ms": 0,
       "role": "main",
-      "pitch": 20,
-      "speed": 115
+      "client_id": "50228d02790b054af1d849979146d7aa77737c42fabbe9267b82638a67e7f0db5d0fb20bd670ebb1330f02e1de607aabe1acc15b7fb00f512e0812b780f2522a"
     },
     {
       "stream_id": "s02",
       "speaker_id": "speaker_2",
       "offset_ms": 90,
       "role": "babble",
-      "pitch": 27,
-      "speed": 126
+      "client_id": "562fa31f74b3ca16702456f506bfe49d6b4f55a2fa8c76f3f88d39e4f410050a23fa582682886256700ae292c0d385d9e4455c729b24983445b81f1644901b5f"
     },
     {
       "stream_id": "s03",
       "speaker_id": "speaker_3",
       "offset_ms": 180,
       "role": "babble",
-      "pitch": 34,
-      "speed": 137
+      "client_id": "5c0b8701574d1024c4324a209b6b02225f1dbd383f8a66fcc177d7cf2fd263ebfcf76b420f6b931675f66fb62232dba7720910b99d6ab83f1c16a15d9c4eaabc"
     },
     {
       "stream_id": "s04",
       "speaker_id": "speaker_4",
       "offset_ms": 270,
       "role": "babble",
-      "pitch": 41,
-      "speed": 148
+      "client_id": "2d974b0799be0ba84a8ca0251accde8a7f201b751706a55f274c53620174b3e85de9bc3073c2dcab4b395d27733249f118680c499447fa6dd32dffac0a403fe5"
     },
     {
       "stream_id": "s05",
       "speaker_id": "speaker_5",
       "offset_ms": 360,
       "role": "babble",
-      "pitch": 48,
-      "speed": 159
+      "client_id": "ebc655331098e43516909a1e48df12a5c1a962a5f2740f576dccad70175c22ba672a66e1aea55376a928ad688b4ac1064ccd8cc74a7963cf229497599ea3346a"
     },
     {
       "stream_id": "s06",
       "speaker_id": "speaker_6",
       "offset_ms": 450,
       "role": "babble",
-      "pitch": 55,
-      "speed": 115
+      "client_id": "2e8c15618085d5722bf09402a2606b8110eef64e6f51a9cf7e6c46ea57b9794b96f657347bce1093821177df1c79755179c2eb5d361e13e2cbffda2817836a9f"
     },
     {
       "stream_id": "s07",
       "speaker_id": "speaker_7",
       "offset_ms": 540,
       "role": "babble",
-      "pitch": 62,
-      "speed": 126
+      "client_id": "a5824a7a1cf817a72c8b7df12b10c7cdb02b2e8af5ea252281e7ee9b71295549ae455652077593acc18146755436b17b5ae54dd67a9cf0a215c1f3a6f731d3dd"
     },
     {
       "stream_id": "s08",
       "speaker_id": "speaker_8",
       "offset_ms": 630,
       "role": "babble",
-      "pitch": 69,
-      "speed": 137
+      "client_id": "cbd18b12bdc41de04dea49c4f82ecc499e69e3cf310108fea9d77860246bae489850c843bd160f2508be5fb3946a111c8e81341163714991fa9eb46674de4f42"
     },
     {
       "stream_id": "s09",
       "speaker_id": "speaker_9",
       "offset_ms": 720,
       "role": "babble",
-      "pitch": 76,
-      "speed": 148
+      "client_id": "2afe7228d9bab695b0a512976e47713e7ea40a628d9e6482b5d9ea8ab12ced1b86f8f7d016ab5e80582eb336aeb3d047b5c3e67be0411cdc8f11cab32f9aa265"
     },
     {
       "stream_id": "s10",
       "speaker_id": "speaker_10",
       "offset_ms": 810,
       "role": "babble",
-      "pitch": 83,
-      "speed": 159
+      "client_id": "b6191700d77e426ad791e1ccdbc4ebd9a5d3696134b2da497337ba795156d69b57a842480479ba6e61481de3f89a6f36b319441b0af0c40a7442b971126fe6e9"
     },
     {
       "stream_id": "s11",
       "speaker_id": "speaker_11",
       "offset_ms": 900,
       "role": "babble",
-      "pitch": 25,
-      "speed": 115
+      "client_id": "6f25a278b5b787a9a80b381e7e97e86f9f827d9a90ca68abf76c63433fdbc60f806319dcac85b82fafc0d1024e79acf919d1a36f70d435e62358429d3977beec"
     },
     {
       "stream_id": "s12",
       "speaker_id": "speaker_12",
       "offset_ms": 990,
       "role": "babble",
-      "pitch": 32,
-      "speed": 126
+      "client_id": "d2d704054850ffa1c6dc380f11f61099c0f91fd7c0fffaa00d27f26c2bf6809931ed29ec986c2d6cd29eaa4887dc477b74299f87b9e5389dd3c9b72b478e4d1d"
     },
     {
       "stream_id": "s13",
       "speaker_id": "speaker_13",
       "offset_ms": 1080,
       "role": "babble",
-      "pitch": 39,
-      "speed": 137
+      "client_id": "da4656d7c2dc8f0a638afb331e4677a33ad13f514db3fca199f761aa5dbd3c4d0e1d2671a7f953aa9b0b8ab5c8c60ea9acf64108efb3f6f795c27424723e5e78"
     },
     {
       "stream_id": "s14",
       "speaker_id": "speaker_14",
       "offset_ms": 1170,
       "role": "babble",
-      "pitch": 46,
-      "speed": 148
+      "client_id": "ce6ff2de9d00d2b8949c82105486e4f06402e058e6d031d563524b899781dd366f3e71a19c7d2b81bd6bf7b436c26fa2a1919f84ff4da428a1b1afefbf13fb2d"
     },
     {
       "stream_id": "s15",
       "speaker_id": "speaker_15",
       "offset_ms": 1260,
       "role": "babble",
-      "pitch": 53,
-      "speed": 159
+      "client_id": "ecc00bedd2a81597ec06ac6f0cd718f788653dcf02ee65f2179ed74299befdb40970cebe18927ddb5f22372e42574aa0810d13a36ca1bf37959157e14f87b9ba"
     },
     {
       "stream_id": "s16",
       "speaker_id": "speaker_16",
       "offset_ms": 1350,
       "role": "babble",
-      "pitch": 60,
-      "speed": 115
+      "client_id": "1d0613e8e3e3510cbba900dd745b154556ebe5c22d9edf0f6febc911754af182f422c9b5b04c16ec963c7d056a0ae64aa6ac182df3e44c71931f66e1e847f4aa"
     },
     {
       "stream_id": "s17",
       "speaker_id": "speaker_17",
       "offset_ms": 1440,
       "role": "babble",
-      "pitch": 67,
-      "speed": 126
+      "client_id": "9fb163cdbb08a8da8e3e3ff32485f9be382817d5033ecc695235e3be26620843fe98531b1a37b10cd842fc4c9d9769d5b5d2422c76cabfc805671894ab2294fb"
     },
     {
       "stream_id": "s18",
       "speaker_id": "speaker_18",
       "offset_ms": 1530,
       "role": "babble",
-      "pitch": 74,
-      "speed": 137
+      "client_id": "72a1075300af36009c3752a27925a069fecaaa7d3d3f3a05c5d7660f4e9ca1a761d9fc79b56039a560bbce261005b4d03251d66b48512b3d22ec76d4613ea925"
     },
     {
       "stream_id": "s19",
       "speaker_id": "speaker_19",
       "offset_ms": 1620,
       "role": "babble",
-      "pitch": 81,
-      "speed": 148
+      "client_id": "6116f38f6832c19e2d3fdd38abc8c1ef12133ac932d6d73056e485165cb4cb071298b6bda9d55407c5d1d2fabcc397ca574dd5a971268d56e1df61c0ba056c44"
     },
     {
       "stream_id": "s20",
       "speaker_id": "speaker_20",
       "offset_ms": 1710,
       "role": "babble",
-      "pitch": 23,
-      "speed": 159
+      "client_id": "3b12168cca2df4bd3aa7623ae9d62097a572a901d1d0f056bf62d79ce8aa9750df9d134fd9cd3a445ca9985a27bf5bd3eb935092f9eacedfa816860fecaf3e64"
     }
   ]
 }

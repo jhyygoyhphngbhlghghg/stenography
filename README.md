@@ -71,9 +71,10 @@ CI-ish (no invented WER):
 ./scripts/ci-check.sh
 ```
 
-Host-Linux 20-talker cocktail-party stress (no KVM/ADB; does not wait on the emulator):
+Host-Linux 20-talker cocktail-party stress (no KVM/ADB; does not wait on the emulator). Headline fixture is **Common Voice 17 RU (CC0)**, not eSpeak:
 
 ```bash
+python3 scripts/fetch_cv17_ru.py
 python3 scripts/generate_demo_stress_mix.py
 ./scripts/download-models.sh
 python3 scripts/eval_harness.py --suite demo-stress --run-host

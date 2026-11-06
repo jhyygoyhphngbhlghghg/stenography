@@ -183,7 +183,11 @@ def transcribe_file(
     num_clusters: int = 20,
     num_threads: int = 2,
     cluster_threshold: float = 0.5,
+    min_duration_on: float = 0.2,
+    min_duration_off: float = 0.5,
     asr_only: bool = False,
+    skip_asr: bool = False,
+    speaker_id_override: str | None = None,
 ) -> tuple[dict, dict]:
     if asr_only:
         return transcribe_asr_only(wav, models, num_threads=num_threads)
@@ -220,8 +224,8 @@ def transcribe_file(
             num_clusters=num_clusters,
             threshold=cluster_threshold,
         ),
-        min_duration_on=0.2,
-        min_duration_off=0.5,
+        min_duration_on=min_duration_on,
+        min_duration_off=min_duration_off,
     )
     if hasattr(diar_cfg, "validate") and not diar_cfg.validate():
         raise HostBlocked("OfflineSpeakerDiarizationConfig.validate() failed")
@@ -242,21 +246,23 @@ def transcribe_file(
     except Exception as e:
         raise HostBlocked(f"diarization process() failed: {type(e).__name__}: {e}") from e
 
-    try:
-        recognizer = sherpa_onnx.OfflineRecognizer.from_transducer(
-            encoder=str(z["encoder"]),
-            decoder=str(z["decoder"]),
-            joiner=str(z["joiner"]),
-            tokens=str(z["tokens"]),
-            num_threads=num_threads,
-            sample_rate=16000,
-            feature_dim=80,
-            decoding_method="greedy_search",
-            provider="cpu",
-            model_type="transducer",
-        )
-    except Exception as e:
-        raise HostBlocked(f"Zipformer OfflineRecognizer init failed: {type(e).__name__}: {e}") from e
+    recognizer = None
+    if not skip_asr:
+        try:
+            recognizer = sherpa_onnx.OfflineRecognizer.from_transducer(
+                encoder=str(z["encoder"]),
+                decoder=str(z["decoder"]),
+                joiner=str(z["joiner"]),
+                tokens=str(z["tokens"]),
+                num_threads=num_threads,
+                sample_rate=16000,
+                feature_dim=80,
+                decoding_method="greedy_search",
+                provider="cpu",
+                model_type="transducer",
+            )
+        except Exception as e:
+            raise HostBlocked(f"Zipformer OfflineRecognizer init failed: {type(e).__name__}: {e}") from e
 
     rows = []
     for seg in segs:
@@ -267,7 +273,7 @@ def transcribe_file(
         b = min(samples.size, int(end * sr))
         crop = samples[a:b]
         text = ""
-        if crop.size:
+        if recognizer is not None and crop.size:
             try:
                 stream = recognizer.create_stream()
                 stream.accept_waveform(sr, crop)
@@ -276,9 +282,10 @@ def transcribe_file(
             except Exception as e:
                 text = ""
                 print(f"ASR segment speaker_{spk + 1} {start:.2f}-{end:.2f}s failed: {e}", file=sys.stderr)
+        sid = speaker_id_override or f"speaker_{spk + 1}"
         rows.append(
             {
-                "speaker_id": f"speaker_{spk + 1}",
+                "speaker_id": sid,
                 "start_ms": int(round(start * 1000.0)),
                 "end_ms": int(round(end * 1000.0)),
                 "text": text,
@@ -292,6 +299,10 @@ def transcribe_file(
         "wall_ms": wall_ms,
         "duration_ms": int(round(samples.size * 1000.0 / sr)),
         "num_clusters": num_clusters,
+        "cluster_threshold": cluster_threshold,
+        "min_duration_on": min_duration_on,
+        "min_duration_off": min_duration_off,
+        "skip_asr": skip_asr,
         "n_segments": len(rows),
         "n_hyp_speakers": len({r["speaker_id"] for r in rows}),
         "stack": "linux-sherpa-onnx-python Zipformer-ru + OfflineSpeakerDiarization",
@@ -309,6 +320,59 @@ def transcribe_file(
     if meta["duration_ms"] > 0:
         meta["rtf"] = wall_ms / meta["duration_ms"]
     return doc, meta
+
+
+def transcribe_per_stream(
+    dry_dir: Path,
+    models: Path,
+    *,
+    n_talkers: int = 20,
+    num_clusters: int = 1,
+    num_threads: int = 2,
+) -> tuple[dict, dict]:
+    """Path B: one dry track per PresentConnect stream, then merge.
+
+    Each file is a single known talker (oracle stream→speaker_id). Diarization
+    with num_clusters=1 finds speech regions; ASR fills text. Timestamps stay
+    on the shared mix timeline (stagger already baked into the dry wavs).
+    """
+    dry_dir = Path(dry_dir)
+    t0 = time.perf_counter()
+    merged: list[dict] = []
+    per = []
+    duration_ms = 0
+    for i in range(1, n_talkers + 1):
+        wav = dry_dir / f"spk_{i:02d}.wav"
+        if not wav.is_file():
+            raise HostBlocked(f"dry track missing: {wav}")
+        doc, meta = transcribe_file(
+            wav,
+            models,
+            num_clusters=num_clusters,
+            num_threads=num_threads,
+            speaker_id_override=f"speaker_{i}",
+        )
+        duration_ms = max(duration_ms, int(meta.get("duration_ms") or 0))
+        per.append({"file": str(wav), "n_segments": meta["n_segments"], "wall_ms": meta["wall_ms"]})
+        merged.extend(doc["transcript"])
+    merged.sort(key=lambda u: (u["start_ms"], u["speaker_id"]))
+    wall_ms = int(round((time.perf_counter() - t0) * 1000.0))
+    out_doc = {"transcript": merged}
+    out_meta = {
+        "dry_dir": str(dry_dir),
+        "wall_ms": wall_ms,
+        "duration_ms": duration_ms,
+        "n_segments": len(merged),
+        "n_hyp_speakers": len({u["speaker_id"] for u in merged}),
+        "n_streams": n_talkers,
+        "path": "B_per_stream",
+        "stack": "linux-sherpa-onnx per-stream diar+ASR (oracle stream id), merge by time",
+        "streams": per,
+        "no_kvm_adb": True,
+    }
+    if duration_ms > 0:
+        out_meta["rtf"] = wall_ms / duration_ms
+    return out_doc, out_meta
 
 
 def main() -> int:

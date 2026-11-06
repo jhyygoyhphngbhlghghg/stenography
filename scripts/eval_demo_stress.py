@@ -158,15 +158,23 @@ def run_one(
     if dur is not None:
         row["duration_ms"] = str(dur)
 
-    if run_host and wav.is_file():
+    if run_host and (wav.is_file() or clip.get("per_stream")):
         log(f"==> host inference {test_id} ({wav})")
         try:
-            doc, meta = host_asr_diar.transcribe_file(
-                wav,
-                models,
-                num_clusters=int(clip.get("num_clusters", 20)),
-                asr_only=bool(clip.get("asr_only", False)),
-            )
+            if clip.get("per_stream"):
+                dry = ROOT / clip.get("dry_dir", "samples/demo-stress/dry")
+                n = int(clip.get("n_talkers") or clip.get("num_clusters") or 20)
+                doc, meta = host_asr_diar.transcribe_per_stream(dry, models, n_talkers=n)
+            else:
+                doc, meta = host_asr_diar.transcribe_file(
+                    wav,
+                    models,
+                    num_clusters=int(clip.get("num_clusters", 20)),
+                    cluster_threshold=float(clip.get("cluster_threshold", 0.5)),
+                    min_duration_on=float(clip.get("min_duration_on", 0.2)),
+                    min_duration_off=float(clip.get("min_duration_off", 0.5)),
+                    asr_only=bool(clip.get("asr_only", False)),
+                )
             hyp_path.write_text(json.dumps(doc, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
             wall_path.write_text(str(meta["wall_ms"]) + "\n", encoding="utf-8")
             meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
