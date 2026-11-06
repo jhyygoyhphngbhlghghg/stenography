@@ -5,7 +5,11 @@
 **Flavor:** `presentConnect` (`BuildConfig.PRESENT_CONNECT = true`).  
 **Not this:** checkpoint polling so slide-followers stay in sync — that is **web BE only**. Documented at the bottom so we do not collide.
 
-The phone is an **on-device ASR+diarization worker**, not a browser. Demo loop:
+The phone is an **on-device ASR+diarization worker**, not a browser.
+
+**Live demo claim = DEMO_STAGE6 (Eval PR #4 / stacked):** one Nothing-class phone mic, 6 RU speakers, each 3–6 m away, sequential turn-taking with light overlap only, large-room IR + medium babble/HVAC — **not** studio. This repo does **not** retune those wavs and does **not** invent DER/WER.
+
+**PresentConnect Path B ≤20** is an **optional** network mode (code kept). It is **not** the slide/presentation target.
 
 ```
 QR on slide → audience browser mic → web BE relays PCM → Android app
@@ -14,11 +18,11 @@ QR on slide → audience browser mic → web BE relays PCM → Android app
 
 Hard cap: **≤ 20 concurrent audio streams** per phone worker. Stream 21 is rejected.
 
-**Tech demo = Path B**, not a one-room cocktail mix. Each `stream_id` is its own PCM buffer → ASR. Oracle map (Eval `mix_20talker_per_stream`): `s{N:02d}` ↔ `speaker_{N}` for N=1..20. `s01` / `speaker_1` is **main**. Bind on `stream.start`; do **not** recluster across streams. Never mix open streams into one buffer.
+Path B (optional): each `stream_id` is its own PCM buffer → ASR. Oracle map: `s{N:02d}` ↔ `speaker_{N}` for N=1..20. `s01` / `speaker_1` is **main**. Bind on `stream.start`; do **not** recluster across streams. Never mix open streams into one buffer.
 
-Eval (PR #4, not re-run here) scored Path B `mix_20talker_per_stream`: DER 0.235, WER_main 0.087, 20/20 speakers.
+Eval (PR #4, cite only) scored Path B `mix_20talker_per_stream`: DER 0.235, WER_main 0.087, 20/20 speakers.
 
-Offline stenography (file import / in-app record, airplane mode) is a **different mode**. Do not send present-connect audio through a cloud ASR.
+Offline stenography (file import / in-app record, airplane mode) is the **DEMO_STAGE6 path**. Do not send that audio through a cloud ASR.
 
 ---
 

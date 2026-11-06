@@ -211,3 +211,32 @@ Codes: `LOW_ENERGY`, `CLIPPED`, `BAD_MIC`, `BAND_LIMITED`. Soft flags still ASR;
 | `./gradlew :app:testStenographerDebugUnitTest` | **PASS** (34 tests, 0 failures; 17 gate cases) | 14 s |
 
 `PathBGoldenBriefTest` (2) and `StreamLabelerTest` (4) files unchanged this push and still green. No Eval DER/WER claimed.
+
+## 7. DEMO_STAGE6 far-field gain (single-channel, host synthetics)
+
+**Live demo claim = DEMO_STAGE6** (Eval owns wavs). Eval STAGE6 @ `a8b39d5a` (cite only): 3 m ideal; **4–6 m WER≈1; speaker s5 dropped**. This branch does **not** re-run Eval and does **not** claim DER/WER. Path B ≤20 is optional PresentConnect, not the slide claim.
+
+```bash
+python3 scripts/measure-farfield-gain.py --record
+cd src/android && ./gradlew --no-daemon :app:testStenographerDebugUnitTest
+```
+
+Fixed pre-gain toward RMS 0.08 FS (max +24 dB, peak cap 0.95). Energy-VAD proxy: 20 ms frames, fire if RMS ≥ 0.008 FS (not Silero JNI). Evidence: `artifacts/test-results/farfield-gain.json`.
+
+| Scene | RMS before | RMS after | gain dB | VAD fire before → after | unbound hard-skip before |
+|---|---|---|---|---|---|
+| sine 3 m | 0.0118 | 0.080 | 16.6 | 1.0 → 1.0 | none |
+| sine 4 m | 0.0088 | 0.080 | 19.1 | 1.0 → 1.0 | none |
+| sine 5 m | 0.0071 | 0.080 | 21.1 | 0 → 1.0 | `LOW_ENERGY` |
+| sine 6 m | 0.0059 | 0.080 | 22.7 | 0 → 1.0 | `LOW_ENERGY` |
+| phone+HVAC 3 m | 0.0186 | 0.080 | 12.7 | 1.0 → 1.0 | none |
+| phone+HVAC 4 m | 0.0142 | 0.080 | 15.0 | 1.0 → 1.0 | none |
+| phone+HVAC 5 m | 0.0116 | 0.080 | 16.8 | 1.0 → 1.0 | none |
+| phone+HVAC 6 m | 0.0099 | 0.080 | 18.2 | 1.0 → 1.0 | none |
+
+DEMO_STAGE6 prep (`DemoPcmPrep` on the offline ViewModel path): distant talkers never hard-dropped for energy/band-limit (soft flag + ASR). `CLIPPED` / `BAD_MIC` / empty `n==0` still hard-skip. Path B worker code unchanged.
+
+| Command | Result | Wall |
+|---|---|---|
+| `python3 scripts/measure-farfield-gain.py --record` | **PASS** (synthetic 3/4/5/6 m) | <1 s |
+| `./gradlew :app:testStenographerDebugUnitTest` | **PASS** (40 tests, 0 failures) | 9–15 s |
