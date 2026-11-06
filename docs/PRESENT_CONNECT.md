@@ -5,7 +5,7 @@
 **Flavor:** `presentConnect` (`BuildConfig.PRESENT_CONNECT = true`).  
 **Not this:** checkpoint polling so slide-followers stay in sync — that is **web BE only**. Documented at the bottom so we do not collide.
 
-The phone is an **on-device ASR worker** (Zipformer-ru), not a browser. **This contract is optional Path B. It is not the presentation claim.** Presentation = **DEMO_STAGE6** (6 RU speakers, one phone mic, 3–6 m, sequential + light end overlap, large room, medium noise). Scores for that scene are pending Eval. See `docs/ARCHITECTURE.md`. Optional-mode loop:
+The phone is an **on-device ASR worker** (Zipformer-ru), not a browser. **This contract is optional Path B. It is not the presentation claim.** Presentation = **DEMO_STAGE6** (6 RU speakers, one phone mic, scene 3–6 m, sequential + light end overlap, large room, medium noise). First measure: aggregate **WER 0.73 / DER 0.52**, ideal recognition **only at 3 m**. See `docs/ARCHITECTURE.md`. Optional-mode loop:
 
 ```
 QR on slide → one browser mic per seat (own stream_id) → web BE relays PCM
@@ -239,7 +239,7 @@ interface PresentConnectClient {
 }
 ```
 
-Implementation talks OkHttp WebSocket. **Per open `stream_id`, independently:** PCM → VAD → ASR → `transcript.final`, with `speaker_id` ← `stream_id` (or `speaker_hint`). Optional diarization is inside that stream only. This is **not** the offline file path (one recording → `OfflineSpeakerDiarization` → ASR) and **not** Path A mix-then-cluster. LLM post-pass stays the identity stub. Finals from all streams are merged by time for the session transcript.
+Implementation talks OkHttp WebSocket. **Per open `stream_id`, independently:** PCM → VAD → ASR → `transcript.final`, with `speaker_id` ← `stream_id` (or `speaker_hint`). Optional diarization is inside that stream only. This is **not** the offline file path (one recording → `OfflineSpeakerDiarization` → ASR) and **not** Path A mix-then-cluster. Local LLM post-pass is **required by TZ** (not an accepted stub). `IdentityLlmPostPass` in this tree is an Impl/Platform gap and must close before hand-in. Finals from all streams are merged by time for the session transcript.
 
 ---
 
