@@ -173,6 +173,7 @@ def run_one(
                     pad_ms=int(clip.get("pad_ms", 80)),
                     min_duration_on=float(clip.get("min_duration_on", 0.15)),
                     min_duration_off=float(clip.get("min_duration_off", 0.25)),
+                    rel_thresh=float(clip.get("rel_thresh", 0.04)),
                 )
             else:
                 doc, meta = host_asr_diar.transcribe_file(

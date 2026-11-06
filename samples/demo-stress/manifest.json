@@ -34,9 +34,10 @@
       "num_clusters": 1,
       "n_talkers": 20,
       "per_stream": true,
-      "min_duration_on": 0.15,
-      "min_duration_off": 0.25,
-      "pad_ms": 80,
+      "min_duration_on": 0.20,
+      "min_duration_off": 0.45,
+      "pad_ms": 250,
+      "rel_thresh": 0.04,
       "vad": "rms",
       "notes": "Path B tech demo: per-stream RMS VAD + ASR, oracle s0N↔speaker_N, unlooped dry tracks."
     },
