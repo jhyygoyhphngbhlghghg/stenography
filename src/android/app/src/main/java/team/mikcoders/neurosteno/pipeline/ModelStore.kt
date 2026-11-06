@@ -1,11 +1,16 @@
 package team.mikcoders.neurosteno.pipeline
 
 import android.content.Context
+import android.util.Log
+import team.mikcoders.neurosteno.BuildConfig
 import java.io.File
+import java.io.IOException
 
 /**
- * Looks for gitignored ONNX/Vosk/GGUF trees in filesDir/models and
- * (optional) copied assets. Missing files → stub pipeline.
+ * Judge / default APK: unpack assets/models into filesDir/models on first
+ * launch, then resolve filesystem paths for sherpa-onnx.
+ * Slim APK (BuildConfig.EMBEDDED_MODELS false): filesDir only.
+ * Missing files then stub pipeline.
  */
 data class ModelPaths(
     val zipformerDir: File?,
@@ -33,7 +38,30 @@ data class ModelPaths(
 class ModelStore(private val context: Context) {
     fun modelsDir(): File = File(context.filesDir, "models")
 
+    /** First-launch copy of packed weights. No-op on slim / already unpacked. */
+    fun ensureUnpacked(): AssetModelUnpack.Report? {
+        if (!BuildConfig.EMBEDDED_MODELS) return null
+        val dest = modelsDir()
+        if (!AssetModelUnpack.needed(dest)) {
+            return AssetModelUnpack.Report(copied = 0, skippedExisting = AssetModelUnpack.REQUIRED.size, missing = emptyList(), ready = true)
+        }
+        val report = AssetModelUnpack.unpack(dest) { assetPath ->
+            try {
+                context.assets.open(assetPath)
+            } catch (_: IOException) {
+                null
+            }
+        }
+        if (!report.ready) {
+            Log.e(TAG, "embedded models incomplete missing=${report.missing}")
+        } else {
+            Log.i(TAG, "embedded models ready copied=${report.copied} skipped=${report.skippedExisting}")
+        }
+        return report
+    }
+
     fun resolve(): ModelPaths {
+        ensureUnpacked()
         val root = modelsDir()
         return ModelPaths(
             zipformerDir = dirIfExists(File(root, "asr/zipformer-ru-int8")),
@@ -56,6 +84,8 @@ class ModelStore(private val context: Context) {
     }
 
     companion object {
+        private const val TAG = "ModelStore"
+
         fun dirIfExists(dir: File): File? = dir.takeIf { it.isDirectory && it.list()?.isNotEmpty() == true }
 
         fun firstExisting(vararg files: File): File? = files.firstOrNull { it.isFile }

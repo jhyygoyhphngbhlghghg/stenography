@@ -1,8 +1,73 @@
+import java.io.File
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.kotlin.plugin.serialization")
+}
+
+val repoRoot: File = rootProject.projectDir.resolve("../..").normalize()
+val modelsSrc: File = File(repoRoot, "models")
+val embeddedModelsAssets = layout.buildDirectory.dir("generated/embeddedModels/assets")
+val judgeModelRelPaths = listOf(
+    "asr/zipformer-ru-int8/encoder.int8.onnx",
+    "asr/zipformer-ru-int8/decoder.onnx",
+    "asr/zipformer-ru-int8/joiner.int8.onnx",
+    "asr/zipformer-ru-int8/tokens.txt",
+    "vad/silero_vad.onnx",
+    "diar/segmentation.onnx",
+    "diar/embedding.onnx",
+)
+
+fun resolveJudgeModel(rel: String): File {
+    val direct = File(modelsSrc, rel)
+    if (direct.isFile) return direct
+    if (rel.endsWith("embedding.onnx")) {
+        val alt = File(modelsSrc, "diar/3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx")
+        if (alt.isFile) return alt
+    }
+    if (rel.endsWith("segmentation.onnx")) {
+        val alt = File(modelsSrc, "diar/model.onnx")
+        if (alt.isFile) return alt
+        val nested = File(modelsSrc, "diar/sherpa-onnx-pyannote-segmentation-3-0/model.onnx")
+        if (nested.isFile) return nested
+    }
+    return direct
+}
+
+val prepareEmbeddedModels by tasks.registering {
+    group = "build"
+    description = "Copy Zipformer-ru + Silero VAD + diar ONNX into judge APK assets/models"
+    outputs.dir(embeddedModelsAssets)
+    doLast {
+        var missing = judgeModelRelPaths.filter { !resolveJudgeModel(it).isFile }
+        if (missing.isNotEmpty()) {
+            val script = File(repoRoot, "scripts/download-models.sh")
+            require(script.isFile) { "missing $script and models $missing" }
+            exec {
+                commandLine("bash", script.absolutePath)
+                workingDir(repoRoot)
+            }
+            missing = judgeModelRelPaths.filter { !resolveJudgeModel(it).isFile }
+        }
+        require(missing.isEmpty()) { "judge models missing after download: $missing" }
+        val destRoot = embeddedModelsAssets.get().asFile.resolve("models")
+        destRoot.deleteRecursively()
+        for (rel in judgeModelRelPaths) {
+            val src = resolveJudgeModel(rel)
+            val dest = File(destRoot, rel)
+            dest.parentFile.mkdirs()
+            src.copyTo(dest, overwrite = true)
+        }
+        File(destRoot, ".embedded").writeText(
+            judgeModelRelPaths.joinToString("\n") { rel ->
+                val f = File(destRoot, rel)
+                "$rel ${f.length()}"
+            } + "\n",
+        )
+        println("embedded ${judgeModelRelPaths.size} model files into $destRoot (${destRoot.walkTopDown().filter { it.isFile }.sumOf { it.length() }} bytes)")
+    }
 }
 
 android {
@@ -16,6 +81,7 @@ android {
         versionCode = 1
         versionName = "0.1.0-overnight"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("Boolean", "EMBEDDED_MODELS", "true")
     }
 
     flavorDimensions += "role"
@@ -33,13 +99,36 @@ android {
     }
 
     buildTypes {
+        debug {
+            buildConfigField("Boolean", "EMBEDDED_MODELS", "true")
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            buildConfigField("Boolean", "EMBEDDED_MODELS", "true")
         }
+        create("slim") {
+            initWith(getByName("debug"))
+            matchingFallbacks += listOf("debug")
+            versionNameSuffix = "-slim"
+            buildConfigField("Boolean", "EMBEDDED_MODELS", "false")
+        }
+    }
+
+    sourceSets {
+        getByName("debug") {
+            assets.srcDir(embeddedModelsAssets)
+        }
+        getByName("release") {
+            assets.srcDir(embeddedModelsAssets)
+        }
+    }
+
+    androidResources {
+        noCompress += listOf("onnx", "txt")
     }
 
     compileOptions {
@@ -84,6 +173,17 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
+}
+
+afterEvaluate {
+    tasks.matching { t ->
+        val n = t.name
+        !n.contains("Slim", ignoreCase = true) &&
+            n.contains("Assets") &&
+            (n.startsWith("merge") || n.startsWith("generate") || n.startsWith("package"))
+    }.configureEach {
+        dependsOn(prepareEmbeddedModels)
+    }
 }
 
 tasks.register<Copy>("copyApkToDrop") {
