@@ -11,7 +11,7 @@
   "frame_ms": 10,
   "n_ref_speakers": 20,
   "n_hyp_speakers": 19,
-  "metric_impl": "scripts/eval_metrics.py (NIST-style DER, DIHARD-like JER, cluster purity); not pyannote.metrics",
+  "metric_impl": "scripts/eval_metrics.py (NIST-style DER, DIHARD-like JER, cluster purity); WER Hex.Team 2026-11-06: keep ,.?!, fold ё→е; not pyannote.metrics",
   "mapping_hyp_to_ref": {
     "speaker_10": "speaker_13",
     "speaker_11": "speaker_11",
@@ -33,5 +33,5 @@
     "speaker_8": "speaker_4",
     "speaker_9": "speaker_5"
   },
-  "wer_main": 0.9565217391304348
+  "wer_main": 0.9655172413793104
 }
