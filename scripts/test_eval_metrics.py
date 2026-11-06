@@ -31,6 +31,17 @@ class WerTests(unittest.TestCase):
     def test_yo(self):
         self.assertEqual(M.wer("ёлка", "елка"), 0.0)
 
+    def test_punct_is_scored_not_stripped(self):
+        # Hex.Team: punctuation IS in WER. "привет, мир." → 4 tokens.
+        self.assertEqual(M.tokenize("привет, мир."), ["привет", ",", "мир", "."])
+        self.assertGreater(M.wer("привет, мир.", "привет мир"), 0.0)
+        self.assertEqual(M.wer("привет, мир.", "привет, мир."), 0.0)
+        # 2 deletions (comma, period) / 4 ref tokens
+        self.assertEqual(M.wer("привет, мир.", "привет мир"), 0.5)
+
+    def test_yo_inside_punct_sentence(self):
+        self.assertEqual(M.wer("Ёлка, стой!", "елка, стой!"), 0.0)
+
 
 class DiarTests(unittest.TestCase):
     def test_identical_der_zero(self):

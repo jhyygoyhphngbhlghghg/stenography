@@ -25,38 +25,19 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+SCRIPT_DIR = Path(__file__).resolve().parent
+ROOT = SCRIPT_DIR.parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+import eval_metrics as M  # noqa: E402
+
 MANIFEST = ROOT / "samples" / "manifest.json"
 RESULTS = ROOT / "artifacts" / "test-results" / "results.csv"
 
-
-def tokenize(text: str) -> list[str]:
-    t = text.lower().replace("ё", "е")
-    for ch in ".,!?;:«»\"'()[]":
-        t = t.replace(ch, " ")
-    return [w for w in t.split() if w]
-
-
-def levenshtein(a: list[str], b: list[str]) -> int:
-    if not a:
-        return len(b)
-    if not b:
-        return len(a)
-    prev = list(range(len(b) + 1))
-    for i, ca in enumerate(a, 1):
-        cur = [i]
-        for j, cb in enumerate(b, 1):
-            ins, delete, sub = cur[j - 1] + 1, prev[j] + 1, prev[j - 1] + (ca != cb)
-            cur.append(min(ins, delete, sub))
-        prev = cur
-    return prev[-1]
-
-
-def wer(ref: str, hyp: str) -> float | None:
-    r = tokenize(ref)
-    if not r:
-        return None
-    return levenshtein(r, tokenize(hyp)) / len(r)
+tokenize = M.tokenize
+levenshtein = M.levenshtein
+wer = M.wer
 
 
 def utterance_text(doc: dict) -> str:
