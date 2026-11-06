@@ -92,7 +92,23 @@
       "impl_second_pass": true,
       "min_duration_on": 0.08,
       "min_duration_off": 0.18,
-      "notes": "Impl second-pass @ 552b142 (PR #7): VadDiarReconcile (orphan/energy-hole/split non-near, K=6, near 3 m protected) + IntonationPunct ADD spoken punct (never strip). Frozen wav/gold @ a8b39d5a. Hex keep-punct @ 0824df64. Gain frozen. Soft-flag only. Do not retune fixture."
+      "notes": "Impl second-pass @ 552b142 (PR #7): VadDiarReconcile (orphan/energy-hole/split non-near, K=6, near 3 m protected) + IntonationPunct ADD spoken punct (never strip). Frozen wav/gold @ a8b39d5a. Hex keep-punct @ 0824df64. Gain frozen. Soft-flag only. Do not retune fixture. Historical over-split 12/6 @ 9b29b9c1."
+    },
+    {
+      "test_id": "DEMO_STAGE6_impl_hardcap6",
+      "file": "samples/demo-stress/stage6/DEMO_STAGE6.wav",
+      "reference_json": "samples/demo-stress/stage6/ref/DEMO_STAGE6.json",
+      "main_speaker_id": "speaker_1",
+      "num_clusters": 6,
+      "cluster_threshold": 0.5,
+      "wer_per_speaker": true,
+      "primary_demo": true,
+      "farfield_gain": true,
+      "farfield_per_turn": true,
+      "impl_second_pass": true,
+      "min_duration_on": 0.08,
+      "min_duration_off": 0.18,
+      "notes": "Impl HARD CAP ≤6 @ 3c3f9ce (PR #7): merge orphans into K=6, never speaker_7..12; near 3 m protected. Heuristic ADD commas (greeting/vocative/discourse/contrast) when GGUF absent. Frozen wav/gold @ a8b39d5a. Hex keep-punct. Gain/EQ frozen. Soft-flag only. Do not retune fixture."
     },
     {
       "test_id": "mix_20talker",
