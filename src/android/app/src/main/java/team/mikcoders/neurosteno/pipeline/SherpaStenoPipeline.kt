@@ -15,6 +15,7 @@ import com.k2fsa.sherpa.onnx.SileroVadModelConfig
 import com.k2fsa.sherpa.onnx.SpeakerEmbeddingExtractorConfig
 import com.k2fsa.sherpa.onnx.Vad
 import com.k2fsa.sherpa.onnx.VadModelConfig
+import team.mikcoders.neurosteno.audio.AudioQualityGate
 import team.mikcoders.neurosteno.audio.Pcm
 import team.mikcoders.neurosteno.audio.SpeechEndpointing
 import team.mikcoders.neurosteno.export.TranscriptFile
@@ -49,15 +50,23 @@ class SherpaStenoPipeline(
     ): TranscriptFile {
         require(audio.sampleRate == Pcm.TARGET_HZ) { "need 16 kHz PCM" }
         onProgress(PipelineProgress(PipelineStage.Decode, "PCM ${audio.samples.size} samples", 0.05f))
+        when (val q = AudioQualityGate.inspect(audio.samples)) {
+            is AudioQualityGate.Quality.Fail -> {
+                onProgress(PipelineProgress(PipelineStage.Decode, q.message, 0.05f))
+                throw AudioQualityGate.Rejected(q.code, q.message)
+            }
+            AudioQualityGate.Quality.Ok -> Unit
+        }
+        val gated = audio.copy(samples = AudioQualityGate.dcBlock(audio.samples))
 
         val recognizer = createRecognizer()
         try {
             val raw = if (paths.hasDiar) {
                 onProgress(PipelineProgress(PipelineStage.Diarize, "OfflineSpeakerDiarization", 0.2f))
-                diarizeThenAsr(audio, recognizer, onProgress)
+                diarizeThenAsr(gated, recognizer, onProgress)
             } else {
                 onProgress(PipelineProgress(PipelineStage.Vad, "Silero VAD chunks", 0.2f))
-                vadThenAsr(audio, recognizer, onProgress)
+                vadThenAsr(gated, recognizer, onProgress)
             }
             onProgress(
                 PipelineProgress(

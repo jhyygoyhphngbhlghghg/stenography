@@ -183,6 +183,7 @@ HTTP `transcribe` is for bringing-up the phone without WS. The 20-stream demo **
 | `UNKNOWN_STREAM` | PCM for a stream that was not started |
 | `PIPELINE` | on-device ASR/VAD failure |
 | `MODELS_MISSING` | worker in stub mode — **do not use on stage** |
+| `BAD_AUDIO` | clipped / non-finite mic PCM — worker **refuses** ASR (no hallucinated text) |
 
 ---
 
