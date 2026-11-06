@@ -4,7 +4,11 @@
 
 **Запрещено выдумывать WER/RTF.** Он-девайс строки ниже остаются `pending`, пока нет своего прогона. Eval-measured таблица — замер H1 / Eval Owner, не новая выдумка: её можно цитировать, новые числа к ней не добавлять.
 
-Шаблон он-девайс строк: `artifacts/test-results/results.csv` (файл есть, строк прогонов нет — только заголовок). Каталога `eval/` и `artifacts/eval/` на `main` нет. Измерения Path A/B описаны в [PR #4](https://cursor.com/codebase/johann-schilling/neuro-stenographer/pull/4) (ветка `cursor/demo-stress-20talker-0106`, не влита; в теле PR указан путь `artifacts/eval/demo-stress/` для более раннего eSpeak-прогона).
+Шаблон он-девайс строк: `artifacts/test-results/results.csv` (файл есть, строк прогонов нет — только заголовок). Каталога `eval/` и `artifacts/eval/` на `main` нет. Измерения Path A и optional Path B описаны в [PR #4](https://cursor.com/codebase/johann-schilling/neuro-stenographer/pull/4) (ветка `cursor/demo-stress-20talker-0106`, не влита; в теле PR указан путь `artifacts/eval/demo-stress/` для более раннего eSpeak-прогона). **DEMO_STAGE6 WER/DER здесь нет.**
+
+## DEMO_STAGE6 — заявка презентации, scores pending
+
+6 спикеров **RU**, **один** микрофон телефона, каждый **3–6 м**, очередь sequential и только лёгкое перекрытие в конце реплики, большая комната, средний babble/HVAC, характер телефонного микрофона (band-limit / compression / distance attenuation + reverb). Пайплайн: один канал, far-field, VAD → диаризация → Zipformer-ru. Цель: ideal recognition (ясные смены спикеров + пригодный текст). **Цифр нет.** Фикстуру и WER/DER держит Eval (PR #4). Это не Path B и не студия. Запрещены «should be fine», «robust», «handles noisy rooms», «graceful under echo».
 
 ## Методика (черновик)
 
@@ -24,9 +28,9 @@
 | Zipformer-ru on-device | pending models |
 | Diarization ≥2 speakers (offline, one file) | pending on-device |
 | Airplane mode | pending |
-| PresentConnect mock on device | pending — контракт Path B в `docs/PRESENT_CONNECT.md`; цифры демо ниже, это host eval, не мок телефона |
+| PresentConnect mock on device | pending — optional Path B, не заявка презентации; контракт `docs/PRESENT_CONNECT.md` |
 
-## Eval-measured (H1 / Eval Owner) — не выдумано
+## Optional PresentConnect (Path B) — Eval-measured, не заявка презентации
 
 Источник: [PR #4](https://cursor.com/codebase/johann-schilling/neuro-stenographer/pull/4), real Common Voice 17 RU, host Linux sherpa-onnx Zipformer-ru. Это **ранний** clean/Path A замер. DER Path B в нём также **0.235**. Эти WER/DER **не** ставить на WORST_CASE и EDGE_*. Edge suite — следующая таблица @ `9908353d`.
 
@@ -44,7 +48,7 @@ Overnight-клипы без перекрытия (тот же PR, speaker-blind 
 
 Источник: Eval [PR #4](https://cursor.com/codebase/johann-schilling/neuro-stenographer/pull/4) @ `9908353d`. Таблица скопирована. Фикстуры **не** подкручивали после FAIL.
 
-**Path B under edge: stream tracking still 20/20.** Это единственная multi-talker заявка, которая переживает edge. **WER/DER under WORST_CASE are FAIL** (WER main **0.9130**, DER 250ms **1.2985**; слайды: WER≈0.91, DER≈1.30). Clean WER/DER на WORST_CASE и EDGE_* не заявлять. **Killers:** overlap/bleed, noise false alarms, bad mic. Reverb alone does **not** collapse Path B.
+**Path B under edge: stream tracking still 20/20.** Это единственная заявка **optional Path B**, которая переживает его edge. Не DEMO_STAGE6. **WER/DER under WORST_CASE are FAIL** (WER main **0.9130**, DER 250ms **1.2985**; слайды: WER≈0.91, DER≈1.30). Clean WER/DER на WORST_CASE и EDGE_* не заявлять. **Killers:** overlap/bleed, noise false alarms, bad mic. Reverb alone does **not** collapse Path B.
 
 | test_id | DER 250ms | JER | WER main | RTF | hyp/ref |
 |---|---|---|---|---|---|
@@ -61,4 +65,4 @@ Overlap real: max 12 concurrent; 91% of speech frames ≥2 speakers. Main vs ble
 
 Eval [PR #4](https://cursor.com/codebase/johann-schilling/neuro-stenographer/pull/4) @ `ffe53ba4` (`docs/TEST_RESULTS.md`, `docs/GATE.md` on `cursor/demo-stress-20talker-0106`) **rejects** hard `BAND_LIMITED` on bound seats `s01`..`s20`. Measured @ `bed868b3` (gate pinned Implementer `e3ad908` / Platform `b12a2bb`): EDGE_noise drops main **s01** (hyp **19/20**); EDGE_badmic **6/20**; WORST_CASE **0/20**, empty `{transcript:[]}`. Full gated_v2 table stays on that PR. Do not claim those hyp counts. Do not claim clean WER/DER on WORST_CASE. No new WER/DER here.
 
-**Claim remains ungated Path B stream tracking 20/20** @ `9908353d` (WORST_CASE WER main **0.9130**, DER **1.2985**). Bound seats: soft-flag only, still ASR, same spirit as `SOFT_LOW`. Never hard-drop main/`s01`. Hard `BAND_LIMITED` only for unbound/anonymous. Platform code fix is PR #3. Fixtures not retuned. Hold merge; #2 first.
+**Для optional Path B** заявка под edge остаётся ungated stream tracking **20/20** @ `9908353d` (WORST_CASE WER main **0.9130**, DER **1.2985**). Не DEMO_STAGE6. Bound seats: soft-flag only, still ASR, same spirit as `SOFT_LOW`. Never hard-drop main/`s01`. Hard `BAND_LIMITED` only for unbound/anonymous. Platform code fix is PR #3. Fixtures not retuned. Hold merge; #2 first.
