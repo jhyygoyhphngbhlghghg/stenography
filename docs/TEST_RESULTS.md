@@ -10,8 +10,8 @@ Track B / platform de-risk (seat P1.linq, branch `platform/derisk-sherpa-present
 
 ## Методика (черновик)
 
-1. Собрать debug APK flavor `stenographer`.
-2. Положить модели (`scripts/download-models.sh` + push).
+1. Собрать **judge** debug APK (`assembleStenographerDebug`, models embedded).
+2. Cold install — first launch unpacks `assets/models` → filesDir. Do not adb-push for the check.
 3. Авиарежим.
 4. Импорт 2–3 своих диалогов (RU, ≥2 спикера, без перекрытия).
 5. Экспорт JSON, сверка `speaker_id` / `start_ms` / `end_ms` / `text` с ручной расшифровкой.
@@ -28,7 +28,7 @@ Track B / platform de-risk (seat P1.linq, branch `platform/derisk-sherpa-present
 | Host-side JNI smoke (no emulator) | **PARTIAL** — 134 `Java_*` JNI symbols; glibc `dlopen` fails on `libandroid.so`. Not an on-device ULE probe. |
 | JNI `UnsatisfiedLinkError` on device | **BLOCKED** — see **Platform gap**. No device probe ran. |
 | Import → stub list → JSON (no models) | pending (needs a phone) |
-| Zipformer-ru on-device | pending models-on-device (weights downloaded on the builder, not pushed) |
+| Zipformer-ru on-device | **judge APK embeds models** (119466051 bytes in assets). Device ASR still pending a phone. |
 | Diarization ≥2 speakers | pending |
 | Airplane mode | pending |
 | PresentConnect ≤20 streams (mock) | **PASS** — JVM + Python. Stream 21 = `OVER_CAPACITY`. |
@@ -262,26 +262,58 @@ cd src/android && ./gradlew --no-daemon :app:testStenographerDebugUnitTest
 
 Per-turn 1-pole high-shelf (fc 1600 Hz, up to +9 dB on the high residual) on **far** islands only. Near seat (active RMS ≥ 0.12 FS) is identity. Peak cap by reducing the shelf, not whole-turn AGC. Evidence: `artifacts/test-results/phone-distance-eq.json`.
 
-Isolated phone-mic + distance + muffling scenes (after frozen gain, then EQ). Goertzel speech = 300–3400 Hz; presence = 2000–3400 Hz (the crushed phone band). Hard-skip **0**.
+Isolated phone-mic + distance + muffling scenes (after frozen gain, then EQ). Goertzel speech = **250–4500 Hz** (Nothing-class); presence = 2000–4500 Hz. Hard-skip **0**. Gain frozen.
 
-| Scene | RMS after gain → EQ | speech 300–3400 | presence 2–3.4 kHz | presence/speech |
-|---|---|---|---|---|
-| phone+dist 3 m | 0.080 → 0.099 | 3.26e4 → 5.83e4 | 778 → 2575 | 0.024 → 0.044 |
-| phone+dist 4 m | 0.080 → 0.101 | 3.07e4 → 5.58e4 | 537 → 1838 | 0.017 → 0.033 |
-| phone+dist 5 m | 0.080 → 0.103 | 2.85e4 → 5.23e4 | 363 → 1273 | 0.013 → 0.024 |
-| phone+dist 6 m | 0.080 → 0.105 | 2.59e4 → 4.79e4 | 246 → 878 | 0.009 → 0.018 |
+| Scene | RMS after gain → EQ | speech 250–4500 | presence 2–4.5 kHz |
+|---|---|---|---|
+| phone+dist 3 m | 0.080 → 0.097 | 6.43e4 → 8.75e4 | 514 → 1843 |
+| phone+dist 4 m | 0.080 → 0.098 | 6.31e4 → 8.50e4 | 350 → 1273 |
+| phone+dist 5 m | 0.080 → 0.100 | 6.14e4 → 8.18e4 | 235 → 870 |
+| phone+dist 6 m | 0.080 → 0.103 | 5.92e4 → 7.79e4 | 162 → 610 |
 
 Sequential mix (hot near speech + muffled 5 m / 6 m in one file):
 
-| Turn | RMS raw → after EQ | peak raw → after EQ | identity? | speech 300–3400 |
-|---|---|---|---|---|
-| near 3 m | 0.123 → 0.123 | 0.280 → 0.280 | yes (0 dB) | unchanged |
-| far 5 m | 0.015 → 0.103 | — | no | 2.85e4 → 5.23e4 |
-| far 6 m | 0.012 → 0.105 | — | no | 2.59e4 → 4.79e4 |
+| Turn | RMS raw → after EQ | peak raw → after EQ | identity? |
+|---|---|---|---|
+| near 3 m | 0.137 → 0.137 | 0.360 → 0.360 | yes (0 dB) |
+| far 5 m | 0.014 → 0.100 | — | no (speech band lifted) |
+| far 6 m | 0.012 → 0.103 | — | no (speech band lifted) |
 
 Near seat not attenuated. Demo hard-skip **0**. CLIPPED / BAD_MIC / empty still hard. Path B `present/` unchanged.
 
 | Command | Result | Wall |
 |---|---|---|
-| `python3 scripts/measure-phone-distance-eq.py --record` | **PASS** (3/4/5/6 m + sequential mix) | <1 s |
-| `./gradlew :app:testStenographerDebugUnitTest` | **PASS** (47 tests, 0 failures; +5 EQ) | 17 s |
+| `python3 scripts/measure-phone-distance-eq.py --record` | **PASS** (3/4/5/6 m + sequential mix, 250–4500 Hz) | <1 s |
+| `./gradlew :app:testStenographerDebugUnitTest` | **PASS** (49 tests, 0 failures; +2 unpack) | 21 s |
+
+## 9. CHECK-APK embedded models (judge cold install)
+
+Hex.Team auto-check needs **models inside the APK**. `filesDir` + `download-models.sh` alone is not enough.
+
+Default / judge APK (`assembleStenographerDebug`): Gradle `prepareEmbeddedModels` copies Zipformer-ru int8 + Silero VAD + diar ONNX into `assets/models/`. `ModelStore.ensureUnpacked()` copies `assets/models` → `filesDir/models` on first launch (zero network). Slim (`assembleStenographerSlim`) has no weights (karma).
+
+```bash
+cd src/android
+./gradlew --no-daemon :app:assembleStenographerDebug   # judge — embeds models
+./gradlew --no-daemon :app:assembleStenographerSlim    # karma — no weights
+```
+
+Install judge APK, launch once (airplane mode OK). No adb push of models.
+
+Measured on this VM (2026-11-06):
+
+```bash
+cd src/android && ./gradlew --no-daemon :app:assembleStenographerDebug
+unzip -l app/build/outputs/apk/stenographer/debug/app-stenographer-debug.apk | grep assets/models
+```
+
+| Item | Result |
+|---|---|
+| APK | `app/build/outputs/apk/stenographer/debug/app-stenographer-debug.apk` |
+| APK size | **263154439 bytes** (~251 MiB) |
+| Embedded models | **119466051 bytes**, 7 files (Zipformer-ru int8 + Silero VAD + diar seg/emb) |
+| `prepareEmbeddedModels` | PASS — copied into `build/generated/embeddedModels/assets/models` |
+| First launch | `ModelStore.ensureUnpacked()` → `filesDir/models` |
+| Slim | `./gradlew :app:assembleStenographerSlim` (no ONNX; karma) |
+
+Evidence: `artifacts/test-results/judge-apk-embed.json`. No DER/WER claimed.

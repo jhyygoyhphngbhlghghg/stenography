@@ -6,11 +6,12 @@
 
 ```bash
 cd src/android
-./gradlew :app:assembleStenographerDebug
-./gradlew :app:assemblePresentConnectDebug
+./gradlew :app:assembleStenographerDebug          # JUDGE / default: embeds Zipformer-ru + Silero VAD + diar
+./gradlew :app:assembleStenographerSlim           # karma: no weights
+./gradlew :app:assemblePresentConnectDebug        # Path B flavor, also embeds models
 ```
 
-APK: `src/android/app/build/outputs/apk/<flavor>/debug/`. Для сдачи скопировать в `apk/` (сами `.apk` в git не кладём).
+Judge APK: `src/android/app/build/outputs/apk/stenographer/debug/`. Cold install works **offline** — first launch unpacks `assets/models` into `filesDir/models`. Do **not** rely on `download-models.sh` + adb push for the Hex.Team check. Slim APK has no ONNX (needs push if you want ASR). For сдачи скопировать в `apk/` (сами `.apk` в git не кладём).
 
 ## Device probe (Nothing Phone)
 
@@ -27,14 +28,16 @@ If APKs are missing it prints the exact `./gradlew :app:assembleStenographerDebu
 
 ## Модели
 
-Веса **не** в репозитории. Перед демо:
+Weights stay **gitignored**. The **judge APK packs them at assemble** (`prepareEmbeddedModels` from `./models`, downloading via `scripts/download-models.sh` if missing). First app launch copies `assets/models` → `filesDir/models`.
+
+Slim / host cache only:
 
 ```bash
 ./scripts/download-models.sh
-# adb push models/ onto the device app filesDir, or pack into assets/models/
+# adb push is NOT the judge path; use assembleStenographerDebug instead
 ```
 
-Список и лицензии: `docs/MODELS.md` (добавляется следующим коммитом, если ещё нет).
+Список и лицензии: `docs/MODELS.md`.
 
 ## Офлайн-стенография (авиарежим)
 

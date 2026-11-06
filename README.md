@@ -49,16 +49,13 @@ Two product flavors, one codebase: **stenographer** (offline file/mic) and **pre
 
 ```bash
 cd src/android
-./gradlew :app:assembleStenographerDebug
+./gradlew :app:assembleStenographerDebug    # JUDGE APK — embeds Zipformer-ru + VAD + diar
 # APK → app/build/outputs/apk/stenographer/debug/
+./gradlew :app:assembleStenographerSlim     # karma APK — no weights
 # copy to ../../apk/ when shipping
 ```
 
-Models are **not** in git. Before an airplane-mode demo:
-
-```bash
-./scripts/download-models.sh   # then adb push into app filesDir, or pack assets
-```
+Models are **not** in git. The default/judge APK packs them into `assets/models` at assemble; first launch unpacks into `filesDir`. `download-models.sh` is only the builder cache (and slim/dev push). Do not use filesDir-only for the Hex.Team check.
 
 ## Docs
 

@@ -5,7 +5,7 @@
 - Android 8.0+ (minSdk 26), демо на современном устройстве.
 - Вход: локальный файл (WAV/M4A/MP3 через SAF) или запись микрофоном приложения.
 - Выход: JSON брифа + просмотр списка реплик.
-- Офлайн-стенография: авиарежим после того, как модели лежат в filesDir/assets.
+- Офлайн-стенография: авиарежим на **judge APK** (models already in assets; first launch unpacks to filesDir).
 - PresentConnect: отдельный сетевой режим, до 20 одновременных потоков.
 
 ## Известные ограничения
@@ -14,7 +14,7 @@
 - Zipformer-ru — RU-first; английский best-effort (для EN — Whisper tiny, не default).
 - Перекрывающаяся речь и сильный шум смазывают диаризацию; демо — с явной сменой реплик.
 - LLM post-pass: модуль есть, **веса не приложены** (TODO Gemma/Qwen/Phi via llama.cpp или MediaPipe). Сейчас identity / лёгкая пунктуация, честно в UI.
-- Модели не в git (~74 MB+ ASR, плюс VAD/diar). Без `download-models.sh` / adb push приложение соберётся, но pipeline уйдёт в stub.
+- Модели не в git (~74 MB+ ASR, плюс VAD/diar). **Judge APK embeds them.** Slim / assemble without `prepareEmbeddedModels` still stubs. `download-models.sh` + adb push is not the Hex.Team check path.
 - NNAPI на OEM плавает; default provider = CPU.
 - **JNI / emulator (platform gap):** Cursor cloud agent cannot run an on-device `UnsatisfiedLinkError` probe (no AVD, no `adb` device, self-hosted workers empty). Need johann's Nothing Phone (3a) via `scripts/device-sideload-probe.sh`, or a worker/runner with a device or emulator. Host `scripts/host-jni-smoke.sh` is not a substitute. Details: `docs/TEST_RESULTS.md` § Platform gap.
 - Длинное аудио без VAD-chunking деградирует (особенно если позже включим GigaAM). VAD обязателен.

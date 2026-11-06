@@ -1,0 +1,19 @@
+{
+  "command": "cd src/android && ./gradlew --no-daemon :app:assembleStenographerDebug",
+  "apk": "src/android/app/build/outputs/apk/stenographer/debug/app-stenographer-debug.apk",
+  "apk_bytes": 263154439,
+  "embedded_models_bytes": 119466051,
+  "embedded_files": [
+    "assets/models/asr/zipformer-ru-int8/encoder.int8.onnx",
+    "assets/models/asr/zipformer-ru-int8/decoder.onnx",
+    "assets/models/asr/zipformer-ru-int8/joiner.int8.onnx",
+    "assets/models/asr/zipformer-ru-int8/tokens.txt",
+    "assets/models/vad/silero_vad.onnx",
+    "assets/models/diar/segmentation.onnx",
+    "assets/models/diar/embedding.onnx"
+  ],
+  "first_launch": "ModelStore.ensureUnpacked copies assets/models -> filesDir/models",
+  "slim": "./gradlew :app:assembleStenographerSlim",
+  "eval_fixtures_untouched": true,
+  "gain_frozen": true
+}
