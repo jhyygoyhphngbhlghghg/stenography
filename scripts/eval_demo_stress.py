@@ -193,6 +193,7 @@ def run_one(
                     rel_thresh=float(clip.get("rel_thresh", 0.04)),
                     pcm_gate=bool(clip.get("pcm_gate", False)),
                     pcm_gate_no_hush=bool(clip.get("pcm_gate_no_hush", False)),
+                    pcm_gate_v2=bool(clip.get("pcm_gate_v2", False)),
                 )
             else:
                 doc, meta = host_asr_diar.transcribe_file(
