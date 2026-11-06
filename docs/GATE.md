@@ -36,4 +36,9 @@ Harden-claim remeasures use **new** test_ids on the **same** frozen wavs. They d
 
 `*_gated_v3` @ `a5b7aed` / `686ac4a`: bound `BAND_LIMITED` is a soft flag. **Secondary regression.** DEMO_STAGE6 is the primary demo fixture. 20-stream EDGE_* stay green; do not retune those frozen wavs.
 
-DEMO_STAGE6 fixture (wav/gold/recipe) is **frozen** @ `a8b39d5a`. Platform far-field gain+soft VAD (`b66581c`) is remeasured as **`DEMO_STAGE6_ffgain`** on the same wavs. Do not replace the baseline row. Impl far-field still in flight — this row is Platform-only.
+DEMO_STAGE6 fixture (wav/gold/recipe) is **frozen** @ `a8b39d5a`. Harden-claim remeasures use **new** test_ids on the same wavs:
+
+- `DEMO_STAGE6_ffgain` @ `e0e64b85` — whole-file AGC (`b66581c`); mix already 0.119 FS so −3.46 dB
+- `DEMO_STAGE6_perturn` @ `db3afe4` — per-turn FarFieldGain (`ae86903`); near 0 dB, quiet islands → 0.08 FS, no crush
+
+Do not replace prior rows. Do not retune gold.

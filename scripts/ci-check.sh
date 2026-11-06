@@ -73,6 +73,9 @@ fi
 if [[ -f artifacts/eval/demo-stress/DEMO_STAGE6_ffgain.json ]]; then
   python3 scripts/verify-transcript-json.py artifacts/eval/demo-stress/DEMO_STAGE6_ffgain.json
 fi
+if [[ -f artifacts/eval/demo-stress/DEMO_STAGE6_perturn.json ]]; then
+  python3 scripts/verify-transcript-json.py artifacts/eval/demo-stress/DEMO_STAGE6_perturn.json
+fi
 
 if [[ -f src/android/local.properties ]] || [[ -n "${ANDROID_HOME:-}" ]]; then
   (cd src/android && ./gradlew :app:testStenographerDebugUnitTest :app:assembleStenographerDebug --quiet)

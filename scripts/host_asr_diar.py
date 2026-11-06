@@ -195,6 +195,7 @@ def transcribe_file(
     skip_asr: bool = False,
     speaker_id_override: str | None = None,
     farfield_gain: bool = False,
+    farfield_per_turn: bool = False,
 ) -> tuple[dict, dict]:
     if asr_only:
         return transcribe_asr_only(wav, models, num_threads=num_threads)
@@ -216,12 +217,15 @@ def transcribe_file(
     samples, sr = load_wav_mono16k(wav)
     ff_meta = None
     if farfield_gain:
-        prep = DEMO_PREP.prepare(samples, sr, bound_main=True)
+        prep = DEMO_PREP.prepare(
+            samples, sr, bound_main=True, per_turn=bool(farfield_per_turn)
+        )
         ff_meta = DEMO_PREP.gain_meta(prep)
+        src = "db3afe4 per-turn" if farfield_per_turn else "b66581c whole-file"
         if prep["skip_asr"]:
             raise HostBlocked(
                 f"DemoPcmPrep hard-skip {prep['skip_code']} "
-                f"(Platform FarFieldGain @ b66581c; CLIPPED/BAD_MIC/empty only)"
+                f"(Platform FarFieldGain @ {src}; CLIPPED/BAD_MIC/empty only)"
             )
         samples = prep["samples"]
 
@@ -334,13 +338,20 @@ def transcribe_file(
         },
         "no_kvm_adb": True,
         "farfield_gain": bool(farfield_gain),
+        "farfield_per_turn": bool(farfield_per_turn),
     }
     if ff_meta is not None:
         meta["farfield"] = ff_meta
-        meta["stack"] = (
-            "linux-sherpa-onnx-python Zipformer-ru + OfflineSpeakerDiarization; "
-            "Platform FarFieldGain+DemoPcmPrep @ b66581c (RMS-target 0.08, max +24 dB, soft energy)"
-        )
+        if farfield_per_turn:
+            meta["stack"] = (
+                "linux-sherpa-onnx-python Zipformer-ru + OfflineSpeakerDiarization; "
+                "Platform FarFieldGain per-turn @ db3afe4 (quiet islands → 0.08 FS, near 0 dB, no crush)"
+            )
+        else:
+            meta["stack"] = (
+                "linux-sherpa-onnx-python Zipformer-ru + OfflineSpeakerDiarization; "
+                "Platform FarFieldGain whole-file @ b66581c (RMS-target 0.08, max +24 dB, can attenuate)"
+            )
     if meta["duration_ms"] > 0:
         meta["rtf"] = wall_ms / meta["duration_ms"]
     return doc, meta

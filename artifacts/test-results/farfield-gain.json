@@ -7,9 +7,12 @@
   "vad_rms_fs": 0.008,
   "frame_ms": 20,
   "hvac_rms_fs": 0.004,
+  "segment_onset_fs": 0.0025,
+  "mode": "per_segment",
   "eval_fixtures_untouched": true,
   "demo_claim": "DEMO_STAGE6 single phone-mic 3-6m; Path B <=20 optional",
   "eval_stage6_cite": "a8b39d5a 3m ideal; 4-6m WER~1 s5 dropped \u2014 not re-run here",
+  "eval_ffgain_cite": "e0e64b85 agg WER 0.73->0.70; mix 0.119 FS whole-file AGC -3.46 dB; s5 missing \u2014 not re-run here",
   "summary": {
     "phone_hvac_distances_m": [
       3,
@@ -19,7 +22,118 @@
     ],
     "phone_hvac_hard_skip_demo": 0,
     "phone_hvac_soft_energy_before": 4,
-    "phone_hvac_unbound_hard_skip_before": 0
+    "phone_hvac_unbound_hard_skip_before": 0,
+    "mix_file_rms_before": 0.12044930973203173,
+    "mix_whole_file_agc_gain_db": -3.5542865701063815,
+    "mix_whole_file_would_attenuate": true,
+    "mix_per_turn_loud_crushed": false,
+    "mix_quiet_turns_lifted": true,
+    "mix_loud_turns_not_crushed": true,
+    "mix_hard_skip_demo": 0,
+    "spectral_tilt_applied": false,
+    "spectral_tilt_needed": false,
+    "spectral_tilt_reason": "per-turn RMS lift put quiet 5-6 m turns above VAD floor; no tilt"
+  },
+  "sequential_mix": {
+    "n": 25600,
+    "rms_before": 0.12044930973203173,
+    "rms_after": 0.13285330255586428,
+    "n_segments": 3,
+    "whole_file_agc": {
+      "gain_linear": 0.6641798128854297,
+      "gain_db": -3.5542865701063815,
+      "rms_before": 0.12044930973203173,
+      "rms_after": 0.08,
+      "would_attenuate": true
+    },
+    "turns": [
+      {
+        "name": "near_3m",
+        "distance_m": 3.0,
+        "n": 6400,
+        "rms_before": 0.2404163056034263,
+        "rms_after": 0.2404163056034263,
+        "gain_db": 0.0,
+        "boosted": false,
+        "attenuated": false,
+        "vad_fire_before": 1.0,
+        "vad_fire_after": 1.0,
+        "hard_skip_unbound_before": null,
+        "hard_skip_unbound_after": null,
+        "hf_ratio_before": 0.21832219483000526,
+        "hf_ratio_after": 0.21832219483000526,
+        "clears_reject_after": true
+      },
+      {
+        "name": "far_5m",
+        "distance_m": 5.0,
+        "n": 6400,
+        "rms_before": 0.011584227939355608,
+        "rms_after": 0.08,
+        "gain_db": 16.78445785146802,
+        "boosted": true,
+        "attenuated": false,
+        "vad_fire_before": 1.0,
+        "vad_fire_after": 1.0,
+        "hard_skip_unbound_before": null,
+        "hard_skip_unbound_after": null,
+        "hf_ratio_before": 0.2580714991314315,
+        "hf_ratio_after": 0.2580714991314315,
+        "clears_reject_after": true
+      },
+      {
+        "name": "far_6m",
+        "distance_m": 6.0,
+        "n": 6400,
+        "rms_before": 0.00989699564214578,
+        "rms_after": 0.08,
+        "gain_db": 18.151732159116815,
+        "boosted": true,
+        "attenuated": false,
+        "vad_fire_before": 1.0,
+        "vad_fire_after": 1.0,
+        "hard_skip_unbound_before": null,
+        "hard_skip_unbound_after": null,
+        "hf_ratio_before": 0.271312620950146,
+        "hf_ratio_after": 0.271312620950146,
+        "clears_reject_after": true
+      }
+    ],
+    "segments": [
+      {
+        "start": 0,
+        "end": 7360,
+        "rms_before": 0.2404163056034263,
+        "rms_after": 0.2241893609545677,
+        "peak_before": 0.34,
+        "gain_linear": 1.0,
+        "gain_db": 0.0,
+        "boosted": false,
+        "clip_guard": false
+      },
+      {
+        "start": 9600,
+        "end": 16960,
+        "rms_before": 0.011584227939355608,
+        "rms_after": 0.0746003846592251,
+        "peak_before": 0.021297104299733388,
+        "gain_linear": 6.90594145926743,
+        "gain_db": 16.78445785146802,
+        "boosted": true,
+        "clip_guard": false
+      },
+      {
+        "start": 19200,
+        "end": 25600,
+        "rms_before": 0.00989699564214578,
+        "rms_after": 0.08,
+        "peak_before": 0.01874638870477492,
+        "gain_linear": 8.083261112021173,
+        "gain_db": 18.151732159116815,
+        "boosted": true,
+        "clip_guard": false
+      }
+    ]
   },
   "rows": [
     {
@@ -39,7 +153,9 @@
       "hard_skip_demo_after": null,
       "soft_energy_before": true,
       "peak_before": 0.016666666666666666,
-      "peak_after": 0.11313708498984755
+      "peak_after": 0.11313708498984755,
+      "n_segments": 1,
+      "loud_crushed": false
     },
     {
       "name": "phone_hvac_3m",
@@ -58,7 +174,9 @@
       "hard_skip_demo_after": null,
       "soft_energy_before": true,
       "peak_before": 0.031497807205769904,
-      "peak_after": 0.1356026882386563
+      "peak_after": 0.1356026882386563,
+      "n_segments": 1,
+      "loud_crushed": false
     },
     {
       "name": "sine_4m",
@@ -77,7 +195,9 @@
       "hard_skip_demo_after": null,
       "soft_energy_before": true,
       "peak_before": 0.0125,
-      "peak_after": 0.11313708498984754
+      "peak_after": 0.11313708498984754,
+      "n_segments": 1,
+      "loud_crushed": false
     },
     {
       "name": "phone_hvac_4m",
@@ -87,7 +207,7 @@
       "rms_after": 0.08,
       "rms_before_dbfs": -36.96883169922173,
       "rms_after_dbfs": -21.93820026016113,
-      "gain_db": 15.030631439060599,
+      "gain_db": 15.030631439060603,
       "clip_guard": false,
       "vad_fire_before": 1.0,
       "vad_fire_after": 1.0,
@@ -96,7 +216,9 @@
       "hard_skip_demo_after": null,
       "soft_energy_before": true,
       "peak_before": 0.02512282095378926,
-      "peak_after": 0.1417751042052412
+      "peak_after": 0.1417751042052412,
+      "n_segments": 1,
+      "loud_crushed": false
     },
     {
       "name": "sine_5m",
@@ -115,7 +237,9 @@
       "hard_skip_demo_after": null,
       "soft_energy_before": true,
       "peak_before": 0.010000000000000002,
-      "peak_after": 0.11313708498984756
+      "peak_after": 0.11313708498984756,
+      "n_segments": 1,
+      "loud_crushed": false
     },
     {
       "name": "phone_hvac_5m",
@@ -134,7 +258,9 @@
       "hard_skip_demo_after": null,
       "soft_energy_before": true,
       "peak_before": 0.021297104299733388,
-      "peak_after": 0.14707655554587146
+      "peak_after": 0.14707655554587146,
+      "n_segments": 1,
+      "loud_crushed": false
     },
     {
       "name": "sine_6m",
@@ -153,7 +279,9 @@
       "hard_skip_demo_after": null,
       "soft_energy_before": true,
       "peak_before": 0.008333333333333333,
-      "peak_after": 0.11313708498984755
+      "peak_after": 0.11313708498984755,
+      "n_segments": 1,
+      "loud_crushed": false
     },
     {
       "name": "phone_hvac_6m",
@@ -172,12 +300,14 @@
       "hard_skip_demo_after": null,
       "soft_energy_before": true,
       "peak_before": 0.01874638870477492,
-      "peak_after": 0.15153195480814008
+      "peak_after": 0.15153195480814008,
+      "n_segments": 1,
+      "loud_crushed": false
     },
     {
       "name": "close_talk_0.5m",
       "n": 6400,
-      "distance_m": null,
+      "distance_m": 0.5,
       "rms_before": 0.0707106781186548,
       "rms_after": 0.08,
       "rms_before_dbfs": -23.01029995663981,
@@ -191,7 +321,9 @@
       "hard_skip_demo_after": null,
       "soft_energy_before": false,
       "peak_before": 0.1,
-      "peak_after": 0.11313708498984754
+      "peak_after": 0.11313708498984754,
+      "n_segments": 1,
+      "loud_crushed": false
     },
     {
       "name": "silence",
@@ -210,7 +342,9 @@
       "hard_skip_demo_after": null,
       "soft_energy_before": true,
       "peak_before": 0.0,
-      "peak_after": 0.0
+      "peak_after": 0.0,
+      "n_segments": 0,
+      "loud_crushed": false
     }
   ]
 }
