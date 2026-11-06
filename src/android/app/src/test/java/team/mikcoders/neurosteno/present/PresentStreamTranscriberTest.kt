@@ -93,10 +93,21 @@ class PresentStreamTranscriberTest {
     }
 
     @Test
-    fun phoneCrushIsBandLimitedWithoutCallingPipeline() = runBlocking {
+    fun boundPhoneCrushIsSoftBandLimitedStillAsr() = runBlocking {
         val fake = RecordingPipeline()
         val t = PresentStreamTranscriber(fake, modelsMissing = false)
         val r = t.transcribeIsolated("s09", StreamPcmSynth.phoneCrushLpf())
+        assertTrue(r is IsolatedResult.Ok)
+        r as IsolatedResult.Ok
+        assertTrue(r.softFlags.contains(PresentConnectCodes.BAND_LIMITED))
+        assertEquals(1, fake.calls.size)
+    }
+
+    @Test
+    fun unboundPhoneCrushDoesNotReachPipeline() = runBlocking {
+        val fake = RecordingPipeline()
+        val t = PresentStreamTranscriber(fake, modelsMissing = false)
+        val r = t.transcribeIsolated("mic-a", StreamPcmSynth.phoneCrushLpf())
         assertTrue(r is IsolatedResult.Rejected)
         assertEquals(PresentConnectCodes.BAND_LIMITED, (r as IsolatedResult.Rejected).code)
         assertTrue(fake.calls.isEmpty())

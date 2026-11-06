@@ -33,7 +33,7 @@ class PresentStreamTranscriber(
             return IsolatedResult.ModelsMissing(streamId)
         }
         // Platform StreamPcmGate on this stream_id only (never mixed), before Silero/diar/ASR.
-        // Known seats s01..s20: near/below RMS floor is SOFT_LOW (still ASR), not LOW_ENERGY.
+        // Known seats s01..s20: SOFT_LOW and soft BAND_LIMITED still ASR; s01 never energy/band-limit dropped.
         val quality = StreamPcmGate.inspect(
             pcmS16le,
             boundSeat = StreamLabeler.isKnownSeat(streamId),
