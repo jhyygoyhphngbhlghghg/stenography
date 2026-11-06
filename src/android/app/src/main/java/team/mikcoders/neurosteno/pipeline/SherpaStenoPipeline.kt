@@ -112,7 +112,7 @@ class SherpaStenoPipeline(
                 val endMs = (seg.end * 1000).toLong()
                 val crop = crop(audio.samples, audio.sampleRate, startMs, endMs)
                 val voiced = SpeechEndpointing.trimToSpeech(crop, audio.sampleRate)
-                if (!SpeechEndpointing.isMainSpeech(voiced, audio.sampleRate, contextP80)) continue
+                if (!SpeechEndpointing.isMainSpeech(voiced, audio.sampleRate, contextP80)) return@forEachIndexed
                 val text = asr(recognizer, voiced, audio.sampleRate)
                 if (text.isNotBlank()) {
                     out += Utterance(
