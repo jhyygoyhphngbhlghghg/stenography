@@ -5,6 +5,12 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
 python3 scripts/verify-transcript-json.py artifacts/test-results/example-transcript.json
+if [[ -f artifacts/eval/demo-stress/golden_path_b_brief.json ]]; then
+  python3 scripts/verify-transcript-json.py artifacts/eval/demo-stress/golden_path_b_brief.json
+fi
+if [[ -f artifacts/test-results/golden_path_b_brief.json ]]; then
+  python3 scripts/verify-transcript-json.py artifacts/test-results/golden_path_b_brief.json
+fi
 python3 scripts/eval_harness.py
 python3 scripts/test_eval_metrics.py -q
 python3 scripts/eval_harness.py --suite demo-stress
