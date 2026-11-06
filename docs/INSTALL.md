@@ -35,4 +35,4 @@ APK: `src/android/app/build/outputs/apk/<flavor>/debug/`. Для сдачи ск
 
 ## PresentConnect
 
-Flavor `presentConnect`, демо **Path B**: ≤20 отдельных потоков, не один смешанный микрофон комнаты. Контракт: `docs/PRESENT_CONNECT.md`. Нужна сеть до презентационного BE, не до облачного ASR.
+Flavor `presentConnect`, демо **Path B**: ≤20 отдельных потоков, не один смешанный микрофон комнаты. Цифры 20/20 — только clean per-stream (PR #4). Echo, overlap, white/room noise, bad mics: **unmeasured until edge suite**, **expect FAIL / hard degradation**, **do not claim in slides**. Контракт: `docs/PRESENT_CONNECT.md`. Нужна сеть до презентационного BE, не до облачного ASR.
