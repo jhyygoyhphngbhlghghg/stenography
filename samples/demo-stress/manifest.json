@@ -1,5 +1,14 @@
 {
-  "description": "20-talker cocktail-party stress (REAL Common Voice 17 RU, CC0). Host Linux sherpa-onnx only. Do not invent metrics.",
+  "description": "20-talker cocktail-party stress (REAL Common Voice 17 RU, CC0). Host Linux sherpa-onnx only. Do not invent metrics. Path B gate FROZEN (docs/GATE.md): mix_20talker_per_stream + EDGE_* + WORST_CASE. Lead sign-off to change fixtures. Do not retune to look pretty.",
+  "frozen_path_b_gate": [
+    "mix_20talker_per_stream",
+    "EDGE_reverb",
+    "EDGE_overlap",
+    "EDGE_noise",
+    "EDGE_badmic",
+    "WORST_CASE"
+  ],
+  "frozen_claim": "20/20 stream tracking holds under edge; do NOT claim clean WER/DER on WORST_CASE.",
   "sample_rate_hz": 16000,
   "n_talkers": 20,
   "main_speaker_id": "speaker_1",

@@ -64,6 +64,8 @@ python3 scripts/eval_demo_stress.py --run-host --only EDGE_reverb --only EDGE_ov
 
 CLEAN `mix_20talker_per_stream` is the optimistic baseline. `WORST_CASE` stacks echo + true overlap/bleed + room noises + bad mic.
 
+**FROZEN gate** (H1 @ 9908353): `docs/GATE.md`. Lock: 20/20 stream tracking holds under edge; do NOT claim clean WER/DER on WORST_CASE.
+
 ## Metrics
 
 `scripts/eval_metrics.py` (no `pyannote.metrics`): DER (250 ms collar + uncollared), JER, speaker purity, WER on mapped **main** speaker, RTF. **No invented numbers.**
