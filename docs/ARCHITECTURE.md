@@ -82,7 +82,7 @@ Audio (SAF import / AudioRecord)
   ASR per (speaker, t0, t1)    # Zipformer-ru int8 primary
         │                      # Whisper tiny backup; Vosk emergency
         ▼
-  Local LLM post-pass          # punctuation / cleanup (stub + TODO weights)
+  Local LLM post-pass          # TZ: required on-device punctuation / cleanup
         │
         ▼
   Dialogue JSON + Compose list + share/export
@@ -121,12 +121,12 @@ presentation BE ──WS/HTTP──► phone worker
 | ASR emergency | Vosk small-ru | Если sherpa не встаёт на устройстве |
 | VAD | Silero via sherpa | Нарезка до ASR; обязательна на длинном аудио |
 | Diarization | sherpa `OfflineSpeakerDiarization` | DEMO_STAGE6: одна far-field запись (VAD → diar → ASR). Path B: опционально внутри одного потока. Path A (cocktail ≥20 в один поток) — FAIL |
-| LLM | Модуль `LocalLlmPostPass` | Чекбокс брифа; веса TODO, identity-stub до поставки GGUF |
+| LLM | `LocalLlmPostPass` | **Требование ТЗ:** локальный on-device post-pass (пунктуация / cleanup), не stub. Веса — в assets check APK. Сейчас в коде `IdentityLlmPostPass` — разрыв Impl/Platform против ТЗ, закрыть до сдачи. ТЗ обратно в stub не смягчать |
 | I/O | MediaExtractor/MediaCodec → PCM; SAF import; AudioRecord | M4A/MP3/WAV + запись в приложении |
 | Export | JSON schema брифа; TXT как бонус | `docs/JSON.md` |
-| Модели | Не в git; `scripts/download-models.sh` + filesDir/assets | APK остаётся собираемым без весов |
+| Модели | Не в git | **Сдача / check APK: assets-bundled primary** (ASR, VAD, diar, LLM). Сетевая докачка — только UX karma, для ТЗ не нужна. `download-models.sh` + adb push — путь разработки |
 
-Если модели не найдены, pipeline **явно** идёт в stub-режим (помечается в UI). Stub не выдаётся за ASR на защите.
+Check APK для сдачи несёт веса в assets, включая локальную LLM. Сборка без весов — не результат для судей. Identity-stub LLM в текущем коде — разрыв против ТЗ, не допустимая сдача.
 
 ## Зависимости
 
