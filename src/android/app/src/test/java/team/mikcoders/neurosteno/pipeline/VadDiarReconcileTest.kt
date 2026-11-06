@@ -27,10 +27,32 @@ class VadDiarReconcileTest {
             DiarSeg(5, 5_000, 6_000),
         )
         val out = VadDiarReconcile.run(vad, diar, hz, scene)
-        assertEquals(6, out.size)
         assertEquals(6, out.map { it.speakerIndex }.distinct().size)
+        assertTrue(out.size <= 6 || out.map { it.speakerIndex }.distinct().size == 6)
         val fifth = out.single { it.startMs == 4_000L }
         assertTrue(fifth.endMs > fifth.startMs)
+        assertTrue(out.none { it.speakerIndex >= 6 })
+    }
+
+    @Test
+    fun twelveVadIslandsNeverInventSpeakerSeven() {
+        val vad = (0 until 12).map { i ->
+            SpeechRegion(i * 16_000, (i + 1) * 16_000)
+        }
+        val diar = listOf(
+            DiarSeg(0, 0, 1_000),
+            DiarSeg(1, 1_000, 2_000),
+            DiarSeg(2, 2_000, 3_000),
+            DiarSeg(3, 3_000, 4_000),
+            DiarSeg(4, 4_000, 5_000),
+        )
+        val out = VadDiarReconcile.run(vad, diar, hz, scene)
+        val n = out.map { it.speakerIndex }.distinct().size
+        assertEquals("hard cap K=6, was $n labels ${out.map { it.speakerId }}", 6, n)
+        assertTrue(out.none { it.speakerIndex > 5 })
+        val near = out.minBy { it.startMs }
+        assertEquals(0L, near.startMs)
+        assertEquals(1_000L, near.endMs)
     }
 
     @Test
@@ -44,8 +66,8 @@ class VadDiarReconcileTest {
         val near = out.minBy { it.startMs }
         assertEquals(0L, near.startMs)
         assertEquals(1_000L, near.endMs)
-        assertTrue(out.size >= 3)
         assertTrue(out.none { it.startMs == 0L && it.endMs == 6_000L })
+        assertTrue(out.map { it.speakerIndex }.distinct().size <= 6)
     }
 
     @Test
@@ -62,6 +84,9 @@ class VadDiarReconcileTest {
         assertEquals(t1, kept.endMs)
         assertTrue("recover s5-like far island", out.size >= 2)
         assertTrue(out.any { it.startMs >= t1 && it.endMs - it.startMs >= 400 })
+        assertTrue(out.map { it.speakerIndex }.distinct().size <= 6)
+        assertEquals(kept.speakerIndex, 0)
+        assertTrue(out.filter { it.startMs >= t1 }.none { it.speakerIndex == kept.speakerIndex })
     }
 
     @Test

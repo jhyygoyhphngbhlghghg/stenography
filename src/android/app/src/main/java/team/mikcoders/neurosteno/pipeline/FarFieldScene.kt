@@ -3,9 +3,9 @@ package team.mikcoders.neurosteno.pipeline
 /**
  * DEMO_STAGE6 single-mic scene vs PresentConnect (Path B, not the live claim).
  *
- * FarFieldGain.stage and EQ are **frozen** (Hex keep-punct WER still 0.7794,
- * s5 missing). Live work is diar/VAD hole-fill to recover s5 at 5.4 m without
- * moving the 3 m seat. Path B ingest is unchanged.
+ * FarFieldGain.stage and EQ are **frozen**. Live work: diar/VAD recover s5
+ * with a **hard cap of 6 speakers** (Eval 9b29b9c1 over-split 12/6). Path B
+ * ingest is unchanged.
  */
 data class FarFieldScene(
     val name: String,
