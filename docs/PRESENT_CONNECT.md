@@ -14,6 +14,8 @@ QR on slide → audience browser mic → web BE relays PCM → Android app
 
 Hard cap: **≤ 20 concurrent audio streams** per phone worker. Stream 21 is rejected.
 
+**Path B (locked):** each browser/mic is its own `stream_id` with its own PCM buffer into local Zipformer-ru + diarization. The worker **must not** mix or sum PCM across streams before ASR/diar (that was Path A; rejected for the demo). Web FE maps `stream_id` → seat/QR; `speaker_id` is diarization **inside** that stream.
+
 Offline stenography (file import / in-app record, airplane mode) is a **different mode**. Do not send present-connect audio through a cloud ASR.
 
 ---
@@ -211,7 +213,7 @@ interface PresentConnectClient {
 }
 ```
 
-Implementation talks OkHttp WebSocket. Pipeline on the phone is the same as file import: PCM → VAD → diarize → ASR → LLM stub → `transcript.final`.
+Implementation talks OkHttp WebSocket. **Per stream**, PCM → VAD → diarize → ASR → LLM stub → `transcript.partial` / `transcript.final` with that `stream_id`. Same Zipformer-ru engine as file import, but **N open streams are N isolated buffers**, never one mixed buffer.
 
 ---
 

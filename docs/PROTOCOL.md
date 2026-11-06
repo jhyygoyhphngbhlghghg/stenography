@@ -4,4 +4,4 @@
 
 - Пайплайн аудио→JSON: `docs/ARCHITECTURE.md`
 - Схема файла: `docs/JSON.md`
-- Сетевой контракт с презентацией (WebSocket/HTTP, ≤20 потоков): `docs/PRESENT_CONNECT.md`
+- Сетевой контракт с презентацией (WebSocket/HTTP, Path B: ≤20 отдельных потоков, без mixdown): `docs/PRESENT_CONNECT.md`
