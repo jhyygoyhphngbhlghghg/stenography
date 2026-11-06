@@ -15,16 +15,14 @@ Audio (SAF import / AudioRecord / Path B per-stream PCM)
   decode → 16 kHz mono PCM
         │
         ▼
-  quality gate                 # clipped/non-finite → BAD_AUDIO (no ASR hallucination)
-        │                      # cite-only bar: bad mic WER 1.0
+  StreamPcmGate (ingest, per stream_id)  # LOW_ENERGY / CLIPPED / BAD_MIC
+        │                      # byte-identical to platform f5ff5e2; no mix
         ▼
-  energy gate                  # hush / stationary hiss → skip diar/ASR
-        │                      # cite-only bar: noise false alarms DER 1.70
-        ▼
-  Silero VAD + endpoint trim   # drop silence & quieter bleed crops
+  Silero VAD + endpoint trim   # silence pads + short bleed crops only
         │                      # cite-only bar: EDGE_overlap WER 0.74 DER 0.99
+        │                      # do **not** zero the whole stream before diar (20/20)
         ▼
-  OfflineSpeakerDiarization    # pyannote seg + embedding + cluster (speech-masked)
+  OfflineSpeakerDiarization    # pyannote on the isolated stream (not a mix)
         │
         ▼
   ASR per (speaker, t0, t1)    # Zipformer-ru int8 primary

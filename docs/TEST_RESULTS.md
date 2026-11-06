@@ -31,6 +31,7 @@
 | PresentConnect Path B isolation | N streams = N buffers, no mix; stream 21 OVER_CAPACITY |
 | Endpoint/bleed gate (synthetic PCM) | unit tests; bar cite EDGE_overlap WER 0.74 DER 0.99 — **no new WER** |
 | Bad-mic quality gate (synthetic clip) | unit tests; bar cite WER 1.0 — **no new WER** |
-| Energy gate before diar (synthetic hush) | unit tests; bar cite noise DER 1.70 — **no new DER** |
+| Pre-diar noise-bed wipe | **removed** — H1: cost 9 speakers; 20/20 is a hard constraint |
+| Endpointing 20 quiet seats survive | synthetic unit tests; overlap/bleed still #1 (cite EDGE_overlap) |
 | Path B StreamPcmGate (platform f5ff5e2 thresholds) | synthetic `scripts/measure-stream-pcm-gate.py`; codes `LOW_ENERGY`/`CLIPPED`/`BAD_MIC`; Eval wavs untouched |
 | Path A mix vs Path B (H1 cite) | **not a harness row** — H1 reported Path A DER 0.95 1/20 FAIL; Path B 20/20 DER 0.235 main WER 0.087. Do not copy into `results.csv` without a real clip run. |
