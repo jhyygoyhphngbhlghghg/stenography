@@ -35,4 +35,4 @@ APK: `src/android/app/build/outputs/apk/<flavor>/debug/`. Для сдачи ск
 
 ## PresentConnect
 
-Flavor `presentConnect`, демо **Path B**: ≤20 отдельных потоков, не один смешанный микрофон комнаты. Цифры 20/20 — только clean per-stream (PR #4). Echo, overlap, white/room noise, bad mics: **unmeasured until edge suite**, **expect FAIL / hard degradation**, **do not claim in slides**. Контракт: `docs/PRESENT_CONNECT.md`. Нужна сеть до презентационного BE, не до облачного ASR.
+Flavor `presentConnect`, демо **Path B**: ≤20 отдельных потоков, не один смешанный микрофон комнаты. Под edge заявка только **20/20** stream tracking. **WORST_CASE FAIL:** WER main **0.9130**, DER **1.2985** (PR #4 @ `9908353d`). Clean WER/DER на WORST_CASE и EDGE_* не заявлять. **Do not claim in slides.** Контракт: `docs/PRESENT_CONNECT.md`. Нужна сеть до презентационного BE, не до облачного ASR.
