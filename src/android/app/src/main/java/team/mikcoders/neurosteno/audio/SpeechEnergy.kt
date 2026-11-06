@@ -16,6 +16,12 @@ object SpeechEnergy {
     /** Coefficient of variation below this on frame RMS ⇒ stationary bed, not speech. */
     const val STATIONARY_CV = 0.28f
 
+    /**
+     * Only treat low-CV as a noise bed when mean RMS is in the hiss band.
+     * On-mic speech (and a test sine) is louder; Silero VAD handles loud noise.
+     */
+    const val STATIONARY_MAX_MEAN = 0.08f
+
     fun hasEnoughSpeech(samples: FloatArray, sampleRate: Int): Boolean {
         if (samples.isEmpty()) return false
         val frames = SpeechEndpointing.frameRms(samples, sampleRate)
@@ -62,6 +68,7 @@ object SpeechEnergy {
         for (x in frameRms) sum += x
         val mean = (sum / frameRms.size).toFloat()
         if (mean < ABS_RMS_FLOOR) return true
+        if (mean > STATIONARY_MAX_MEAN) return false
         var varAcc = 0.0
         for (x in frameRms) {
             val d = (x - mean).toDouble()

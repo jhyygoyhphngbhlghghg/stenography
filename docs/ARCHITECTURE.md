@@ -9,16 +9,22 @@ Hex.Team case «Нейро-стенографист»: Android-приложен�
 ## Компоненты
 
 ```
-Audio (SAF import / AudioRecord)
+Audio (SAF import / AudioRecord / Path B per-stream PCM)
         │
         ▼
   decode → 16 kHz mono PCM
         │
         ▼
-  Silero VAD (sherpa-onnx)     # chunk speech; drop silence
-        │
+  quality gate                 # clipped/non-finite → BAD_AUDIO (no ASR hallucination)
+        │                      # cite-only bar: bad mic WER 1.0
         ▼
-  OfflineSpeakerDiarization    # pyannote seg + embedding + cluster
+  energy gate                  # hush / stationary hiss → skip diar/ASR
+        │                      # cite-only bar: noise false alarms DER 1.70
+        ▼
+  Silero VAD + endpoint trim   # drop silence & quieter bleed crops
+        │                      # cite-only bar: EDGE_overlap WER 0.74 DER 0.99
+        ▼
+  OfflineSpeakerDiarization    # pyannote seg + embedding + cluster (speech-masked)
         │
         ▼
   ASR per (speaker, t0, t1)    # Zipformer-ru int8 primary
@@ -29,6 +35,8 @@ Audio (SAF import / AudioRecord)
         ▼
   Dialogue JSON + Compose list + share/export
 ```
+
+Worst-case Eval is the regression bar. Reverb was fine in that suite — not hardened here. Harness CSV stays `pending` until a real wav/ref/hyp run (do not copy these H1 cites into results.csv).
 
 PresentConnect (flavor `presentConnect`, network mode) is **Path B** (locked for demo):
 
