@@ -56,3 +56,9 @@ Overnight-клипы без перекрытия (тот же PR, speaker-blind 
 | **WORST_CASE** | **1.2985** | **0.5981** | **0.9130** | **0.2907** | 20/20 |
 
 Overlap real: max 12 concurrent; 91% of speech frames ≥2 speakers. Main vs bleed: +3.0 dB (EDGE_overlap) / +1.5 dB (WORST_CASE). WORST_CASE main hyp collapses to one ~18s blob (`хочу говорить`). DER>1 = false-alarm time > ref speech. Запрещены «should be fine», «robust», «handles noisy rooms», «graceful under echo». **Do not claim in slides** clean WER/DER на edge.
+
+## Gate v2 `BAND_LIMITED` — REJECTED (cross-ref)
+
+Eval [PR #4](https://cursor.com/codebase/johann-schilling/neuro-stenographer/pull/4) @ `ffe53ba4` (`docs/TEST_RESULTS.md`, `docs/GATE.md` on `cursor/demo-stress-20talker-0106`) **rejects** hard `BAND_LIMITED` on bound seats `s01`..`s20`. Measured @ `bed868b3` (gate pinned Implementer `e3ad908` / Platform `b12a2bb`): EDGE_noise drops main **s01** (hyp **19/20**); EDGE_badmic **6/20**; WORST_CASE **0/20**, empty `{transcript:[]}`. Full gated_v2 table stays on that PR. Do not claim those hyp counts. Do not claim clean WER/DER on WORST_CASE. No new WER/DER here.
+
+**Claim remains ungated Path B stream tracking 20/20** @ `9908353d` (WORST_CASE WER main **0.9130**, DER **1.2985**). Bound seats: soft-flag only, still ASR, same spirit as `SOFT_LOW`. Never hard-drop main/`s01`. Hard `BAND_LIMITED` only for unbound/anonymous. Platform code fix is PR #3. Fixtures not retuned. Hold merge; #2 first.
