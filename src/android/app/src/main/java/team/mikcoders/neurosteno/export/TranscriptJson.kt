@@ -22,11 +22,26 @@ data class TranscriptFile(
 object TranscriptJson {
     val json: Json = Json {
         prettyPrint = true
+        prettyPrintIndent = "  "
         encodeDefaults = true
-        ignoreUnknownKeys = true
+        ignoreUnknownKeys = false
+        explicitNulls = false
     }
 
     fun encode(file: TranscriptFile): String = json.encodeToString(file)
 
     fun decode(raw: String): TranscriptFile = json.decodeFromString(raw)
+
+    /** True when the payload has only the four brief fields per utterance. */
+    fun matchesBriefShape(raw: String): Boolean {
+        val element = json.parseToJsonElement(raw)
+        val obj = element as? kotlinx.serialization.json.JsonObject ?: return false
+        if (obj.keys != setOf("transcript")) return false
+        val arr = obj["transcript"] as? kotlinx.serialization.json.JsonArray ?: return false
+        val allowed = setOf("speaker_id", "start_ms", "end_ms", "text")
+        return arr.all { item ->
+            val o = item as? kotlinx.serialization.json.JsonObject ?: return@all false
+            o.keys == allowed
+        }
+    }
 }
