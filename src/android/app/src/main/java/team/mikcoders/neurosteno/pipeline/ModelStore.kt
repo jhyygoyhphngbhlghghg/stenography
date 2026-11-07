@@ -54,7 +54,7 @@ class ModelStore(private val context: Context) {
     fun ensureUnpacked(): AssetModelUnpack.Report? {
         if (!BuildConfig.EMBEDDED_MODELS) return null
         val dest = modelsDir()
-        if (!AssetModelUnpack.needed(dest)) {
+        if (!AssetModelUnpack.needed(dest, ::assetExists)) {
             return AssetModelUnpack.Report(
                 copied = 0,
                 skippedExisting = AssetModelUnpack.REQUIRED.size,
@@ -72,9 +72,20 @@ class ModelStore(private val context: Context) {
         if (!report.ready) {
             Log.e(TAG, "embedded models incomplete missing=${report.missing}")
         } else {
-            Log.i(TAG, "embedded models ready copied=${report.copied} skipped=${report.skippedExisting}")
+            Log.i(
+                TAG,
+                "embedded models ready copied=${report.copied} skipped=${report.skippedExisting} llmPacked=${report.optionalCopied}",
+            )
         }
         return report
+    }
+
+    /** Assets live under assets/models/…; a missing dir or file is not an error. */
+    private fun assetExists(path: String): Boolean {
+        val slash = path.lastIndexOf('/')
+        val dir = if (slash >= 0) path.substring(0, slash) else ""
+        val name = if (slash >= 0) path.substring(slash + 1) else path
+        return runCatching { context.assets.list(dir)?.contains(name) == true }.getOrDefault(false)
     }
 
     fun resolve(): ModelPaths {
