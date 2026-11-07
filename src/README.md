@@ -7,7 +7,7 @@
 | **mobile (android)** | `android/` | Kotlin + Jetpack Compose, приложение-стенографист. Модуль `:app`, два flavor |
 | **web** | `web/` | Экраны показа: Node-бэкенд, React-дек, пульт ведущего |
 
-Путей `src/linux/`, `src/windows/`, `src/macos/` нет — эти платформы не
+Отдельных каталогов под linux, windows и macos нет — эти платформы не
 реализуются (см. `docs/LIMITATIONS.md`).
 
 ## mobile/android

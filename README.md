@@ -227,5 +227,7 @@ this repo owns the Android worker, the screens and the contract in
 - `docs/TEST_RESULTS.md` — every measured row, with the commit it was measured at
 - `docs/JSON.md` — export schema · `docs/PRESENT_CONNECT.md` — optional Path B contract
 - `docs/GATE.md`, `eval/GATE.md` — what must pass before defense
+- `docs/DEPLOY.md` — хостинг веб-презентации: сборка, systemd, reverse proxy с
+  WebSocket-upgrade, TLS, проверка после запуска
 - `src/README.md` — сборка и запуск обеих платформ (android, web)
 - `src/web/README.md` — экраны, пульт, бэкенд, API и режимы демо
