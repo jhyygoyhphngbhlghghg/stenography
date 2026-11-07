@@ -1,4 +1,16 @@
 import java.io.File
+import java.security.MessageDigest
+
+fun fileSha256(file: File): String = file.inputStream().use { input ->
+    val digest = MessageDigest.getInstance("SHA-256")
+    val buffer = ByteArray(1024 * 1024)
+    while (true) {
+        val n = input.read(buffer)
+        if (n < 0) break
+        digest.update(buffer, 0, n)
+    }
+    digest.digest().joinToString("") { "%02x".format(it) }
+}
 
 plugins {
     id("com.android.application")
@@ -11,13 +23,17 @@ val repoRoot: File = rootProject.projectDir.resolve("../..").normalize()
 val modelsSrc: File = File(repoRoot, "models")
 val embeddedModelsAssets = layout.buildDirectory.dir("generated/embeddedModels/assets")
 
-/**
- * `-PembedLlm=true` also packs the local-LLM GGUF (353 MB) so the check APK is
- * complete on a fresh install — the TZ needs the local LLM on device at check
- * time, not after a download. Default off keeps the handout's ~251 MiB APK;
- * the LLM then arrives via scripts/download-models.sh + adb push.
- */
-val embedLlm: Boolean = (findProperty("embedLlm")?.toString() ?: "false") == "true"
+// Self-contained by default. Slim remains model-free; -PembedLlm=false is
+// available only for developer builds that install their own GGUF separately.
+val embedLlm: Boolean = (findProperty("embedLlm")?.toString() ?: "true") == "true"
+val compactModels: Boolean = (findProperty("compactModels")?.toString() ?: "false") == "true"
+val targetAbis = (findProperty("targetAbis")?.toString() ?: "arm64-v8a")
+    .split(',').map { it.trim() }.filter { it.isNotEmpty() }
+require(targetAbis.isNotEmpty() && targetAbis.all { it in setOf("arm64-v8a", "armeabi-v7a", "x86_64") }) {
+    "targetAbis must list supported Android ABIs"
+}
+val encoderRelPath = "asr/zipformer-ru-int8/encoder.int8.onnx"
+val compactValidation = File(repoRoot, "artifacts/compact/encoder-validation.json")
 
 val judgeModelRelPaths = mutableListOf(
     "asr/zipformer-ru-int8/encoder.int8.onnx",
@@ -31,6 +47,7 @@ val judgeModelRelPaths = mutableListOf(
 if (embedLlm) judgeModelRelPaths.add("llm/qwen2-0_5b-instruct-q4_0.gguf")
 
 fun resolveJudgeModel(rel: String): File {
+    if (compactModels && rel == encoderRelPath) return File(modelsSrc, "compact/$rel")
     val direct = File(modelsSrc, rel)
     if (direct.isFile) return direct
     if (rel.endsWith("embedding.onnx")) {
@@ -63,7 +80,22 @@ val prepareEmbeddedModels by tasks.registering {
         }
     }
     inputs.property("embedLlm", embedLlm)
+    inputs.property("compactModels", compactModels)
+    if (compactModels && compactValidation.isFile) inputs.file(compactValidation)
     doLast {
+        if (compactModels) {
+            require(compactValidation.isFile && resolveJudgeModel(encoderRelPath).isFile) {
+                "Run scripts/prepare_compact_encoder.py before -PcompactModels=true"
+            }
+            val validation = groovy.json.JsonSlurper().parse(compactValidation) as Map<*, *>
+            require(validation["all_text_tokens_timestamps_identical"] == true &&
+                validation["metadata_identical"] == true &&
+                validation["hardware_layout_optimization"] == false &&
+                validation["prepared_sha256"] == fileSha256(resolveJudgeModel(encoderRelPath)) &&
+                validation["source_sha256"] == fileSha256(File(modelsSrc, encoderRelPath))) {
+                "Compact encoder does not match its passing validation report; rerun prepare_compact_encoder.py"
+            }
+        }
         var missing = judgeModelRelPaths.filter { !resolveJudgeModel(it).isFile }
         if (missing.isNotEmpty()) {
             val script = File(repoRoot, "scripts/download-models.sh")
@@ -86,7 +118,7 @@ val prepareEmbeddedModels by tasks.registering {
         File(destRoot, ".embedded").writeText(
             judgeModelRelPaths.joinToString("\n") { rel ->
                 val f = File(destRoot, rel)
-                "$rel ${f.length()}"
+                "$rel ${f.length()} ${fileSha256(f)}"
             } + "\n",
         )
         println("embedded ${judgeModelRelPaths.size} model files into $destRoot (${destRoot.walkTopDown().filter { it.isFile }.sumOf { it.length() }} bytes)")
@@ -102,13 +134,13 @@ android {
         // AAR minSdk 21; sherpa Java demo uses 28. Brief allows 26–28.
         minSdk = 28
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0-overnight"
+        versionCode = 2
+        versionName = "0.2.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk {
-            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
+            abiFilters += targetAbis
         }
-        // EMBEDDED_MODELS is set per build type (debug/release = true, slim = false).
+        // EMBEDDED_MODELS is set per build type; slim stays model-free.
     }
 
     flavorDimensions += "role"
@@ -130,12 +162,20 @@ android {
             buildConfigField("Boolean", "EMBEDDED_MODELS", "true")
         }
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
             buildConfigField("Boolean", "EMBEDDED_MODELS", "true")
+        }
+        create("compact") {
+            initWith(getByName("release"))
+            matchingFallbacks += listOf("release")
+            // Installable local candidate, not a production-signing credential.
+            signingConfig = signingConfigs.getByName("debug")
+            versionNameSuffix = "-compact"
         }
         create("slim") {
             initWith(getByName("debug"))
@@ -152,13 +192,14 @@ android {
         getByName("release") {
             assets.srcDir(embeddedModelsAssets)
         }
+        getByName("compact") {
+            assets.srcDir(embeddedModelsAssets)
+        }
     }
 
-    androidResources {
-        // ONNX/GGUF are already quantised weights; compressing them costs
-        // build time and makes the first-launch unpack rewrite garbage.
-        noCompress += listOf("onnx", "txt", "gguf")
-    }
+    // Let AAPT losslessly compress ONNX/GGUF assets. They are streamed to
+    // filesDir once, then loaded from ordinary mmap-compatible files. Inference
+    // never decompresses a model, and no tensor values are changed.
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -216,8 +257,9 @@ afterEvaluate {
     tasks.matching { t ->
         val n = t.name
         !n.contains("Slim", ignoreCase = true) &&
-            n.contains("Assets") &&
-            (n.startsWith("merge") || n.startsWith("generate") || n.startsWith("package"))
+            (n.contains("LintVital", ignoreCase = true) ||
+                (n.contains("Assets") &&
+                    (n.startsWith("merge") || n.startsWith("generate") || n.startsWith("package"))))
     }.configureEach {
         dependsOn(prepareEmbeddedModels)
     }
