@@ -15,6 +15,7 @@ import {
   checkpointPayload,
   constantTimeEqual,
   createSession,
+  dialogueRows,
   gotoSlide,
   phonePayload,
   pushTranscript,
@@ -422,6 +423,18 @@ const SECURITY_HEADERS: Record<string, string> = {
   ].join('; '),
 };
 
+/**
+ * CORS for the separate React frontend (TanStack Start), which is served from
+ * another origin than this backend. Deliberately no `allow-credentials`: the
+ * presenter cookie is SameSite=Strict and must never ride along on a
+ * cross-origin request, so a wildcard origin stays safe.
+ */
+const CORS_HEADERS: Record<string, string> = {
+  'access-control-allow-origin': '*',
+  'access-control-allow-methods': 'GET, POST, OPTIONS',
+  'access-control-allow-headers': 'Content-Type, Authorization',
+};
+
 function json(res: http.ServerResponse, status: number, body: unknown, extra: Record<string, string> = {}): void {
   const payload = JSON.stringify(body);
   res.writeHead(status, {
@@ -429,6 +442,7 @@ function json(res: http.ServerResponse, status: number, body: unknown, extra: Re
     'cache-control': 'no-store',
     'content-length': Buffer.byteLength(payload),
     ...SECURITY_HEADERS,
+    ...CORS_HEADERS,
     ...extra,
   });
   res.end(payload);
@@ -533,6 +547,7 @@ async function serveStatic(req: http.IncomingMessage, res: http.ServerResponse, 
         'cache-control': 'no-store',
         'content-length': body.length,
         ...SECURITY_HEADERS,
+        ...CORS_HEADERS,
       });
       res.end(req.method === 'HEAD' ? undefined : body);
       return true;
@@ -562,6 +577,13 @@ const server = http.createServer(async (req, res) => {
   const method = req.method ?? 'GET';
 
   try {
+    /* ---- CORS preflight: answer before any routing or auth ---- */
+    if (method === 'OPTIONS') {
+      res.writeHead(204, { ...CORS_HEADERS, 'content-length': 0 });
+      res.end();
+      return;
+    }
+
     /* ---- checkpoint polling (contract §5, web-only) ---- */
     if (path === '/v1/presentation' && method === 'GET') {
       json(res, 200, checkpointPayload(session));
@@ -569,6 +591,20 @@ const server = http.createServer(async (req, res) => {
     }
     if (/^\/v1\/presentation\/[^/]+\/checkpoint$/.test(path) && method === 'GET') {
       json(res, 200, checkpointPayload(session));
+      return;
+    }
+
+    /* ---- frontend bootstrap: checkpoint + dialogue rows in one GET ----
+     * The React screen loads this over HTTP first, then upgrades to the
+     * WebSocket for live `checkpoint` / `transcript.final` messages. Carrying
+     * the transcript here means a late-joining screen is complete without
+     * waiting for the next row. */
+    if (path === '/v1/frontend/checkpoint' && method === 'GET') {
+      json(res, 200, {
+        ...checkpointPayload(session),
+        transcript: dialogueRows(session.transcript),
+        banner: session.demo.phase === 'fallback' ? RESERVE_BANNER : null,
+      });
       return;
     }
 
@@ -811,8 +847,13 @@ wss.on('connection', (ws: WebSocket, request: http.IncomingMessage) => {
   if (role === 'screen' || role === 'presenter') {
     send(ws, {
       type: 'snapshot',
+      // checkpointPayload carries slide_id plus the Russian slide_label.
       ...checkpointPayload(session),
-      transcript: session.transcript.slice(-60),
+      // Dialogue schema for the React screen: four fields, nothing else.
+      transcript: dialogueRows(session.transcript),
+      // Full-fidelity rows (seat, source, partial) for the built-in deck, which
+      // colours seats and labels reserve rows. Same rows, more provenance.
+      rows: session.transcript.slice(-60),
       banner: session.demo.phase === 'fallback' ? RESERVE_BANNER : null,
       reserve_rows: RESERVE_ROWS,
     });
@@ -893,6 +934,7 @@ server.listen(config.port, config.host, () => {
   console.log(`[web] console  http://${shown}:${config.port}/presenter`);
   console.log(`[web] phone ws ws://${shown}:${config.port}/v1/present-connect?session=${session.id}&role=phone&device=phone_1`);
   console.log(`[web] phone http POST /v1/transcript  GET /v1/presentation`);
+  console.log(`[web] frontend   GET /v1/frontend/checkpoint  ws /v1/present-connect?role=screen`);
   console.log(`[web] slides   ${SLIDES.join(' → ')}`);
   if (!config.adminToken) console.warn('[web] ADMIN_TOKEN is empty — presenter console is disabled');
   if (!config.phoneToken) console.warn('[web] PHONE_TOKEN is empty — /v1/transcript is open to any client on the network');

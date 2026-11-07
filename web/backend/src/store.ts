@@ -1,5 +1,5 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
-import { SLIDES, config, slideIndexOf, type SlideId } from './config.js';
+import { SLIDES, SLIDE_LABELS, config, slideIndexOf, type SlideId } from './config.js';
 import type { TranscriptRow } from './protocol.js';
 
 export type DemoPhase = 'idle' | 'live' | 'fallback';
@@ -145,6 +145,8 @@ export function checkpointPayload(session: SessionState) {
     session_id: session.id,
     slide_index: session.slideIndex,
     slide_id: session.slideId,
+    /** Russian display name for the current slide (frontend screens). */
+    slide_label: SLIDE_LABELS[session.slideId],
     t_ms: session.tMs,
     follow_token: session.followToken,
     revision: session.checkpointRevision,
@@ -154,6 +156,32 @@ export function checkpointPayload(session: SessionState) {
     phone: phonePayload(session),
     slides: SLIDES,
   };
+}
+
+/**
+ * The React frontend's dialogue schema: four fields and nothing else. Screens
+ * connecting with `role=screen` get these in the `snapshot` message, and the
+ * same shape comes back from `/v1/frontend/checkpoint`.
+ */
+export interface DialogueRow {
+  speaker_id: string;
+  text: string;
+  start_ms: number;
+  end_ms: number;
+}
+
+/**
+ * Last `limit` rows reduced to the dialogue schema. Unlike {@link sortBrief}
+ * this keeps reserve and simulated rows: a screen that reconnects mid-fallback
+ * must still see the dialogue on stage (the banner carries the provenance).
+ */
+export function dialogueRows(rows: TranscriptRow[], limit = 60): DialogueRow[] {
+  return rows.slice(-limit).map((r) => ({
+    speaker_id: r.speaker_id,
+    text: r.text,
+    start_ms: r.start_ms,
+    end_ms: r.end_ms,
+  }));
 }
 
 export function pushTranscript(session: SessionState, row: TranscriptRow): void {

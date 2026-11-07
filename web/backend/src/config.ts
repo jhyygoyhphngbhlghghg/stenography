@@ -62,6 +62,23 @@ export const SLIDES = [
 
 export type SlideId = (typeof SLIDES)[number];
 
+/**
+ * Human-readable Russian name per slide. Frontend screens show this instead of
+ * the raw id, so the checkpoint carries both. Keep in sync with SLIDES — the
+ * Record<SlideId, string> type makes a missing label a compile error.
+ */
+export const SLIDE_LABELS: Record<SlideId, string> = {
+  title: 'QR',
+  problem: 'Проблема',
+  approach: 'Подход',
+  pipeline: 'Конвейер',
+  'on-device': 'Приватность',
+  live: 'Живое демо',
+  resilience: 'Отказоустойчивость',
+  numbers: 'Цифры',
+  team: 'Команда',
+};
+
 function isSlideId(value: unknown): value is SlideId {
   return typeof value === 'string' && (SLIDES as readonly string[]).includes(value);
 }
