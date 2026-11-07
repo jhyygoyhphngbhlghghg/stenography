@@ -371,6 +371,7 @@ function applyPresenterCommand(cmd: unknown, reply: (payload: unknown) => void):
       case 'session.rotate':
         rotateSession(session);
         broadcastScreens({ type: 'transcript.clear' });
+        broadcastScreens({ type: 'demo', phase: session.demo.phase, reason: session.demo.reason, banner: null });
         break;
     }
   } catch (error) {

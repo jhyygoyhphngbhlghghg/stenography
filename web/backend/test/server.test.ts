@@ -369,3 +369,217 @@ test('a stub worker (no models) never presents as live', async (t) => {
   assert.equal(fallback.phase, 'fallback', 'a stub phone must not claim live');
   assert.equal(fallback.reason, 'phone_stub_models_missing');
 });
+
+test('session rotate clears transcript and resets demo', async (t) => {
+  const server = await startServer({ ADMIN_TOKEN: ADMIN });
+  t.after(() => server.stop());
+
+  const screen = openWs(server.base, 'screen');
+  const inbox = collect(screen);
+  t.after(() => screen.close());
+  await new Promise((r) => screen.once('open', r));
+  await waitFor(inbox, (m) => m.type === 'snapshot', 'snapshot');
+
+  // Push a row first.
+  await json(server.base, '/v1/transcript', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ transcript: [{ speaker_id: 'speaker_1', start_ms: 100, end_ms: 200, text: 'До ротации.' }] }),
+  });
+  await waitFor(inbox, (m) => m.type === 'transcript.final', 'row before rotate');
+
+  const login = await fetch(server.base + '/api/login', {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token: ADMIN }),
+  });
+  const cookie = login.headers.get('set-cookie')?.split(';')[0] ?? '';
+  const rotate = await json(server.base, '/api/command', {
+    method: 'POST', headers: { 'content-type': 'application/json', cookie },
+    body: JSON.stringify({ type: 'session.rotate' }),
+  });
+  assert.equal(rotate.status, 200);
+
+  const cleared = await waitFor(inbox, (m) => m.type === 'transcript.clear', 'clear event');
+  assert.ok(cleared);
+
+  const exported = await json(server.base, '/v1/sessions/x/transcript');
+  assert.deepEqual((exported.body as { transcript: unknown[] }).transcript, []);
+
+  const newSession = (rotate.body as { session_id: string }).session_id;
+  assert.match(newSession, /^sess_/);
+});
+
+test('demo commands: simulate, fallback, end', async (t) => {
+  const server = await startServer({ ADMIN_TOKEN: ADMIN });
+  t.after(() => server.stop());
+
+  const screen = openWs(server.base, 'screen');
+  const inbox = collect(screen);
+  t.after(() => screen.close());
+  await new Promise((r) => screen.once('open', r));
+  await waitFor(inbox, (m) => m.type === 'snapshot', 'snapshot');
+
+  const login = await fetch(server.base + '/api/login', {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token: ADMIN }),
+  });
+  const cookie = login.headers.get('set-cookie')?.split(';')[0] ?? '';
+
+  // Enable simulate
+  const sim = await json(server.base, '/api/command', {
+    method: 'POST', headers: { 'content-type': 'application/json', cookie },
+    body: JSON.stringify({ type: 'demo.simulate', on: true }),
+  });
+  assert.equal(sim.status, 200);
+  const simEvent = await waitFor(inbox, (m) => m.type === 'simulate', 'simulate event');
+  assert.equal(simEvent.on, true);
+
+  // Begin demo without phone -> fallback
+  const begin = await json(server.base, '/api/command', {
+    method: 'POST', headers: { 'content-type': 'application/json', cookie },
+    body: JSON.stringify({ type: 'demo.begin' }),
+  });
+  assert.equal(begin.status, 200);
+  const fallback = await waitFor(inbox, (m) => m.type === 'demo' && m.phase === 'fallback', 'fallback');
+  assert.equal(fallback.reason, 'phone_offline_at_begin');
+
+  // Simulated rows should appear
+  const simRow = await waitFor(inbox, (m) => m.type === 'transcript.final', 'simulated row', 10_000);
+  assert.equal((simRow.row as { source: string }).source, 'simulated');
+
+  // Manual fallback
+  const manual = await json(server.base, '/api/command', {
+    method: 'POST', headers: { 'content-type': 'application/json', cookie },
+    body: JSON.stringify({ type: 'demo.fallback' }),
+  });
+  assert.equal(manual.status, 200);
+
+  // End demo
+  const end = await json(server.base, '/api/command', {
+    method: 'POST', headers: { 'content-type': 'application/json', cookie },
+    body: JSON.stringify({ type: 'demo.end' }),
+  });
+  assert.equal(end.status, 200);
+  const idle = await waitFor(inbox, (m) => m.type === 'demo' && m.phase === 'idle', 'idle');
+  assert.equal(idle.reason, 'demo_end');
+});
+
+test('phone status and partial transcript are relayed', async (t) => {
+  const server = await startServer({ ADMIN_TOKEN: ADMIN });
+  t.after(() => server.stop());
+
+  const screen = openWs(server.base, 'screen');
+  const phone = openWs(server.base, 'phone');
+  const inbox = collect(screen);
+  const inboxPhone = collect(phone);
+  t.after(() => { screen.close(); phone.close(); });
+
+  await new Promise((r) => screen.once('open', r));
+  await new Promise((r) => phone.once('open', r));
+  await waitFor(inbox, (m) => m.type === 'snapshot', 'snapshot');
+
+  phone.send(JSON.stringify({ type: 'hello', protocol: 'present-connect/1', models: ['zipformer-ru-int8'] }));
+  await waitFor(inboxPhone, (m) => m.type === 'hello.ok', 'hello.ok');
+
+  // Phone status
+  phone.send(JSON.stringify({ type: 'phone.status', recording: true, processing: false, engine: 'zipformer-ru-int8' }));
+  const status = await waitFor(inbox, (m) => m.type === 'phone', 'phone status');
+  assert.equal(status.recording, true);
+  assert.equal(status.engine, 'zipformer-ru-int8');
+
+  // Partial transcript
+  phone.send(JSON.stringify({
+    type: 'transcript.partial',
+    stream_id: 's02',
+    speaker_id: 'speaker_2',
+    start_ms: 1000,
+    end_ms: 2000,
+    text: 'частичный текст',
+  }));
+  const partial = await waitFor(inbox, (m) => m.type === 'transcript.partial', 'partial');
+  assert.equal((partial.row as { text: string }).text, 'частичный текст');
+  assert.equal((partial.row as { partial: boolean }).partial, true);
+});
+
+test('BAD_PROTOCOL is rejected', async (t) => {
+  const server = await startServer({ ADMIN_TOKEN: ADMIN });
+  t.after(() => server.stop());
+
+  const phone = openWs(server.base, 'phone');
+  const inboxPhone = collect(phone);
+  t.after(() => phone.close());
+  await new Promise((r) => phone.once('open', r));
+
+  phone.send(JSON.stringify({ type: 'hello', protocol: 'wrong/1', models: ['zipformer-ru-int8'] }));
+  const error = await waitFor(inboxPhone, (m) => m.type === 'error', 'error');
+  assert.equal(error.code, 'BAD_PROTOCOL');
+
+  // Socket should be closed
+  await new Promise((r) => phone.once('close', r));
+});
+
+test('PHONE_TOKEN protects ingest endpoints', async (t) => {
+  const server = await startServer({ ADMIN_TOKEN: ADMIN, PHONE_TOKEN: 'phone-secret' });
+  t.after(() => server.stop());
+
+  // Without token -> 401
+  const denied = await json(server.base, '/v1/transcript', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ transcript: [{ speaker_id: 'speaker_1', start_ms: 1, end_ms: 2, text: 'x' }] }),
+  });
+  assert.equal(denied.status, 401);
+
+  // With token -> 200
+  const ok = await json(server.base, '/v1/transcript', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: 'Bearer phone-secret' },
+    body: JSON.stringify({ transcript: [{ speaker_id: 'speaker_1', start_ms: 1, end_ms: 2, text: 'x' }] }),
+  });
+  assert.equal(ok.status, 200);
+});
+
+test('logout clears the presenter cookie', async (t) => {
+  const server = await startServer({ ADMIN_TOKEN: ADMIN });
+  t.after(() => server.stop());
+
+  const login = await fetch(server.base + '/api/login', {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token: ADMIN }),
+  });
+  const cookie = login.headers.get('set-cookie')?.split(';')[0] ?? '';
+
+  // Logged in -> presenter true
+  const state1 = await json(server.base, '/api/state');
+  assert.equal((state1.body as { presenter: boolean }).presenter, true);
+
+  // Logout
+  const logout = await fetch(server.base + '/api/logout', {
+    method: 'POST', headers: { cookie },
+  });
+  assert.equal(logout.status, 200);
+  const logoutCookie = logout.headers.get('set-cookie') ?? '';
+  assert.match(logoutCookie, /Max-Age=0/);
+});
+
+test('invite endpoint returns join URL', async (t) => {
+  const server = await startServer({ ADMIN_TOKEN: ADMIN });
+  t.after(() => server.stop());
+
+  const invite = await json(server.base, '/api/invite');
+  assert.equal(invite.status, 200);
+  const body = invite.body as { join_url: string; session_id: string; slides: string[] };
+  assert.match(body.join_url, /\/join\?session=/);
+  assert.match(body.session_id, /^sess_/);
+  assert.equal(body.slides.length, 9);
+});
+
+test('workers register returns ws_url', async (t) => {
+  const server = await startServer({ ADMIN_TOKEN: ADMIN });
+  t.after(() => server.stop());
+
+  const reg = await json(server.base, '/v1/workers/register', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ device_id: 'phone_test' }),
+  });
+  assert.equal(reg.status, 200);
+  const body = reg.body as { worker_id: string; ws_url: string; session_id: string };
+  assert.equal(body.worker_id, 'phone_test');
+  assert.match(body.ws_url, /role=phone/);
+  assert.match(body.ws_url, /device=phone_test/);
+});

@@ -39,10 +39,15 @@ body {
   font-size: 16px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
-  /* The deck drives its own scroll: checkpoints arrive from the server. */
+  /* Locked by default: the deck drives its own scroll via the server. */
   overflow: hidden;
   overscroll-behavior: none;
   touch-action: none;
+}
+/* Free-scroll rehearsal mode: window scrolls normally. */
+body[data-free="true"] {
+  overflow-y: auto;
+  touch-action: auto;
 }
 
 /* ---------------------------------------------------------------- chrome */
@@ -140,14 +145,9 @@ body {
 /* ------------------------------------------------------------ scroller */
 
 .scroller {
-  position: fixed;
-  inset: 0;
-  overflow-y: scroll;
-  overflow-x: hidden;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+  /* Normal flow — window scrolls, anime.js onScroll works natively. */
+  overflow: visible;
 }
-.scroller::-webkit-scrollbar { display: none; }
 
 /* Each checkpoint is a tall panel: height gives the scroll-linked timeline
    its travel, so animation progress == scroll progress inside the panel. */

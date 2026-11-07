@@ -18,6 +18,10 @@ interface LocalLlmPostPass {
     val isOnDeviceLlm: Boolean
     val displayName: String
 
+    /** Exposed for TranscriptQa; null when no GGUF is present. */
+    val qaRunner: OnDeviceLlmRunner?
+        get() = null
+
     suspend fun cleanup(utterances: List<Utterance>): List<Utterance>
 }
 
@@ -71,6 +75,7 @@ class GgufLlmPostPass(
     override val weightsPresent: Boolean = gguf.isFile && gguf.length() > 0L
     override val isOnDeviceLlm: Boolean = true
     override val displayName: String = runner.engineName
+    override val qaRunner: OnDeviceLlmRunner? = runner
 
     override suspend fun cleanup(utterances: List<Utterance>): List<Utterance> {
         if (!weightsPresent) {

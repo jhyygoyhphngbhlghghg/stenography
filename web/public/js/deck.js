@@ -11,7 +11,6 @@ const FORCE_DISPLAY = params.get('display');      // 'full' | 'compact'
 const WS_PATH = '/v1/present-connect';
 const POLL_MS = 1200;                             // contract §5: 1–2 Hz
 
-const scroller = document.getElementById('scroller');
 const sections = Array.from(document.querySelectorAll('.checkpoint'));
 const rail = document.getElementById('rail');
 const counter = document.getElementById('counter');
@@ -37,6 +36,7 @@ const state = {
   connected: false,
   rows: new Map(),
   seats: new Map(),
+  seatGroup: null,
   /** Mirrors of the last server values, used for partial HUD updates. */
   demoPhase: 'idle',
   phoneSnapshot: {},
@@ -68,7 +68,7 @@ function blockScroll(event) {
 }
 
 for (const type of ['wheel', 'touchmove']) {
-  scroller.addEventListener(type, blockScroll, { passive: false });
+  window.addEventListener(type, blockScroll, { passive: false });
 }
 window.addEventListener('keydown', (event) => {
   if (FREE_SCROLL) return;
@@ -85,7 +85,9 @@ let programmatic = false;
 
 function topOf(index) {
   const section = sections[index];
-  return section ? section.offsetTop : 0;
+  if (!section) return 0;
+  const rect = section.getBoundingClientRect();
+  return rect.top + window.scrollY;
 }
 
 let scrollAnim = null;
@@ -95,12 +97,12 @@ function scrollToIndex(index, instant = false) {
   expectedTop = target;
   if (instant) {
     programmatic = true;
-    scroller.scrollTop = target;
+    window.scrollTo(0, target);
     programmatic = false;
     return;
   }
   if (scrollAnim) scrollAnim.pause();
-  const from = scroller.scrollTop;
+  const from = window.scrollY;
   const proxy = { y: from };
   scrollAnim = animate(proxy, {
     y: target,
@@ -108,7 +110,7 @@ function scrollToIndex(index, instant = false) {
     ease: 'inOut(3)',
     onUpdate: () => {
       programmatic = true;
-      scroller.scrollTop = proxy.y;
+      window.scrollTo(0, proxy.y);
       expectedTop = proxy.y;
       programmatic = false;
     },
@@ -117,9 +119,9 @@ function scrollToIndex(index, instant = false) {
 
 const snapBackTimer = setInterval(() => {
   if (programmatic || FREE_SCROLL) return;
-  if (Math.abs(scroller.scrollTop - expectedTop) > 2) {
+  if (Math.abs(window.scrollY - expectedTop) > 2) {
     programmatic = true;
-    scroller.scrollTop = expectedTop;
+    window.scrollTo(0, expectedTop);
     programmatic = false;
   }
 }, 400);
@@ -163,6 +165,11 @@ function buildSeats() {
   ring.setAttribute('stroke-dasharray', '2 5');
   svg.appendChild(ring);
 
+  // All seat elements live inside a <g> so the whole ring can rotate on scroll.
+  const seatGroup = document.createElementNS(NS, 'g');
+  seatGroup.setAttribute('class', 'seat-group');
+  svg.appendChild(seatGroup);
+
   for (let i = 0; i < 6; i += 1) {
     const angle = (i / 6) * Math.PI * 2 - Math.PI / 2;
     const x = cx + Math.cos(angle) * R;
@@ -173,7 +180,7 @@ function buildSeats() {
     spoke.setAttribute('x2', x); spoke.setAttribute('y2', y);
     spoke.setAttribute('stroke', 'rgba(11,14,20,0.10)');
     spoke.setAttribute('stroke-width', '1');
-    svg.appendChild(spoke);
+    seatGroup.appendChild(spoke);
 
     const halo = document.createElementNS(NS, 'circle');
     halo.setAttribute('cx', x); halo.setAttribute('cy', y);
@@ -183,7 +190,7 @@ function buildSeats() {
     halo.setAttribute('stroke-width', '1');
     halo.setAttribute('opacity', '0');
     halo.dataset.halo = String(i + 1);
-    svg.appendChild(halo);
+    seatGroup.appendChild(halo);
 
     const dot = document.createElementNS(NS, 'circle');
     dot.setAttribute('class', 'seat-node');
@@ -193,7 +200,7 @@ function buildSeats() {
     dot.setAttribute('stroke', SEAT_COLORS[i]);
     dot.setAttribute('stroke-width', '1.4');
     dot.dataset.seat = String(i + 1);
-    svg.appendChild(dot);
+    seatGroup.appendChild(dot);
 
     const label = document.createElementNS(NS, 'text');
     label.setAttribute('class', 'seat-label');
@@ -201,10 +208,12 @@ function buildSeats() {
     label.setAttribute('y', y + Math.sin(angle) * 26 + 4);
     label.setAttribute('text-anchor', 'middle');
     label.textContent = `speaker_${i + 1}`;
-    svg.appendChild(label);
+    seatGroup.appendChild(label);
 
     state.seats.set(i + 1, { dot, halo });
   }
+
+  state.seatGroup = seatGroup;
 
   // The phone in the middle: one microphone, everything on device.
   const body = document.createElementNS(NS, 'rect');
@@ -350,14 +359,7 @@ function buildTimelines() {
   for (const section of sections) {
     const tl = createTimeline({
       defaults: { ease: 'out(3)', composition: 'replace' },
-      autoplay: onScroll({
-        container: '#scroller',
-        target: section,
-        enter: 'top bottom',
-        leave: 'bottom top',
-        sync: 'play pause',
-        repeat: true,
-      }),
+      autoplay: false,
     });
 
     const sweep = section.querySelector('.sweep');
@@ -368,53 +370,117 @@ function buildTimelines() {
     for (const el of section.querySelectorAll('[data-anim]')) {
       const kind = el.dataset.anim;
       if (kind === 'fade') {
-        tl.add(el, { opacity: [0, 1], translateY: [16, 0], duration: 520 }, 40);
+        tl.add(el, {
+          opacity: [0, 1],
+          translateY: [24, 0],
+          scale: [0.96, 1],
+          duration: 600,
+          ease: 'out(3)',
+        }, 40);
       } else if (kind === 'title') {
         tl.add(el, {
           opacity: [0, 1],
-          translateY: [26, 0],
-          clipPath: ['inset(0 0 100% 0)', 'inset(0 0 0% 0)'],
-          duration: 900,
+          translateY: [40, 0],
+          rotateY: [-12, 0],
+          scale: [0.92, 1],
+          transformOrigin: ['50% 100%', '50% 50%'],
+          duration: 1000,
           ease: 'inOut(3)',
         }, 40);
       } else if (kind === 'list') {
         const items = el.matches('li') ? [el] : Array.from(el.children);
         tl.add(items, {
           opacity: [0, 1],
-          translateX: [-14, 0],
-          duration: 520,
-          delay: stagger(70),
+          translateX: [-20, 0],
+          rotateZ: [-2, 0],
+          duration: 600,
+          delay: stagger(80),
+          ease: 'out(3)',
         }, 160);
       } else if (kind === 'panel') {
         const panels = el.classList.contains('panel') ? [el] : Array.from(el.querySelectorAll('.panel'));
         tl.add(panels.length ? panels : el, {
           opacity: [0, 1],
-          translateY: [22, 0],
-          duration: 700,
-          delay: stagger(90),
+          translateY: [30, 0],
+          rotateX: [8, 0],
+          scale: [0.95, 1],
+          transformOrigin: ['50% 0%', '50% 50%'],
+          duration: 800,
+          delay: stagger(100),
+          ease: 'out(3)',
         }, 180);
       } else if (kind === 'pipe') {
         tl.add(Array.from(el.children), {
           opacity: [0, 1],
-          translateX: [-26, 0],
-          duration: 560,
-          delay: stagger(110),
+          translateX: [-30, 0],
+          rotateY: [-15, 0],
+          scale: [0.9, 1],
+          transformOrigin: ['0% 50%', '50% 50%'],
+          duration: 700,
+          delay: stagger(120),
+          ease: 'out(3)',
         }, 140);
       } else if (kind === 'metrics') {
         const cards = Array.from(el.querySelectorAll('.metric'));
         tl.add(cards, {
           opacity: [0, 1],
-          translateY: [18, 0],
-          duration: 620,
-          delay: stagger(90),
+          translateY: [24, 0],
+          rotateZ: [3, 0],
+          scale: [0.9, 1],
+          transformOrigin: ['50% 100%', '50% 50%'],
+          duration: 700,
+          delay: stagger(100),
+          ease: 'out(3)',
         }, 140);
-        // Count-up is triggered from applyCheckpoint (see below) so it works
-        // with programmatic scroll, not just user scroll.
       }
     }
+
+    tl.init();
     section.__tl = tl;
   }
 }
+
+/* ------------------------------------------------------------------ *
+ * Manual scroll-driven animation: seek each timeline to its progress
+ * ------------------------------------------------------------------ */
+
+function updateScrollAnimations() {
+  const scrollY = window.scrollY;
+  const vh = window.innerHeight;
+
+  for (const section of sections) {
+    const tl = section.__tl;
+    if (!tl) continue;
+    const top = section.offsetTop;
+    const height = section.offsetHeight;
+    // Animation completes in the first 35% of the section's scroll travel,
+    // so the content is fully visible while it's still on screen.
+    const start = top - vh * 0.1;
+    const end = top + height * 0.35;
+    if (end <= start) continue;
+    const progress = Math.max(0, Math.min(1, (scrollY - start) / (end - start)));
+    tl.seek(tl.duration * progress);
+
+    // Seat rotation: separate full-height progress
+    if (section.dataset.slide === 'live' && state.seatGroup) {
+      const fullStart = top - vh * 0.1;
+      const fullEnd = top + height - vh * 0.5;
+      if (fullEnd > fullStart) {
+        const fullProgress = Math.max(0, Math.min(1, (scrollY - fullStart) / (fullEnd - fullStart)));
+        state.seatGroup.setAttribute('transform', `rotate(${fullProgress * 720} 150 150)`);
+      }
+    }
+  }
+}
+
+let scrollRaf = null;
+window.addEventListener('scroll', () => {
+  if (scrollRaf) return;
+  scrollRaf = requestAnimationFrame(() => {
+    scrollRaf = null;
+    updateScrollAnimations();
+  });
+}, { passive: true });
 
 /* ------------------------------------------------------------------ *
  * Count-up for the numbers slide
@@ -598,8 +664,13 @@ function connect() {
 
 function boot() {
   state.sessionId = SESSION;
+  if (FREE_SCROLL) document.body.dataset.free = 'true';
   paintRail();
   buildTimelines();
+  updateScrollAnimations();
+  // First slide is fully visible at load — force its timeline to 100%.
+  const firstTl = sections[0]?.__tl;
+  if (firstTl) firstTl.seek(firstTl.duration);
   scrollToIndex(0, true);
   // Prime the HUD so nothing reads "undefined" before the first checkpoint.
   paintHud({ phone: {}, demo_phase: 'idle', session_id: SESSION });
