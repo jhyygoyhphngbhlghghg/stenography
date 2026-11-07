@@ -45,6 +45,16 @@ export interface SessionState {
 
   phone: PhoneSource;
   transcript: TranscriptRow[];
+
+  screen: {
+    /**
+     * While true, screens are pinned to the console's checkpoint and the
+     * browser refuses wheel/touch. Released after the talk so the room can
+     * browse what was shown — the checkpoint itself keeps following the
+     * console either way, so nothing goes out of sync.
+     */
+    scrollLocked: boolean;
+  };
 }
 
 function newSessionId(): string {
@@ -95,6 +105,7 @@ export function createSession(id = newSessionId()): SessionState {
       note: null,
     },
     transcript: [],
+    screen: { scrollLocked: true },
   };
 }
 
@@ -122,7 +133,22 @@ export function rotateSession(session: SessionState): SessionState {
   session.demo = { phase: 'idle', reason: 'session_rotated', startedAt: null, simulate: session.demo.simulate };
   session.checkpointRevision += 1;
   session.followToken = newFollowToken();
+  // A rotated session is a fresh run: the audience scroll goes back to locked.
+  session.screen.scrollLocked = true;
   return session;
+}
+
+/**
+ * Release or restore the audience scroll.
+ *
+ * The revision is bumped on purpose: screens dedupe pushed checkpoints by it,
+ * so a lock change delivered under the old revision would be dropped as a
+ * repeat and the room would keep a frozen (or still free) scroll.
+ */
+export function setScrollLock(session: SessionState, locked: boolean): void {
+  if (session.screen.scrollLocked === locked) return;
+  session.screen.scrollLocked = locked;
+  session.checkpointRevision += 1;
 }
 
 export function phonePayload(session: SessionState) {
@@ -153,6 +179,9 @@ export function checkpointPayload(session: SessionState) {
     demo_phase: session.demo.phase,
     demo_reason: session.demo.reason,
     simulate: session.demo.simulate,
+    /** Whether the audience may scroll. Carried with the checkpoint so a
+        screen that joins late gets the same freedom as everyone else. */
+    scroll_locked: session.screen.scrollLocked,
     phone: phonePayload(session),
     slides: SLIDES,
   };

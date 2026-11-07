@@ -80,6 +80,19 @@ if [[ -f artifacts/eval/demo-stress/DEMO_STAGE6_perturn.json ]]; then
   python3 scripts/verify-transcript-json.py artifacts/eval/demo-stress/DEMO_STAGE6_perturn.json
 fi
 
+# Веб-часть (бэкенд показа + дек): без неё ci-check не покрывает ровно то,
+# что судьи открывают по QR. Тесты бэкенда сами собирают dist (pretest).
+if [[ -d src/web/backend/node_modules ]]; then
+  (cd src/web/backend && npm test --silent)
+else
+  echo "skip web backend tests (no src/web/backend/node_modules — npm ci there)"
+fi
+if [[ -d src/web/present/node_modules ]]; then
+  (cd src/web/present && npx tsc --noEmit && npx vitest run --reporter=dot)
+else
+  echo "skip deck tests (no src/web/present/node_modules — npm ci there)"
+fi
+
 if [[ -f src/android/local.properties ]] || [[ -n "${ANDROID_HOME:-}" ]]; then
   (cd src/android && ./gradlew :app:testStenographerDebugUnitTest :app:testPresentConnectDebugUnitTest :app:assembleDebug --quiet)
 else

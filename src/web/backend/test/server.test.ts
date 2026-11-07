@@ -565,6 +565,107 @@ test('session rotate clears transcript and resets demo', async (t) => {
   assert.match(newSession, /^sess_/);
 });
 
+test('the console releases and restores the audience scroll', async (t) => {
+  const server = await startServer({ ADMIN_TOKEN: ADMIN });
+  t.after(() => server.stop());
+
+  const screen = openWs(server.base, 'screen');
+  const inbox = collect(screen);
+  t.after(() => screen.close());
+  await new Promise((r) => screen.once('open', r));
+  const snapshot = await waitFor(inbox, (m) => m.type === 'snapshot', 'snapshot');
+  assert.equal(snapshot.scroll_locked, true, 'a screen that comes up mid-talk must not drift');
+
+  const login = await fetch(server.base + '/api/login', {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token: ADMIN }),
+  });
+  const cookie = login.headers.get('set-cookie')?.split(';')[0] ?? '';
+  const command = (payload: unknown) => json(server.base, '/api/command', {
+    method: 'POST', headers: { 'content-type': 'application/json', cookie },
+    body: JSON.stringify(payload),
+  });
+
+  const release = await command({ type: 'screen.scroll', on: true });
+  assert.equal(release.status, 200);
+  assert.equal((release.body as { scroll_locked: boolean }).scroll_locked, false);
+  assert.equal(
+    (release.body as { slide_index: number }).slide_index,
+    snapshot.slide_index,
+    'releasing the scroll must not move the talk',
+  );
+
+  // The room is told twice on purpose: the broadcast for a live socket, the
+  // checkpoint for the screens that dedupe by revision and would otherwise
+  // drop a flag change delivered under the old one.
+  await waitFor(inbox, (m) => m.type === 'screen.scroll' && m.on === true, 'screen.scroll');
+  const unlocked = await waitFor(
+    inbox,
+    (m) => m.type === 'checkpoint' && m.scroll_locked === false,
+    'checkpoint carrying the open lock',
+  );
+  assert.ok(
+    Number(unlocked.revision) > Number(snapshot.revision),
+    'the lock change must beat the screens’ revision dedupe',
+  );
+
+  const polled = await json(server.base, '/v1/presentation');
+  assert.equal((polled.body as { scroll_locked: boolean }).scroll_locked, false);
+
+  const relock = await command({ type: 'screen.scroll', on: false });
+  assert.equal((relock.body as { scroll_locked: boolean }).scroll_locked, true);
+
+  // Junk must not be coerced into a boolean.
+  const junk = await command({ type: 'screen.scroll' });
+  assert.equal(junk.status, 400);
+
+  // A rotated session is a fresh run: locked again, even though the previous
+  // one was released.
+  await command({ type: 'session.rotate' });
+  const afterRotate = await json(server.base, '/v1/presentation');
+  assert.equal((afterRotate.body as { scroll_locked: boolean }).scroll_locked, true);
+});
+
+test('the console answering ping with pong is liveness, not a bad command', async (t) => {
+  const server = await startServer({ ADMIN_TOKEN: ADMIN, PING_INTERVAL_MS: '200' });
+  t.after(() => server.stop());
+
+  const login = await fetch(server.base + '/api/login', {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token: ADMIN }),
+  });
+  const cookie = login.headers.get('set-cookie')?.split(';')[0] ?? '';
+
+  const url = server.base.replace(/^http/, 'ws') + '/v1/present-connect?role=presenter';
+  const ws = new WebSocket(url, { headers: { cookie } });
+  t.after(() => ws.close());
+  const inbox = collect(ws);
+  await new Promise((r) => ws.once('open', r));
+
+  // Like the console: every ping gets a pong, otherwise the heartbeat drops
+  // the socket for staleness and the rest of the test talks to a closed pipe.
+  ws.on('message', (raw) => {
+    let message: AnyMessage;
+    try { message = JSON.parse(String(raw)); } catch { return; }
+    if (message.type === 'ping') ws.send(JSON.stringify({ type: 'pong', t: message.t }));
+  });
+
+  await waitFor(inbox, (m) => m.type === 'ping', 'ping');
+  await new Promise((r) => setTimeout(r, 700));
+
+  // Several ping rounds: the console replies to all of them, and none of those
+  // replies may come back as a schema error — that is what the presenter saw
+  // in the panel under the token field, one interval after login.
+  assert.ok(
+    inbox.filter((m) => m.type === 'ping').length >= 2,
+    `expected more than one ping round, got ${inbox.map((m) => m.type).join(',')}`,
+  );
+  assert.deepEqual(inbox.filter((m) => m.type === 'error'), []);
+
+  // The same socket still takes real commands.
+  ws.send(JSON.stringify({ type: 'checkpoint.step', delta: 2 }));
+  const ok = await waitFor(inbox, (m) => m.type === 'command.ok', 'command.ok');
+  assert.equal(ok.slide_index, 2);
+});
+
 test('demo commands: simulate, fallback, end', async (t) => {
   const server = await startServer({ ADMIN_TOKEN: ADMIN });
   t.after(() => server.stop());

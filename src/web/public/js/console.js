@@ -25,6 +25,7 @@ const cPhase = $('c-phase');
 const cRows = $('c-rows');
 const cFeed = $('c-feed');
 const simToggle = $('sim-toggle');
+const scrollToggle = $('scroll-toggle');
 const qrCanvas = $('qr');
 const joinUrlEl = $('join-url');
 
@@ -157,6 +158,9 @@ function render(snapshot) {
   cPhase.dataset.bad = String(phase === 'fallback');
 
   simToggle.checked = Boolean(snapshot.simulate);
+  // The server owns this flag: if another console tab flipped it, this one
+  // follows instead of showing a box the audience's scroll no longer matches.
+  if (snapshot.scroll_locked !== undefined) scrollToggle.checked = !snapshot.scroll_locked;
 
   if (Array.isArray(snapshot.transcript)) {
     cRows.textContent = `${snapshot.transcript.length} строк`;
@@ -313,6 +317,10 @@ document.querySelectorAll('[data-cmd]').forEach((button) => {
 
 simToggle.addEventListener('change', () => {
   sendCommand({ type: 'demo.simulate', on: simToggle.checked });
+});
+
+scrollToggle.addEventListener('change', () => {
+  sendCommand({ type: 'screen.scroll', on: scrollToggle.checked });
 });
 
 /* Keyboard: arrows drive checkpoints, the way a clicker would. */

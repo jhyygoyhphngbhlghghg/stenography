@@ -26,6 +26,7 @@ const connection = vi.hoisted(() => ({
     banner: null as string | null,
     transcript: [] as { speaker_id: string; text: string }[],
     phone: { connected: false, recording: false, processing: false, stub: false, engine: null },
+    scrollLocked: true,
   },
 }));
 
@@ -40,6 +41,15 @@ function scenes(): HTMLElement[] {
   return Array.from(document.querySelectorAll<HTMLElement>("[data-scene]"));
 }
 
+/**
+ * Only the checkpoint bar. The demo scene contributes its own control (the
+ * microphone), so counting every button on the page would make the nav
+ * assertions depend on unrelated slides.
+ */
+function navButtons(): HTMLButtonElement[] {
+  return Array.from(document.querySelectorAll<HTMLButtonElement>(".presentation-nav button"));
+}
+
 function resetConnection() {
   connection.current = {
     connected: false,
@@ -51,7 +61,12 @@ function resetConnection() {
     banner: null,
     transcript: [],
     phone: { connected: false, recording: false, processing: false, stub: false, engine: null },
+    scrollLocked: true,
   };
+}
+
+function hud(): HTMLElement {
+  return document.querySelector(".presentation-hud") as HTMLElement;
 }
 
 beforeEach(resetConnection);
@@ -61,7 +76,7 @@ describe("desktop deck", () => {
   it("renders one scene and one nav item per checkpoint", () => {
     render(<Deck />);
     expect(scenes()).toHaveLength(CHECKPOINTS.length);
-    expect(screen.getAllByRole("button")).toHaveLength(CHECKPOINTS.length);
+    expect(navButtons()).toHaveLength(CHECKPOINTS.length);
   });
 
   it("splits heading characters so the per-letter animation has targets", async () => {
@@ -121,15 +136,98 @@ describe("navigation ownership", () => {
   it("disables the nav bar while connected so control is not faked", () => {
     connection.current = { ...connection.current, connected: true };
     render(<Deck />);
-    for (const button of screen.getAllByRole("button")) {
+    for (const button of navButtons()) {
       expect(button).toBeDisabled();
     }
   });
 
   it("leaves the nav bar usable standalone", () => {
     render(<Deck />);
-    for (const button of screen.getAllByRole("button")) {
+    for (const button of navButtons()) {
       expect(button).toBeEnabled();
+    }
+  });
+});
+
+describe("audience scroll lock", () => {
+  it("keeps the room glued to the console while the lock holds", () => {
+    connection.current = {
+      ...connection.current,
+      connected: true,
+      slideIndex: 2,
+      slideLabel: "Кейс",
+      scrollLocked: true,
+    };
+    render(<Deck />);
+    fireEvent.wheel(window, { deltaY: 120 });
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    expect(hud().textContent).toContain("CP 03/08");
+    expect(hud().textContent).not.toContain("листает");
+  });
+
+  it("hands navigation to the room once the console unlocks it", async () => {
+    connection.current = {
+      ...connection.current,
+      connected: true,
+      slideIndex: 2,
+      slideLabel: "Кейс",
+      scrollLocked: false,
+    };
+    render(<Deck />);
+    for (const button of navButtons()) {
+      expect(button).toBeEnabled();
+    }
+    // Позиция зала, а не пульта: подпись обязана показать то, что человек видит.
+    expect(hud().textContent).toContain("Кейс");
+    expect(hud().textContent).toContain("зал листает сам");
+
+    fireEvent.wheel(window, { deltaY: 120 });
+    await waitFor(() => {
+      expect(hud().textContent).toContain("CP 04/08");
+    });
+  });
+
+  it("pulls the room back when the presenter moves the checkpoint", async () => {
+    connection.current = {
+      ...connection.current,
+      connected: true,
+      slideIndex: 2,
+      scrollLocked: false,
+    };
+    const view = render(<Deck />);
+    fireEvent.wheel(window, { deltaY: 120 });
+    await waitFor(() => {
+      expect(hud().textContent).toContain("CP 04/08");
+    });
+
+    connection.current = { ...connection.current, slideIndex: 6, slideLabel: "Решения" };
+    view.rerender(<Deck />);
+    await waitFor(() => {
+      expect(hud().textContent).toContain("CP 07/08");
+    });
+  });
+
+  it("restores the console's authority when the lock comes back on", async () => {
+    connection.current = {
+      ...connection.current,
+      connected: true,
+      slideIndex: 2,
+      scrollLocked: false,
+    };
+    const view = render(<Deck />);
+    fireEvent.wheel(window, { deltaY: 120 });
+    await waitFor(() => {
+      expect(hud().textContent).toContain("CP 04/08");
+    });
+
+    connection.current = { ...connection.current, scrollLocked: true };
+    view.rerender(<Deck />);
+    await waitFor(() => {
+      expect(hud().textContent).toContain("CP 03/08");
+    });
+    expect(hud().textContent).not.toContain("листает");
+    for (const button of navButtons()) {
+      expect(button).toBeDisabled();
     }
   });
 });
@@ -160,7 +258,17 @@ describe("live transcript surface", () => {
     expect(inside.getByText("Привет всем.")).toBeTruthy();
     // `speaker_3` reads as `03` on a projector; identifiers are not shown.
     expect(inside.getByText("01")).toBeTruthy();
-    expect(inside.getByText(/Показана запись/)).toBeTruthy();
+    // The banner belongs to the status line and appears exactly once: the
+    // screenshot that started this had it printed twice, and the second copy
+    // pushed the feed over the slide heading.
+    const hud = document.querySelector(".presentation-hud") as HTMLElement;
+    expect(hud.textContent).toContain("Показана запись");
+    expect(inside.queryByText(/Показана запись/)).toBeNull();
+    expect(
+      Array.from(document.querySelectorAll<HTMLElement>(".presentation-hud > div")).filter((el) =>
+        el.textContent?.includes("Показана запись"),
+      ),
+    ).toHaveLength(1);
 
     // One row per utterance: the demo scene no longer repeats the feed.
     expect(document.querySelectorAll(".live-feed-row")).toHaveLength(2);
@@ -208,6 +316,18 @@ describe("top bar and per-slide background", () => {
 });
 
 describe("console hygiene", () => {
+  it("hands every scene a fit scale so nothing can be cut off by the chrome", () => {
+    // jsdom knows no layout, so every measured height is 0: the deck must
+    // notice that and leave the scale at 1 instead of dividing by zero and
+    // shrinking the whole slide to nothing.
+    render(<Deck />);
+    const inners = Array.from(document.querySelectorAll<HTMLElement>("[data-inner]"));
+    expect(inners).toHaveLength(CHECKPOINTS.length);
+    for (const inner of inners) {
+      expect(inner.style.getPropertyValue("--fit")).toBe("1");
+    }
+  });
+
   it("mounts without anime.js warnings about missing targets", () => {
     // anime.js logs "No target found" for an empty selector, and several
     // accents only exist on some scenes (.a-line, .qr-dot before the QR is

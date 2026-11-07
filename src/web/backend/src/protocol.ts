@@ -102,6 +102,8 @@ export const PresenterCommandSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('demo.end') }),
   z.object({ type: z.literal('demo.fallback') }),
   z.object({ type: z.literal('demo.simulate'), on: z.boolean() }),
+  /** `on: true` releases the audience scroll; `false` locks screens to the console. */
+  z.object({ type: z.literal('screen.scroll'), on: z.boolean() }),
   z.object({ type: z.literal('transcript.clear') }),
   z.object({ type: z.literal('session.rotate') }),
 ]);
