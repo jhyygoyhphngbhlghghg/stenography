@@ -12,7 +12,7 @@ src/android/
     pipeline/    # FarFieldGain.stage per-turn → diarize K=6 → ASR → LLM
     llm/         # heuristic punctuation + GGUF TODO weights
     export/      # JSON (brief schema) + TXT
-    present/     # PresentConnectClient
+    present/     # Path B: PresentConnectClient, per-stream isolated PCM → Zipformer-ru
 ```
 
 Сборка: см. корневой `README.md` и `docs/INSTALL.md`.

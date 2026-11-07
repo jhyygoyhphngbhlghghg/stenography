@@ -16,6 +16,8 @@ QR on slide → audience browser mic → web BE relays PCM → Android app
 
 Hard cap: **≤ 20 concurrent audio streams** per phone worker. Stream 21 is rejected.
 
+**Path B (locked):** each browser/mic is its own `stream_id` with its own PCM buffer into local Zipformer-ru + diarization. The worker **must not** mix or sum PCM across streams before ASR/diar (that was Path A; rejected for the demo). Web FE maps `stream_id` → seat/QR; `speaker_id` is diarization **inside** that stream.
+
 Offline stenography (file import / in-app record, airplane mode) is a **different mode**. Do not send present-connect audio through a cloud ASR.
 
 ---
@@ -183,6 +185,48 @@ HTTP `transcribe` is for bringing-up the phone without WS. The 20-stream demo **
 | `UNKNOWN_STREAM` | PCM for a stream that was not started |
 | `PIPELINE` | on-device ASR/VAD failure |
 | `MODELS_MISSING` | worker in stub mode — **do not use on stage** |
+| `LOW_ENERGY` | **unbound / anonymous** below RMS floor, or **empty** (`n==0`); **ASR skipped**. Bound `s01`..`s20` near-silence is `SOFT_LOW` (ASR still runs). Bound main `s01` is never hard-dropped for energy |
+| `CLIPPED` | clip ratio too high (hard-limited mic); **ASR skipped** (bound and unbound) |
+| `BAD_MIC` | stuck mic / extreme DC; **ASR skipped** (bound and unbound) |
+| `BAND_LIMITED` | phone-EQ / crush (HF/speech occupancy) without hard clip. **Hard skip only if unbound/anonymous.** Bound `s01`..`s20` (incl. main): **soft flag**, ASR still runs |
+
+### 4.1 Path B pre-ASR energy / mic-quality gate
+
+Byte-identical to platform PR #3 (`platform/derisk-sherpa-present` @ `686ac4a`). H1: soft `BAND_LIMITED` on bound seats. Runs on the **accumulated pcm_s16le for that `stream_id` only** (never mixed), **before** Silero / diar / Zipformer.
+
+Measure command (synthetic fixtures only; **Eval WORST_CASE wavs untouched**):
+
+```bash
+python3 scripts/measure-stream-pcm-gate.py --record
+```
+
+Units: full-scale (FS) = 32768 for s16. `dBFS = 20*log10(rms_fs)`. Evidence: `artifacts/test-results/stream-pcm-gate.json`.
+
+| Constant | Value | Code |
+|---|---|---|
+| `RMS_REJECT_FS` | 0.008 (≈ −41.94 dBFS) | `LOW_ENERGY` (unbound only) |
+| `PEAK_REJECT_FS` | 0.012 | `LOW_ENERGY` (unbound only) |
+| `CLIP_REJECT` | 0.02 of samples with \|s16\| ≥ 32760 | `CLIPPED` |
+| `DC_REJECT_FS` | 0.20 (+ `STUCK_VARIANCE_FS` 1e-7) | `BAD_MIC` |
+| `MIN_SAMPLES` | 800 (50 ms @ 16 kHz) | `LOW_ENERGY` (unbound / short / empty) |
+| `BAND_LIMITED_HF_RATIO` | 0.08 | `BAND_LIMITED` (hard unbound; soft bound) |
+| `BAND_LIMITED_SPEECH_OCC` | ≥2 Goertzel bins (250–3500 Hz) | `BAND_LIMITED` |
+| `BAND_LIMITED_HF_OCC` | 0 bins in 4–7 kHz | `BAND_LIMITED` |
+
+**Soft vs hard (bound `s01`..`s20` vs unbound):**
+
+| Condition | Bound known seat (`s01`..`s20`) | Unbound / anonymous |
+|---|---|---|
+| Empty `n==0` | hard `LOW_ENERGY`, skip ASR | hard `LOW_ENERGY`, skip ASR |
+| Near / below RMS 0.008 FS (non-empty) | **`SOFT_LOW`**, still ASR | hard `LOW_ENERGY`, skip ASR |
+| Phone crush / band-limit (no clip/DC) | **soft `BAND_LIMITED`**, still ASR | hard `BAND_LIMITED`, skip ASR |
+| `CLIPPED` / stuck / extreme DC | hard skip | hard skip |
+
+Bound **main `s01` is never hard-dropped for energy or band-limit** (H1: Eval gated_v2 hard `BAND_LIMITED` dropped main; WORST_CASE 0/20 — cite only). Empty `n==0` and `CLIPPED`/`BAD_MIC` may still skip s01.
+
+Pre-diar stream wipe/zeroing stays **removed** (H1: that path cost 9 speakers). Overlap/bleed endpointing is unchanged.
+
+Hard reject: no ASR, no brief row, wire `error` with `LOW_ENERGY|CLIPPED|BAD_MIC|BAND_LIMITED`, then `stream.closed`. Soft flags (`SOFT_LOW` / `BAND_LIMITED` / `SOFT_CLIP` / `SOFT_DC`) still ASR (`hardReject=false`); scored brief stays four fields only.
 
 ---
 
@@ -213,7 +257,7 @@ interface PresentConnectClient {
 }
 ```
 
-Implementation talks OkHttp WebSocket. Pipeline on the phone is the same as file import: PCM → VAD → diarize → ASR → LLM stub → `transcript.final`.
+Implementation talks OkHttp WebSocket. **Per stream**, PCM → VAD → diarize → ASR → LLM stub → `transcript.partial` / `transcript.final` with that `stream_id`. Same Zipformer-ru engine as file import, but **N open streams are N isolated buffers**, never one mixed buffer.
 
 ---
 

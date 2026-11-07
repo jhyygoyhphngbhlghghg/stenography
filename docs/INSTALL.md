@@ -37,4 +37,4 @@ Live demo: **один** телефонный mic, 6 спикеров, 3–6 м. 
 
 ## PresentConnect
 
-Flavor `presentConnect`. Контракт: `docs/PRESENT_CONNECT.md`. Нужна сеть до презентационного BE, не до облачного ASR.
+Flavor `presentConnect`. **Path B:** ≤20 отдельных browser/mic потоков → локальный Zipformer-ru + diar; mixdown (Path A) не используется. Контракт: `docs/PRESENT_CONNECT.md`. Нужна сеть до презентационного BE, не до облачного ASR.
