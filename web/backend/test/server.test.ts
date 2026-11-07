@@ -129,9 +129,9 @@ test('presenter commands are authenticated and drive checkpoints', async (t) => 
   const goto = await json(server.base, '/api/command', {
     method: 'POST',
     headers: { 'content-type': 'application/json', cookie },
-    body: JSON.stringify({ type: 'checkpoint.goto', slide: 'numbers' }),
+    body: JSON.stringify({ type: 'checkpoint.goto', slide: 'solutions' }),
   });
-  assert.equal((goto.body as { slide_id: string }).slide_id, 'numbers');
+  assert.equal((goto.body as { slide_id: string }).slide_id, 'solutions');
 
   // Stepping back past the first slide clamps instead of going negative.
   const back = await json(server.base, '/api/command', {
@@ -571,7 +571,7 @@ test('invite endpoint returns join URL', async (t) => {
   const body = invite.body as { join_url: string; session_id: string; slides: string[] };
   assert.match(body.join_url, /\/join\?session=/);
   assert.match(body.session_id, /^sess_/);
-  assert.equal(body.slides.length, 9);
+  assert.equal(body.slides.length, 8);
 });
 
 test('workers register returns ws_url', async (t) => {

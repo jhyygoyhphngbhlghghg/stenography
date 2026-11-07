@@ -602,6 +602,10 @@ const server = http.createServer(async (req, res) => {
     if (path === '/v1/frontend/checkpoint' && method === 'GET') {
       json(res, 200, {
         ...checkpointPayload(session),
+        // Exactly the four dialogue fields, because this endpoint is consumed
+        // only by the React frontend. Reserve/simulated rows are still visible
+        // here, but their provenance travels in `demo_phase` + `banner` rather
+        // than per row — the frontend's dialogue schema has no source concept.
         transcript: dialogueRows(session.transcript),
         banner: session.demo.phase === 'fallback' ? RESERVE_BANNER : null,
       });
@@ -849,11 +853,13 @@ wss.on('connection', (ws: WebSocket, request: http.IncomingMessage) => {
       type: 'snapshot',
       // checkpointPayload carries slide_id plus the Russian slide_label.
       ...checkpointPayload(session),
-      // Dialogue schema for the React screen: four fields, nothing else.
-      transcript: dialogueRows(session.transcript),
-      // Full-fidelity rows (seat, source, partial) for the built-in deck, which
-      // colours seats and labels reserve rows. Same rows, more provenance.
-      rows: session.transcript.slice(-60),
+      // Rows are a superset of the frontend's dialogue schema: they always
+      // contain { speaker_id, text, start_ms, end_ms }, so the React screen
+      // parses them as-is (its zod object is non-strict and drops the rest).
+      // `source`/`seat` stay in the payload because the built-in deck needs
+      // them to label reserve rows as «запись» rather than passing them off as
+      // live phone output.
+      transcript: session.transcript.slice(-60),
       banner: session.demo.phase === 'fallback' ? RESERVE_BANNER : null,
       reserve_rows: RESERVE_ROWS,
     });

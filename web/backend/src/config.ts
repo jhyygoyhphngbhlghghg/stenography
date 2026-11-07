@@ -49,15 +49,14 @@ export const config = {
 } as const;
 
 export const SLIDES = [
-  'title',
-  'problem',
-  'approach',
-  'pipeline',
-  'on-device',
-  'live',
-  'resilience',
-  'numbers',
+  'qr',
   'team',
+  'case',
+  'tester',
+  'demo',
+  'tech',
+  'solutions',
+  'end',
 ] as const;
 
 export type SlideId = (typeof SLIDES)[number];
@@ -68,15 +67,14 @@ export type SlideId = (typeof SLIDES)[number];
  * Record<SlideId, string> type makes a missing label a compile error.
  */
 export const SLIDE_LABELS: Record<SlideId, string> = {
-  title: 'QR',
-  problem: 'Проблема',
-  approach: 'Подход',
-  pipeline: 'Конвейер',
-  'on-device': 'Приватность',
-  live: 'Живое демо',
-  resilience: 'Отказоустойчивость',
-  numbers: 'Цифры',
+  qr: 'QR',
   team: 'Команда',
+  case: 'Кейс',
+  tester: 'Тестер',
+  demo: 'Демо',
+  tech: 'Технология',
+  solutions: 'Решения',
+  end: 'Финал',
 };
 
 function isSlideId(value: unknown): value is SlideId {

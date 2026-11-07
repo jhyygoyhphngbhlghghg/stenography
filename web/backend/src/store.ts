@@ -77,7 +77,7 @@ export function createSession(id = newSessionId()): SessionState {
     id,
     createdAt: Date.now(),
     slideIndex: 0,
-    slideId: SLIDES[0] ?? 'title',
+    slideId: SLIDES[0] ?? 'qr',
     tMs: 0,
     followToken: newFollowToken(),
     checkpointRevision: 1,
@@ -102,7 +102,7 @@ export function gotoSlide(session: SessionState, indexOrId: number | string, tMs
   const index = slideIndexOf(indexOrId);
   if (index < 0) throw new Error(`unknown slide: ${String(indexOrId)}`);
   session.slideIndex = index;
-  session.slideId = SLIDES[index] ?? 'title';
+  session.slideId = SLIDES[index] ?? 'qr';
   if (tMs !== undefined) session.tMs = tMs;
   session.followToken = newFollowToken();
   session.checkpointRevision += 1;
