@@ -4,6 +4,9 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
+# Documentation rot first: a dead path in README.md is what a reviewer sees.
+python3 scripts/check-doc-links.py --all
+
 python3 scripts/verify-transcript-json.py artifacts/test-results/example-transcript.json
 if [[ -f artifacts/eval/demo-stress/golden_path_b_brief.json ]]; then
   python3 scripts/verify-transcript-json.py artifacts/eval/demo-stress/golden_path_b_brief.json
@@ -82,4 +85,14 @@ if [[ -f src/android/local.properties ]] || [[ -n "${ANDROID_HOME:-}" ]]; then
 else
   echo "skip Gradle (no ANDROID_HOME / local.properties)"
 fi
+# The demo-stress harness above re-scores committed hypotheses and rewrites
+# artifacts/eval/demo-stress/metrics.{csv,json} + run.log with *this* machine's
+# paths and the current commit. That is a re-score, not a new measurement, so
+# those rows must not be committed as evidence — say so instead of leaving a
+# mystery dirty tree.
+if [[ -n "$(git status --porcelain -- artifacts/eval 2>/dev/null)" ]]; then
+  echo "note: harness re-scored artifacts/eval (paths/commit stamp only) — restore with:"
+  echo "      git restore artifacts/eval"
+fi
+
 echo "ci-check OK"

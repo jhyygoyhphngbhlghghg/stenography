@@ -61,6 +61,9 @@ origin, что и API. При `npm run dev` дека на другом порт�
 npm run sim:phone -- --url ws://localhost:8080/v1/present-connect
 ```
 
+Продакшн-хостинг (systemd, reverse proxy с WebSocket-upgrade, TLS, чек-лист
+проверки после запуска) — `docs/DEPLOY.md`.
+
 ## Чекпоинты и скролл
 
 Дек — восемь панелей, их `id` и русские подписи заданы в `SLIDES` /
