@@ -26,7 +26,7 @@ ADMIN_TOKEN=<длинный_секрет> npm run build:all
 | Переменная | Значение по умолчанию | Зачем |
 |---|---|---|
 | `ADMIN_TOKEN` | пусто | вход в `/presenter`. Пусто → пульт отключён (сервер предупреждает в логе) |
-| `PHONE_TOKEN` | пусто | `Authorization: Bearer …` на `POST /v1/transcript`. **Пусто → ingest открыт всем в сети**, для публичного хоста обязательно |
+| `PHONE_TOKEN` | пусто | `Authorization: Bearer …` для телефона: и на `POST /v1/transcript`, и на WS-подключение с `role=phone` (проверяется на upgrade). **Пусто → ingest открыт всем в сети**, для публичного хоста обязательно |
 | `PORT` / `HOST` | `8080` / `0.0.0.0` | листенер |
 | `PRESENT_DIR` | `src/web/present/dist/client` | откуда брать React-дек |
 | `PUBLIC_DIR` | `src/web/public` | пульт и встроенный дек |
@@ -35,7 +35,16 @@ ADMIN_TOKEN=<длинный_секрет> npm run build:all
 
 Симулятора телефона как переменной нет — он включается командой пульта
 `demo.simulate` (кнопка на `/presenter`) или отдельным процессом
-`npm run sim:phone`.
+`npm run sim:phone`. Роль `phone` у симулятора та же, что у настоящего
+телефона, поэтому на хосте с `PHONE_TOKEN` он обязан передать токен:
+
+```bash
+PHONE_TOKEN=<он же> npm run sim:phone -- --url wss://present.example.org/v1/present-connect
+# или: npm run sim:phone -- --url wss://… --token <он же>
+```
+
+Без токена соединение закрывается кодом `4001 unauthorized` — ровно как закрылся
+бы телефон с неверным токеном.
 
 ## 3. systemd
 
@@ -117,6 +126,45 @@ map $http_upgrade $connection_upgrade {
 
 `X-Forwarded-Proto: https` важен: по нему сервер помечает cookie `presenter`
 флагом `Secure` и корректно строит `ws_url` для регистрации телефона.
+
+### Если публичный 443 занят не http-секцией nginx
+
+На хостах, где перед nginx стоит L4 SNI-роутер (`stream { ssl_preread on; …}`),
+порт 443 слушает **stream**, а http-серверы сидят на внутреннем порту с
+`proxy_protocol` — обычно `127.0.0.1:4430`. Тогда `listen 443 ssl;` в
+http-контексте снаружи недостижим, а клиент получает TLS alert
+`unrecognized name` от роутера. Выглядит это так:
+
+```bash
+grep -rn "listen 443" /etc/nginx/stream.d/ /etc/nginx/sites-enabled/
+grep -rn "map .ssl_preread_server_name" -A4 /etc/nginx/stream.d/
+```
+
+Если `default` роутера уже ведёт на 4430, трогать его карту не нужно вообще —
+свой `server_name` выигрывает точное совпадение уже внутри http-секции, и
+достаточно добавить к своему сайту блок по образцу соседей:
+
+```nginx
+server {
+    listen 127.0.0.1:4430 ssl proxy_protocol;
+    http2 on;
+    server_name present.example.org;
+    ssl_certificate     /etc/letsencrypt/live/present.example.org/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/present.example.org/privkey.pem;
+    # real_ip обычно объявлен глобально (conf.d/*.conf):
+    #   set_real_ip_from 127.0.0.1; real_ip_header proxy_protocol;
+    location / { proxy_pass http://127.0.0.1:8080; /* заголовки — как в §4 */ }
+}
+```
+
+Так остаются у вашего сайта и TLS-терминация, и `proxy_protocol` (то есть
+реальные IP в логах), а чужие конфиги и правила файрвола не меняются. Проверять
+после reload стоит не только свой URL, но и соседние: их `server_name` живёт на
+том же сокете 4430.
+
+Отдельный порт с своим cert (`listen 8443 ssl` + правило файрвола) — запасной
+вариант, если трогать общий сокет нельзя вовсе; платой будет адрес вида
+`https://present.example.org:8443/` в QR.
 
 ## 5. Проверка после запуска
 

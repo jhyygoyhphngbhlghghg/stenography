@@ -8,6 +8,12 @@
  * the source.
  *
  *   npm run sim:phone -- --url ws://localhost:8080/v1/present-connect
+ *
+ * A host that sets PHONE_TOKEN rejects the phone role without it, so the token
+ * is sent as a bearer header. Read from --token, else from the environment,
+ * which is what systemd's EnvironmentFile and the docs both use.
+ *
+ *   PHONE_TOKEN=… npm run sim:phone -- --url wss://present.example.org/v1/present-connect
  */
 import WebSocket from 'ws';
 
@@ -22,6 +28,7 @@ const BASE = flag('--url', 'ws://localhost:8080/v1/present-connect');
 const DEVICE = flag('--device', 'phone_1');
 const EVERY_MS = Number(flag('--every', '4000'));
 const MODELS = flag('--models', 'zipformer-ru-int8');
+const TOKEN = flag('--token', process.env.PHONE_TOKEN ?? '');
 
 const LINES: Array<{ seat: number; text: string }> = [
   { seat: 1, text: 'Добрый день, начинаем защиту проекта.' },
@@ -36,7 +43,7 @@ const url = new URL(BASE);
 url.searchParams.set('role', 'phone');
 url.searchParams.set('device', DEVICE);
 
-const ws = new WebSocket(url.toString());
+const ws = new WebSocket(url.toString(), TOKEN ? { headers: { authorization: `Bearer ${TOKEN}` } } : undefined);
 let index = 0;
 let timer: NodeJS.Timeout | null = null;
 let sessionClock = Date.now();

@@ -131,6 +131,32 @@ test('the built React deck takes / and the built-in deck stays at /deck-legacy',
   }
 });
 
+test('the phone WebSocket role is gated by PHONE_TOKEN too, not only HTTP ingest', async (t) => {
+  const server: RunningServer = await startServer({ ADMIN_TOKEN: ADMIN, PHONE_TOKEN: 'phone-secret' });
+  t.after(() => server.stop());
+
+  const wsUrl = () => server.base.replace(/^http/, 'ws') + '/v1/present-connect?role=phone&device=probe';
+
+  // Without the bearer header the phone role is refused at upgrade time. This
+  // is the path `npm run sim:phone` hits against a host that sets a token, so
+  // the rejection is asserted as a close code, not silently swallowed.
+  const denied = new WebSocket(wsUrl());
+  const deniedCode = await new Promise<number>((resolve, reject) => {
+    denied.once('close', (code) => resolve(code));
+    denied.once('error', reject);
+  });
+  assert.equal(deniedCode, 4001);
+
+  // With it, hello/hello.ok completes and the worker is treated as a phone.
+  const phone = new WebSocket(wsUrl(), { headers: { authorization: 'Bearer phone-secret' } });
+  const inboxPhone = collect(phone);
+  t.after(() => phone.close());
+  await new Promise((r) => phone.once('open', r));
+  phone.send(JSON.stringify({ type: 'hello', protocol: 'present-connect/1', models: ['zipformer-ru-int8'] }));
+  const helloOk = await waitFor(inboxPhone, (m) => m.type === 'hello.ok', 'hello.ok with token');
+  assert.equal(helloOk.protocol, 'present-connect/1');
+});
+
 test('presenter commands are authenticated and drive checkpoints', async (t) => {
   const server = await startServer({ ADMIN_TOKEN: ADMIN });
   t.after(() => server.stop());
