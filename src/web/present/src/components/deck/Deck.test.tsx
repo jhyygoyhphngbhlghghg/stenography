@@ -206,3 +206,16 @@ describe("top bar and per-slide background", () => {
     expect(sceneAccent.hex).toBe(CHECKPOINTS[4].accent);
   });
 });
+
+describe("console hygiene", () => {
+  it("mounts without anime.js warnings about missing targets", () => {
+    // anime.js logs "No target found" for an empty selector, and several
+    // accents only exist on some scenes (.a-line, .qr-dot before the QR is
+    // built). A noisy console during the talk is a visible defect.
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    render(<Deck />);
+    const noisy = warn.mock.calls.filter((args) => String(args[0]).includes("No target found"));
+    warn.mockRestore();
+    expect(noisy).toEqual([]);
+  });
+});
