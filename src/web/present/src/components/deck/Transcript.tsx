@@ -12,12 +12,15 @@ export function Transcript({
   visible,
   entries = [],
   banner = null,
+  rows = 4,
 }: {
   visible: boolean;
   entries?: { speaker_id: string; text: string }[];
   banner?: string | null;
+  /** How many recent utterances to keep on screen. */
+  rows?: number;
 }) {
-  const last = entries.slice(-4);
+  const last = entries.slice(-Math.max(1, rows));
 
   return (
     <div

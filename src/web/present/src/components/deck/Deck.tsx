@@ -353,13 +353,18 @@ export function Deck() {
           {backend.banner && <div className="mt-1 text-amber-400">{backend.banner}</div>}
           {paused && <div className="mt-1 text-foreground">⏸ paused</div>}
         </div>
-        {!compact && (
-          <Transcript
-            visible={idx > 0 && idx <= TECH_IDX}
-            entries={backend.transcript}
-            banner={backend.banner}
-          />
-        )}
+        {/*
+          Лента живёт и на телефоне зрителя: заходить по QR ради одного только
+          заголовка слайда смысла нет —recognised реплики и есть продукт.
+          Экономия на мобильном идёт за счёт тяжёлой графики (3D, кольцо,
+          схема телефона), а не за счёт содержимого.
+        */}
+        <Transcript
+          visible={idx > 0 && idx <= TECH_IDX}
+          entries={backend.transcript}
+          banner={backend.banner}
+          rows={compact ? 2 : 4}
+        />
         {!compact && <PhoneInfo visible={idx === DEMO_IDX || idx === TECH_IDX} />}
       </header>
 
