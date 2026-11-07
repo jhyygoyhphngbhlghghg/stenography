@@ -363,7 +363,7 @@ export function Deck() {
           visible={idx > 0 && idx <= TECH_IDX}
           entries={backend.transcript}
           banner={backend.banner}
-          rows={compact ? 2 : 4}
+          rows={compact ? 1 : 4}
         />
         {!compact && <PhoneInfo visible={idx === DEMO_IDX || idx === TECH_IDX} />}
       </header>

@@ -265,19 +265,36 @@
   .presentation { letter-spacing:0; }
   /* На телефоне лента занимает вторую строку шапки, поэтому сцене нужен
      отступ на две строки, иначе центральный текст уйдёт под неё. */
-  .deck-top { flex-wrap:wrap; gap:10px 14px; }
-  .live-feed { flex-basis:100%; max-width:100%; font-size:11px; }
-  .live-feed-rows { gap:6px; }
-  .live-feed-text { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  /* Шапка на телефоне не имеет права съедать треть экрана: одна строка
+     идентификации и одна строка живой ленты, всё остальное — сцене. */
+  .deck-top { flex-wrap:wrap; gap:8px 12px; inset:14px 16px auto 16px; }
+  .deck-logo { height:20px; }
+  .live-feed { flex-basis:100%; max-width:100%; font-size:12px; }
+  .live-feed-head { letter-spacing:0.12em; }
+  .live-feed-flag {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .live-feed-rows { gap:4px; margin-top:8px; }
+  .live-feed-row { grid-template-columns:3px minmax(0,3ch) minmax(0,1fr); gap:8px; }
+  .live-feed-text {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   .presentation-hud { font-size:9px; letter-spacing:0; }
   .presentation-hud>div { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin:0; }
   .presentation-nav { left:20px; right:20px; bottom:max(12px,env(safe-area-inset-bottom)); gap:8px; }
   .presentation-nav>button { min-height:44px; }
   .presentation-nav>button>div:last-child { letter-spacing:0; font-size:9px; }
-  .presentation [data-scene] { padding:112px 20px 76px; }
+  .presentation [data-scene] { padding:92px 20px 64px; }
   .presentation [data-inner]>div { min-width:0; max-width:100%; }
   .presentation h1 { font-size:28px; letter-spacing:0; overflow-wrap:anywhere; }
-  .presentation h2 { font-size:30px; line-height:1.18; letter-spacing:0; overflow-wrap:anywhere; }
+  .presentation h2 { font-size:30px; line-height:1.18; letter-spacing:0; overflow-wrap:anywhere; text-wrap:balance; }
   .presentation .text-glow { text-shadow:none; }
   .presentation .glow { box-shadow:none; }
   .presentation .kicker { font-size:9px; letter-spacing:0; }
@@ -292,17 +309,19 @@
   .presentation .team-list+* { min-width:0; }
   .presentation .a-line.mt-10 { margin-top:24px; }
   .presentation .mt-14 { margin-top:28px; }
-  .presentation .solutions-list { grid-template-columns:minmax(0,1fr); gap:0; }
-  .presentation .solutions-list>div { display:grid; grid-template-columns:minmax(0,1fr) auto; column-gap:12px; border:0; border-top:1px solid var(--border); background:none; padding:16px 0; }
+  /* Шесть абзацев на узком экране не читаются и не влезают: на телефоне
+     остаются решение и цифра, пояснение — для проектора. */
+  .presentation .solutions-list { grid-template-columns:minmax(0,1fr); gap:0; margin-top:20px; }
+  .presentation .solutions-list>div { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:baseline; column-gap:12px; border:0; border-top:1px solid var(--border); background:none; padding:11px 0; }
   .presentation .solutions-list>div>div:first-child,.presentation .solutions-list .a-line { display:none; }
-  .presentation .solutions-list h3 { margin:0; font-size:18px; }
-  .presentation .solutions-list p { margin-top:6px; grid-column:1; font-size:12px; line-height:1.5; }
-  .presentation .solutions-list>div>div:last-child { grid-column:2; grid-row:1 / span 2; align-self:center; font-size:20px; }
+  .presentation .solutions-list h3 { margin:0; font-size:15px; line-height:1.3; overflow-wrap:anywhere; }
+  .presentation .solutions-list p { display:none; }
+  .presentation .solutions-list>div>div:last-child { font-size:15px; white-space:nowrap; }
   .tech-bottom { grid-template-columns:minmax(0,1fr); padding-top:18px; gap:0; }
   .technology-explanation { font-size:13px; line-height:1.65; }
 }
 @media(max-width:767px) and (max-height:650px) {
-  .presentation [data-scene] { padding-top:96px; padding-bottom:64px; }
+  .presentation [data-scene] { padding-top:84px; padding-bottom:56px; }
   .presentation h2 { font-size:26px; }
   .presentation .team-list li { padding:10px 0; }
   .compact-pipeline { gap:18px; margin:18px 0; }
