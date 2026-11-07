@@ -37,6 +37,12 @@ export interface BackendState {
   banner: string | null;
   transcript: BackendTranscriptRow[];
   phone: PhoneStatus;
+  /**
+   * The presenter console's audience-scroll lock. True means the screen is
+   * glued to the console's checkpoint; false means the room browses on its own
+   * until the console moves again.
+   */
+  scrollLocked: boolean;
 }
 
 interface BackendMessage {
@@ -57,6 +63,8 @@ interface BackendMessage {
   stub?: boolean;
   engine?: string | null;
   phase?: string;
+  scroll_locked?: boolean;
+  on?: boolean;
   t?: number;
 }
 
@@ -88,6 +96,7 @@ const INITIAL: BackendState = {
   banner: null,
   transcript: [],
   phone: { connected: false, recording: false, processing: false, stub: false, engine: null },
+  scrollLocked: true,
 };
 
 export function useBackendConnection(): BackendState {
@@ -104,15 +113,22 @@ export function useBackendConnection(): BackendState {
       .then((r) => (r.ok ? r.json() : null))
       .then((snapshot: BackendMessage | null) => {
         if (!snapshot || !mounted.current) return;
-        setState((prev) => ({
-          ...prev,
-          slideIndex: snapshot.slide_index ?? 0,
-          slideId: snapshot.slide_id ?? "qr",
-          slideLabel: snapshot.slide_label ?? "QR",
-          revision: snapshot.revision ?? 0,
-          demoPhase: (snapshot.demo_phase as BackendState["demoPhase"]) ?? "idle",
-          phone: snapshot.phone ?? prev.phone,
-        }));
+        setState((prev) => {
+          // Опрос при старте нужен только пока сокет ещё не успел принести
+          // чекпоинт. Если он уже принёс — ответ HTTP гарантированно старее,
+          // и применять его означало бы сдвинуть экран на прошлый слайд.
+          if (prev.connected) return prev;
+          return {
+            ...prev,
+            slideIndex: snapshot.slide_index ?? 0,
+            slideId: snapshot.slide_id ?? "qr",
+            slideLabel: snapshot.slide_label ?? "QR",
+            revision: snapshot.revision ?? 0,
+            demoPhase: (snapshot.demo_phase as BackendState["demoPhase"]) ?? "idle",
+            phone: snapshot.phone ?? prev.phone,
+            scrollLocked: snapshot.scroll_locked ?? prev.scrollLocked,
+          };
+        });
       })
       .catch(() => {
         /* standalone mode */
@@ -154,6 +170,7 @@ export function useBackendConnection(): BackendState {
               banner: msg.banner ?? null,
               transcript: Array.isArray(msg.transcript) ? msg.transcript : prev.transcript,
               phone: msg.phone ?? prev.phone,
+              scrollLocked: msg.scroll_locked ?? prev.scrollLocked,
             }));
             break;
           case "checkpoint":
@@ -164,7 +181,11 @@ export function useBackendConnection(): BackendState {
               slideLabel: msg.slide_label ?? prev.slideLabel,
               revision: msg.revision ?? prev.revision,
               demoPhase: (msg.demo_phase as BackendState["demoPhase"]) ?? prev.demoPhase,
+              scrollLocked: msg.scroll_locked ?? prev.scrollLocked,
             }));
+            break;
+          case "screen.scroll":
+            setState((prev) => ({ ...prev, scrollLocked: !(msg.on ?? false) }));
             break;
           case "transcript.final":
           case "transcript.partial": {

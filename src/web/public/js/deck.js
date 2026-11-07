@@ -29,7 +29,11 @@ const SEAT_COLORS = [
 
 const state = {
   index: 0,
+  /** The console's checkpoint, kept apart from the displayed index: while the
+      room browses freely those two are deliberately different. */
+  checkpointIndex: 0,
   revision: 0,
+  scrollLocked: true,
   ws: null,
   pollTimer: null,
   polling: false,
@@ -59,19 +63,27 @@ applyDisplay();
 window.addEventListener('resize', () => { applyDisplay(); });
 
 /* ------------------------------------------------------------------ *
- * Scroll lock — the deck scrolls itself, viewers cannot
+ * Scroll lock — во время доклада экраном владеет пульт, после — зал
  * ------------------------------------------------------------------ */
 
 function blockScroll(event) {
-  if (FREE_SCROLL) return;
+  if (roomScrolls()) return;
   event.preventDefault();
+}
+
+/**
+ * Кто владеет позицией экрана. Замок снимает только пульт, а `?free` — это
+ * репетиция и отладка: там список движется руками оператора по умолчанию.
+ */
+function roomScrolls() {
+  return FREE_SCROLL || !state.scrollLocked;
 }
 
 for (const type of ['wheel', 'touchmove']) {
   window.addEventListener(type, blockScroll, { passive: false });
 }
 window.addEventListener('keydown', (event) => {
-  if (FREE_SCROLL) return;
+  if (roomScrolls()) return;
   const keys = ['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', 'Space', ' '];
   if (keys.includes(event.key)) event.preventDefault();
 });
@@ -118,7 +130,7 @@ function scrollToIndex(index, instant = false) {
 }
 
 const snapBackTimer = setInterval(() => {
-  if (programmatic || FREE_SCROLL) return;
+  if (programmatic || roomScrolls()) return;
   if (Math.abs(window.scrollY - expectedTop) > 2) {
     programmatic = true;
     window.scrollTo(0, expectedTop);
@@ -142,6 +154,38 @@ function paintRail() {
   });
   counter.textContent = `${String(state.index + 1).padStart(2, '0')} / ${String(sections.length).padStart(2, '0')}`;
 }
+
+/* ------------------------------------------------------------------ *
+ * Audience scroll lock
+ * ------------------------------------------------------------------ */
+
+function setScrollLock(locked) {
+  if (state.scrollLocked === locked) return;
+  state.scrollLocked = locked;
+  document.body.dataset.free = String(roomScrolls());
+}
+
+/**
+ * Пока замок снят, шкала и счётчик показывают то, что человек реально читает,
+ * а не то, где был последний перевод пульта. Панели выше вьюпорта, поэтому
+ * берётся панель, под серединой экрана которой находится читатель, а не
+ * ближайший верх — иначе счётчик отставал бы на экран.
+ */
+window.addEventListener('scroll', () => {
+  if (!roomScrolls() || programmatic) return;
+  const middle = window.scrollY + window.innerHeight / 2;
+  let nearest = state.index;
+  for (let i = 0; i < sections.length; i += 1) {
+    const top = topOf(i);
+    if (middle >= top && middle < top + sections[i].offsetHeight) {
+      nearest = i;
+      break;
+    }
+  }
+  if (nearest === state.index) return;
+  state.index = nearest;
+  paintRail();
+}, { passive: true });
 
 /* ------------------------------------------------------------------ *
  * Seats: six speakers around the presenter's phone
@@ -522,6 +566,7 @@ function applyCheckpoint(snapshot, opts = {}) {
   state.demoPhase = snapshot.demo_phase ?? state.demoPhase;
   state.phoneSnapshot = snapshot.phone ?? state.phoneSnapshot;
   state.sessionId = snapshot.session_id ?? state.sessionId;
+  if (typeof snapshot.scroll_locked === 'boolean') setScrollLock(snapshot.scroll_locked);
 
   if (snapshot.demo_phase === 'fallback') {
     setBanner(snapshot.banner ?? 'Резервный режим: показана запись, не результат модели');
@@ -532,10 +577,16 @@ function applyCheckpoint(snapshot, opts = {}) {
   const nextIndex = Math.max(0, Math.min(sections.length - 1, snapshot.slide_index ?? 0));
   const moved = nextIndex !== state.index;
   const first = opts.first === true;
-  state.index = nextIndex;
+  state.checkpointIndex = nextIndex;
   state.revision = revision || state.revision;
-  paintRail();
-  scrollToIndex(nextIndex, first);
+
+  // Едем к чекпоинту, только если он правда другой либо им владеет пульт:
+  // иначе включение резерва или снятие замка сбрасывало бы читателя в начало.
+  if (first || moved || state.scrollLocked) {
+    state.index = nextIndex;
+    paintRail();
+    scrollToIndex(nextIndex, first);
+  }
 
   // Trigger count-up on the numbers slide.
   const numbersSection = sections[nextIndex];
@@ -618,6 +669,18 @@ function connect() {
         break;
       case 'checkpoint':
         applyCheckpoint(message);
+        break;
+      case 'screen.scroll':
+        // `on` means the room may scroll. Applied at once: the next checkpoint
+        // carries the same flag, but waiting a poll cycle would keep the room
+        // fighting the presenter. Putting the lock back on pulls everyone to
+        // the console's checkpoint.
+        setScrollLock(!message.on);
+        if (!message.on) {
+          state.index = state.checkpointIndex;
+          paintRail();
+          scrollToIndex(state.checkpointIndex);
+        }
         break;
       case 'phone':
         paintHud({ phone: message, demo_phase: state.demoPhase, session_id: state.sessionId });

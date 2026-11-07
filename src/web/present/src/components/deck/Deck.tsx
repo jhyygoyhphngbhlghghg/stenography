@@ -16,6 +16,7 @@ import {
   TEAM_NAME,
 } from "./data";
 import { LiveDemo } from "./LiveDemo";
+import { motion } from "./motion";
 import { Technology } from "./Technology";
 import { usePresentationInput } from "./useDialogue";
 import { useBackendConnection } from "./useBackendConnection";
@@ -59,7 +60,24 @@ export function Deck() {
   const backend = useBackendConnection();
   const backendRef = useRef(backend);
   backendRef.current = backend;
-  const idx = backend.connected ? backend.slideIndex : localIdx;
+
+  // Пульт снимает замок только после доклада. С этого момента зал листает сам,
+  // а собственная позиция экрана хранится в audienceIdx.
+  const freeScroll = backend.connected && !backend.scrollLocked;
+  const [audienceIdx, setAudienceIdx] = useState<number | null>(null);
+  const idx = backend.connected ? (audienceIdx ?? backend.slideIndex) : localIdx;
+
+  const freeRef = useRef(freeScroll);
+  freeRef.current = freeScroll;
+  const audienceIdxRef = useRef<number | null>(null);
+  audienceIdxRef.current = audienceIdx;
+
+  // Любое движение пульта и любое возвращение замка забирают экран у зала:
+  // иначе «синхронно» превратится в «кто где».
+  useEffect(() => {
+    setAudienceIdx(null);
+  }, [backend.slideIndex, backend.scrollLocked, backend.connected]);
+
   const [paused, setPaused] = useState(false);
   const [qr, setQr] = useState<{ size: number; cells: [number, number][] } | null>(null);
   const root = useRef<HTMLDivElement>(null);
@@ -67,12 +85,15 @@ export function Deck() {
   const bar = useRef<HTMLDivElement>(null);
   const prev = useRef<number | null>(null);
   const barAnim = useRef<ReturnType<typeof animate> | null>(null);
+  const scrollAnim = useRef<ReturnType<typeof animate> | null>(null);
+  const scrolling = useRef(false);
 
-  // Standalone navigation only. Once the backend is connected the checkpoint
-  // comes from the presenter console and this deck is a passive screen, so the
-  // nav bar is disabled rather than pretending to work.
   const go = useCallback((n: number) => {
-    setLocalIdx(Math.max(0, Math.min(CHECKPOINTS.length - 1, n)));
+    const target = Math.max(0, Math.min(CHECKPOINTS.length - 1, n));
+    // Открытый замок = зал управляет сам; закрытый или автономный режим =
+    // локальная прокрутка ведущего.
+    if (freeRef.current) setAudienceIdx(target);
+    else setLocalIdx(target);
   }, []);
 
   useEffect(() => {
@@ -85,10 +106,70 @@ export function Deck() {
     setQr({ size: m.size, cells });
   }, []);
 
-  // Block manual scrolling; presenter keys only
+  // Прокрутку зала принимает на себя дек: контейнер никогда не скроллится
+  // нативно, поэтому колесо, свайп и стрелки при открытом замке просто
+  // переводят экран на соседнюю сцену — той же анимацией, что и пульт.
   useEffect(() => {
-    const block = (e: Event) => e.preventDefault();
+    let wheelCooldown = 0;
+    let touchFromY = 0;
+    let touchToY = 0;
+
+    const step = (dir: number) => {
+      if (!freeRef.current) return;
+      setAudienceIdx((cur) => {
+        const base = cur ?? backendRef.current.slideIndex;
+        return Math.max(0, Math.min(CHECKPOINTS.length - 1, base + dir));
+      });
+    };
+
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      if (!freeRef.current || e.deltaY === 0) return;
+      const now = performance.now();
+      if (now < wheelCooldown) return;
+      // Инерция трекпада досылает события после взмаха: шаг раз в полсекунды,
+      // иначе один жест улетает через половину деки.
+      wheelCooldown = now + 520;
+      step(Math.sign(e.deltaY));
+    };
+
+    const onTouchStart = (e: TouchEvent) => {
+      touchFromY = touchToY = e.touches[0]?.clientY ?? 0;
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      e.preventDefault();
+      touchToY = e.touches[0]?.clientY ?? touchToY;
+    };
+    const onTouchEnd = () => {
+      // Один жест = один переход: длинный свайп не должен прогнать деку через
+      // полэкрана, как это делает лента с инерцией.
+      if (Math.abs(touchToY - touchFromY) < 48) return;
+      step(Math.sign(touchToY - touchFromY));
+    };
+
     const key = (e: KeyboardEvent) => {
+      if (freeRef.current) {
+        if (e.key === "ArrowRight" || e.key === "ArrowDown" || e.key === "PageDown") {
+          e.preventDefault();
+          step(1);
+          return;
+        }
+        if (e.key === "ArrowLeft" || e.key === "ArrowUp" || e.key === "PageUp") {
+          e.preventDefault();
+          step(-1);
+          return;
+        }
+        if (e.key === "Home") {
+          e.preventDefault();
+          go(0);
+          return;
+        }
+        if (e.key === "End") {
+          e.preventDefault();
+          go(CHECKPOINTS.length - 1);
+          return;
+        }
+      }
       if (["ArrowDown", "ArrowUp", "PageDown", "PageUp", "Home", "End"].includes(e.key)) {
         e.preventDefault();
         return;
@@ -103,15 +184,20 @@ export function Deck() {
         setLocalIdx((i) => Math.min(CHECKPOINTS.length - 1, i + 1));
       else if (e.key === "ArrowLeft") setLocalIdx((i) => Math.max(0, i - 1));
     };
-    window.addEventListener("wheel", block, { passive: false });
-    window.addEventListener("touchmove", block, { passive: false });
+
+    window.addEventListener("wheel", onWheel, { passive: false });
+    window.addEventListener("touchstart", onTouchStart, { passive: true });
+    window.addEventListener("touchmove", onTouchMove, { passive: false });
+    window.addEventListener("touchend", onTouchEnd);
     window.addEventListener("keydown", key);
     return () => {
-      window.removeEventListener("wheel", block);
-      window.removeEventListener("touchmove", block);
+      window.removeEventListener("wheel", onWheel);
+      window.removeEventListener("touchstart", onTouchStart);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchend", onTouchEnd);
       window.removeEventListener("keydown", key);
     };
-  }, []);
+  }, [go]);
 
   // Plain scrolling: just share progress with the 3D scene and the rail
   useEffect(() => {
@@ -142,6 +228,47 @@ export function Deck() {
     sceneAccent.hex = (CHECKPOINTS[idx] ?? CHECKPOINTS[0]).accent;
   }, [idx]);
 
+  /*
+    Полоса между шапкой и шкалой конечна, а прокрутки у дека нет. Значит сцена,
+    которая в неё не влезла, не должна обрезаться снизу: она целиком
+    уменьшается до масштаба, посчитанного по реальной измеренной высоте. Так
+    320 px по высоте и альбомная ориентация телефона показывают тот же контент,
+    что и проектор, а не его половину.
+  */
+  useEffect(() => {
+    const sc = scroller.current;
+    if (!sc) return;
+    const fit = () => {
+      for (const scene of Array.from(sc.querySelectorAll<HTMLElement>("[data-scene]"))) {
+        const inner = scene.querySelector<HTMLElement>("[data-inner]");
+        if (!inner) continue;
+        const cs = getComputedStyle(scene);
+        const room =
+          scene.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+        const needed = inner.offsetHeight;
+        inner.style.setProperty("--fit", needed > 0 ? Math.min(1, room / needed).toFixed(4) : "1");
+      }
+    };
+    fit();
+    /* Полоса сцены меняется не только от resize: шапка то с лентой, то без
+       неё, клавиатура телефона прячется, шрифт догружается. Наблюдатель
+       пересчитывает масштаб и, если переход уже закончился, возвращает экран
+       ровно на границу панели — иначе панель «съедет» на несколько пикселей. */
+    const observer = new ResizeObserver(() => {
+      fit();
+      if (!scrolling.current) sc.scrollTop = idx * sc.clientHeight;
+    });
+    observer.observe(sc);
+    if (document.fonts) {
+      document.fonts.ready.then(fit).catch(() => {
+        /* шрифт не пришёл — масштаб уже посчитан по fallback-метрике */
+      });
+    }
+    return () => {
+      observer.disconnect();
+    };
+  }, [idx, qr, compact]);
+
   // Ambient loops. The dialogue waveforms are not here on purpose: their
   // amplitude comes from --voice-envelope, written by the phone infographic.
   useEffect(() => {
@@ -168,8 +295,11 @@ export function Deck() {
     const next = scenes[idx];
     if (!next) return;
 
+    // Сбрасывать можно только те сцены, которых точно не видно. Уходящую
+    // трогать нельзя: в момент старта она ещё на экране, и мгновенный сброс
+    // в opacity:0 был тем самым «pop», который глаз замечает как рывок.
     scenes.forEach((s, i) => {
-      if (i !== from) utils.remove(s.querySelectorAll<HTMLElement>(ANIMATED));
+      if (i !== from && i !== idx) utils.remove(s.querySelectorAll<HTMLElement>(ANIMATED));
     });
     utils.remove(sc);
 
@@ -179,64 +309,81 @@ export function Deck() {
       setNodes(el.querySelectorAll(".qr-dot"), { opacity: 0 });
     }
 
-    let lead = 0;
     if (from !== null && from !== idx) {
       const old = scenes[from];
       if (!old) return;
-      utils.remove(old.querySelectorAll<HTMLElement>(ANIMATED));
-      if (from === 0 && !compact) {
-        animateNodes(old.querySelectorAll(".qr-dot"), {
-          translateY: [
-            { to: () => -2 - Math.random() * 6, duration: 500, ease: "outQuad" },
-            { to: () => 40 + Math.random() * 60, duration: 900, ease: "inQuart" },
-          ],
-          opacity: [
-            { to: 1, duration: 500 },
-            { to: 0, duration: 900 },
-          ],
-          delay: stagger(1.2, { from: "center" }),
-        });
-        lead = 600;
-      }
+      const leaving = old.querySelectorAll<HTMLElement>(ANIMATED);
+      animateNodes(leaving, {
+        opacity: [1, 0],
+        y: [0, compact ? -8 : -26],
+        filter: compact ? "none" : ["blur(0px)", "blur(8px)"],
+        ...motion.exit,
+        onComplete: () => utils.remove(leaving),
+      });
     }
 
     const target = idx * sc.clientHeight;
-    const scrollDur = from === null ? 0 : 1900 + Math.min(3, Math.abs(idx - from) - 1) * 300;
-    if (scrollDur === 0) sc.scrollTop = target;
-    else animate(sc, { scrollTop: target, duration: scrollDur, delay: lead, ease: "inOutExpo" });
+    // Сцена, к которой уже привёл жест зала, не должна ехать заново: анимация
+    // обрывается на полуслове, если зал ткнул в шкалу ещё раз.
+    const travel =
+      audienceIdxRef.current === idx && from !== null
+        ? motion.audienceScroll(idx - from)
+        : motion.sceneScroll(from === null ? 0 : idx - from);
+    scrollAnim.current?.pause();
+    if (from === null) {
+      sc.scrollTop = target;
+      scrolling.current = false;
+    } else {
+      scrolling.current = true;
+      scrollAnim.current = animate(sc, {
+        scrollTop: target,
+        duration: travel.duration,
+        ease: travel.ease,
+        onComplete: () => {
+          scrolling.current = false;
+          // Панель могла сдвинуться, пока ехала анимация (шапка с лентой или
+          // без неё меняет строку сетки), поэтому финальная позиция
+          // пересчитывается по актуальной высоте полосы.
+          sc.scrollTop = idx * sc.clientHeight;
+        },
+      });
+    }
 
-    const delay = lead + scrollDur * 0.5;
+    // Вход стартует на середине скролла: текст появляется, когда сцена уже
+    // почти на месте, а не «догоняет» камеру.
+    const delay = travel.duration * 0.5;
     animateNodes(next.querySelectorAll(".a"), {
       opacity: [0, 1],
-      y: [compact ? 12 : 50, 0],
-      filter: compact ? "none" : ["blur(12px)", "blur(0px)"],
-      duration: compact ? 700 : 1500,
-      delay: stagger(compact ? 35 : 100, { start: delay + 150 }),
-      ease: "outExpo",
+      y: [compact ? 10 : 34, 0],
+      filter: compact ? "none" : ["blur(10px)", "blur(0px)"],
+      duration: compact ? 620 : motion.enter.duration,
+      delay: stagger(compact ? 34 : 84, { start: delay + 120 }),
+      ease: motion.enter.ease,
     });
     animateNodes(next.querySelectorAll(".ch"), {
       opacity: [0, 1],
-      y: [compact ? "0.2em" : "0.8em", "0em"],
-      rotateX: [compact ? 0 : -90, 0],
-      filter: compact ? "none" : ["blur(8px)", "blur(0px)"],
-      duration: compact ? 700 : 1400,
-      delay: stagger(compact ? 0 : 20, { start: delay }),
-      ease: "outExpo",
+      y: [compact ? "0.16em" : "0.55em", "0em"],
+      rotateX: [compact ? 0 : -55, 0],
+      filter: compact ? "none" : ["blur(6px)", "blur(0px)"],
+      duration: compact ? 620 : motion.letters.duration,
+      delay: stagger(compact ? 0 : 16, { start: delay }),
+      ease: motion.letters.ease,
     });
     animateNodes(next.querySelectorAll(".a-line"), {
       scaleX: [0, 1],
-      duration: 1600,
-      delay: stagger(120, { start: delay + 300 }),
-      ease: "inOutQuart",
+      duration: motion.rule.duration,
+      delay: stagger(110, { start: delay + 240 }),
+      ease: motion.rule.ease,
     });
     if (!compact)
       next.querySelectorAll<HTMLElement>(".kicker").forEach((k) => scramble(k, delay + 100));
     if (idx === 0) {
+      /* Значения фиксированные, без функций на каждый кадр: прежний разлёт
+         точек вместе с уходом сцены обрывал тик anime.js, и экран замирал на
+         середине перехода между панелями. */
       animateNodes(next.querySelectorAll(".qr-dot"), {
         opacity: [0, 1],
-        translateY: compact ? 0 : [() => 20 + Math.random() * 40, 0],
-        translateX: 0,
-        rotate: 0,
+        translateY: compact ? 0 : [28, 0],
         duration: compact ? 400 : 1100,
         delay: compact ? delay : stagger(3, { from: "center", start: delay }),
         ease: "outExpo",
@@ -246,9 +393,9 @@ export function Deck() {
       const o = { v: 0 };
       animate(o, {
         v: Number(c.dataset["count"]),
-        duration: 1600,
-        delay: delay + 400,
-        ease: "outExpo",
+        duration: 1500,
+        delay: delay + 360,
+        ease: "outQuint",
         onUpdate: () => (c.textContent = String(Math.round(o.v)).padStart(2, "0")),
       });
     });
@@ -280,7 +427,7 @@ export function Deck() {
   return (
     <div
       ref={root}
-      className="presentation relative h-dvh w-full overflow-hidden bg-background select-none"
+      className="presentation relative grid h-dvh w-full grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden bg-background select-none"
       data-slide={cp.id}
       style={{ "--slide-accent": cp.accent } as React.CSSProperties}
     >
@@ -348,7 +495,10 @@ export function Deck() {
           </div>
           <div className="mt-1">
             CP {String(idx + 1).padStart(2, "0")}/{String(CHECKPOINTS.length).padStart(2, "0")} —{" "}
-            {backend.connected ? backend.slideLabel : cp.label}
+            {/* Пока замок снят, на экране позиция зала, а не пульта — подпись
+                обязана совпадать с тем, что человек реально видит. */}
+            {freeScroll || !backend.connected ? cp.label : backend.slideLabel}
+            {freeScroll && " · зал листает сам"}
           </div>
           {backend.banner && <div className="mt-1 text-amber-400">{backend.banner}</div>}
           {paused && <div className="mt-1 text-foreground">⏸ paused</div>}
@@ -362,20 +512,29 @@ export function Deck() {
         <Transcript
           visible={idx > 0 && idx <= TECH_IDX}
           entries={backend.transcript}
-          banner={backend.banner}
           rows={compact ? 1 : 4}
         />
         {!compact && <PhoneInfo visible={idx === DEMO_IDX || idx === TECH_IDX} />}
       </header>
 
-      <div className="presentation-nav fixed inset-x-6 bottom-6 z-40 flex gap-2">
+      {/*
+        Шкала внизу: в автономном режиме и при снятом замке она рабочая, при
+        закрытом замке — только показывает чекпоинт пульта.
+      */}
+      <div className="presentation-nav relative z-40 flex gap-2">
         {CHECKPOINTS.map((c, i) => (
           <Button
             variant="ghost"
             key={c.id}
             onClick={() => go(i)}
-            disabled={backend.connected}
-            title={backend.connected ? "Чекпоинт ведёт пульт ведущего" : c.label}
+            disabled={backend.connected && !freeScroll}
+            title={
+              backend.connected && !freeScroll
+                ? "Чекпоинт ведёт пульт ведущего"
+                : freeScroll
+                  ? "Перейти к слайду"
+                  : c.label
+            }
             className="group block h-auto min-w-0 flex-1 rounded-none p-0 text-left hover:bg-transparent"
             aria-label={c.label}
           >
@@ -392,7 +551,10 @@ export function Deck() {
         ))}
       </div>
 
-      <div ref={scroller} className="relative z-10 h-full w-full overflow-hidden">
+      <div
+        ref={scroller}
+        className="presentation-scroll relative z-10 min-h-0 w-full overflow-hidden"
+      >
         {/* 01 QR */}
         <Scene>
           <div className="flex flex-col items-center gap-8">
@@ -480,6 +642,7 @@ export function Deck() {
           <LiveDemo
             compact={compact}
             active={idx === DEMO_IDX}
+            autoMic={!freeScroll}
             backendEntries={backend.transcript}
           />
         </Scene>
@@ -496,16 +659,16 @@ export function Deck() {
             <h2 className="a mt-6 text-6xl font-medium tracking-tight">
               <span className="text-neon text-glow">Решения</span>
             </h2>
-            <div className="solutions-list mt-14 grid grid-cols-3 gap-6">
+            <div className="solutions-list grid grid-cols-3">
               {SOLUTIONS.map((s, i) => (
-                <div key={s.t} className="a border border-border bg-card/50 p-8">
-                  <div className="font-mono text-sm text-neon">
+                <div key={s.t} className="a border border-border bg-card/50">
+                  <div className="font-mono text-neon">
                     <span data-count={i + 1}>00</span>
                   </div>
-                  <h3 className="mt-8 text-2xl">{s.t}</h3>
-                  <p className="mt-3 text-muted-foreground">{s.d}</p>
-                  <div className="a-line my-6 h-px origin-left bg-neon/50" />
-                  <div className="font-mono text-4xl text-neon text-glow">{s.m}</div>
+                  <h3>{s.t}</h3>
+                  <p className="text-muted-foreground">{s.d}</p>
+                  <div className="a-line h-px origin-left bg-neon/50" />
+                  <div className="font-mono text-neon text-glow">{s.m}</div>
                 </div>
               ))}
             </div>
@@ -579,7 +742,7 @@ function Scene({ children }: { children: React.ReactNode }) {
   return (
     <section
       data-scene
-      className="relative flex h-dvh w-full items-center justify-center px-6 pb-20 pt-24 md:px-16 md:[perspective:1000px]"
+      className="relative flex h-full w-full items-center justify-center px-6 py-6 md:px-16 md:[perspective:1000px]"
     >
       <div data-inner className="flex min-w-0 w-full items-center justify-center">
         {children}

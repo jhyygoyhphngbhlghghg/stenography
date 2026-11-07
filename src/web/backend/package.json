@@ -23,6 +23,7 @@
     "start": "node dist/server.js",
     "dev": "tsx watch src/server.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "pretest": "npm run build",
     "test": "tsx --test test/*.test.ts",
     "sim:phone": "tsx src/simulate-phone.ts"
   }

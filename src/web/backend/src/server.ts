@@ -8,6 +8,7 @@ import {
   IngestTranscriptSchema,
   PresenterCommandSchema,
   WorkerMessageSchema,
+  WorkerPongSchema,
   safeParse,
   type TranscriptRow,
 } from './protocol.js';
@@ -26,6 +27,7 @@ import {
   stepSlide,
   streamIdForSeat,
   type SessionState,
+  setScrollLock,
 } from './store.js';
 import { RESERVE_BANNER, RESERVE_ROWS, reserveTranscript, simulatedLine } from './fallback.js';
 
@@ -364,6 +366,13 @@ function applyPresenterCommand(cmd: unknown, reply: (payload: unknown) => void):
       case 'demo.simulate':
         session.demo.simulate = c.on;
         broadcastScreens({ type: 'simulate', on: c.on });
+        break;
+      case 'screen.scroll':
+        // Released after the talk: the room can browse the deck. The
+        // checkpoint still belongs to the console, and the revision bump
+        // makes polling screens pick the change up on their next poll.
+        setScrollLock(session, !c.on);
+        broadcastScreens({ type: 'screen.scroll', on: c.on });
         break;
       case 'transcript.clear':
         replaceTranscript(session, []);
@@ -952,6 +961,11 @@ wss.on('connection', (ws: WebSocket, request: http.IncomingMessage) => {
         send(ws, { type: 'error', code: 'BAD_COMMAND', message: 'invalid json' });
         return;
       }
+      // `pong` is the answer to our own ping (contract §2), which the console
+      // sends like every client does. Reading it as a command made the server
+      // reject its own liveness reply, so the console showed a schema error
+      // one ping interval after login — on stage, in the panel under the token.
+      if (safeParse(WorkerPongSchema, parsed).ok) return;
       applyPresenterCommand(parsed, (payload) => send(ws, payload));
       return;
     }
