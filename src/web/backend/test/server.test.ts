@@ -312,6 +312,87 @@ test('phone transcript reaches every screen over WebSocket', async (t) => {
   assert.deepEqual(Object.keys(rows[0]).sort(), ['end_ms', 'speaker_id', 'start_ms', 'text']);
 });
 
+test('judge export keeps device rows and drops server-generated ones', async (t) => {
+  const server: RunningServer = await startServer({ ADMIN_TOKEN: ADMIN, PING_INTERVAL_MS: '250' });
+  t.after(() => server.stop());
+
+  const screen = openWs(server.base, 'screen');
+  const inbox = collect(screen);
+  t.after(() => screen.close());
+  await new Promise((r) => screen.once('open', r));
+  await waitFor(inbox, (m) => m.type === 'snapshot', 'snapshot');
+
+  // Without a phone, begin lands in fallback and demo.simulate invents lines
+  // on the server. Those are exactly what must never reach the judges' file.
+  const login = await fetch(server.base + '/api/login', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ token: ADMIN }),
+  });
+  const cookie = login.headers.get('set-cookie')?.split(';')[0] ?? '';
+  const command = (payload: unknown) => json(server.base, '/api/command', {
+    method: 'POST', headers: { 'content-type': 'application/json', cookie },
+    body: JSON.stringify(payload),
+  });
+
+  await command({ type: 'demo.begin' });
+  await waitFor(inbox, (m) => m.type === 'demo' && m.phase === 'fallback', 'fallback with no phone');
+
+  await command({ type: 'demo.simulate', on: true });
+
+  // Poll a value until it satisfies the predicate. Used here instead of the
+  // screen socket because the guarantee under test is what the *export*
+  // carries; the health counter only proves rows were generated at all.
+  async function pollUntil<T>(read: () => Promise<T>, ok: (value: T) => boolean, label: string, timeout = 9000): Promise<T> {
+    const deadline = Date.now() + timeout;
+    let last: T | undefined;
+    while (Date.now() < deadline) {
+      last = await read();
+      if (ok(last)) return last;
+      await new Promise((r) => setTimeout(r, 120));
+    }
+    throw new Error(`timed out waiting for ${label}; last value ${JSON.stringify(last)}`);
+  }
+
+  // The simulator writes one tagged line every 3.2 s into the session.
+  await pollUntil(
+    async () => ((await json(server.base, '/v1/health')).body as { rows: number }).rows,
+    (rows) => rows > 0,
+    'a server-generated row stored in the session',
+  );
+
+  const duringSim = await json(server.base, '/v1/sessions/x/transcript');
+  const simRows = (duringSim.body as { transcript: unknown[] }).transcript;
+  assert.equal(simRows.length, 0, `server-generated rows leaked into the export: ${JSON.stringify(simRows)}`);
+
+  // A device push over the phone socket is tagged `worker` and does belong.
+  const phone = openWs(server.base, 'phone', '&device=phone_1');
+  const inboxPhone = collect(phone);
+  t.after(() => phone.close());
+  await new Promise((r) => phone.once('open', r));
+  phone.send(JSON.stringify({ type: 'hello', protocol: 'present-connect/1', models: ['zipformer-ru-int8'] }));
+  await waitFor(inboxPhone, (m) => m.type === 'hello.ok', 'hello.ok');
+  phone.send(JSON.stringify({
+    type: 'transcript.final',
+    utterance: { speaker_id: 'speaker_9', start_ms: 1000, end_ms: 2000, text: 'Реплика с устройства' },
+  }));
+
+  const exported = await pollUntil(
+    async () => ((await json(server.base, '/v1/sessions/x/transcript')).body as {
+      transcript: Array<{ text: string; speaker_id: string }>;
+    }).transcript,
+    (rows) => rows.length > 0,
+    'the device row in the export',
+    4000,
+  );
+  assert.equal(exported.length, 1, 'only the device row should survive');
+  assert.equal(exported[0].text, 'Реплика с устройства');
+
+  // Stored rows are strictly more numerous than exported ones while the
+  // simulated lines exist: that difference is the whole provenance promise.
+  const health = (await json(server.base, '/v1/health')).body as { rows: number };
+  assert.ok(health.rows > exported.length, `expected stored ${health.rows} > exported ${exported.length}`);
+});
+
 test('losing the phone switches screens to flagged reserve mode', async (t) => {
   const server = await startServer({ ADMIN_TOKEN: ADMIN });
   t.after(() => server.stop());
