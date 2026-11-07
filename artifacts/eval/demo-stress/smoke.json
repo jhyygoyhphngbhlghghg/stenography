@@ -1,0 +1,16 @@
+{
+  "transcript": [
+    {
+      "speaker_id": "speaker_1",
+      "start_ms": 31,
+      "end_ms": 1010,
+      "text": ""
+    },
+    {
+      "speaker_id": "speaker_2",
+      "start_ms": 31,
+      "end_ms": 1162,
+      "text": ""
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "der": null,
+  "der_no_collar": 0.9025000000000011,
+  "jer": 0.9620479770855711,
+  "speaker_purity": 0.37735849056603765,
+  "der_miss_s": 0.0,
+  "der_fa_s": 0.0,
+  "der_speaker_error_s": 0.0,
+  "der_ref_speech_s": 0.0,
+  "collar_ms": 250,
+  "frame_ms": 10,
+  "n_ref_speakers": 20,
+  "n_hyp_speakers": 2,
+  "metric_impl": "scripts/eval_metrics.py (NIST-style DER, DIHARD-like JER, cluster purity); WER Hex.Team 2026-11-06: keep ,.?!, fold ё→е; not pyannote.metrics",
+  "mapping_hyp_to_ref": {
+    "speaker_1": "speaker_11",
+    "speaker_2": "speaker_10"
+  },
+  "wer_main": 1.0
+}

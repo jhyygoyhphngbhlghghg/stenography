@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Eval skeleton: 3 fixed clips, WER + RTF.
+"""Eval skeleton: 3 fixed clips (WER + RTF) plus optional demo-stress suite.
 
 Does NOT invent numbers. If a wav/reference/hypothesis is missing, the row
 stays pending. Fill artifacts/test-results/results.csv only after a real run.
@@ -7,6 +7,11 @@ stays pending. Fill artifacts/test-results/results.csv only after a real run.
 Usage:
   python3 scripts/eval_harness.py
   python3 scripts/eval_harness.py --hyp-dir artifacts/eval/hyp
+  python3 scripts/eval_harness.py --suite demo-stress
+  python3 scripts/eval_harness.py --suite demo-stress --run-host
+
+Default suite is clip_01..03 (overnight skeleton). demo-stress is host Linux
+sherpa-onnx only — cloud agents have no KVM/ADB.
 
 Hypothesis files (optional): artifacts/eval/hyp/clip_01.json matching brief schema.
 Wall time (optional): artifacts/eval/hyp/clip_01.wall_ms  (integer milliseconds).
@@ -17,40 +22,22 @@ import argparse
 import csv
 import json
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+SCRIPT_DIR = Path(__file__).resolve().parent
+ROOT = SCRIPT_DIR.parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+import eval_metrics as M  # noqa: E402
+
 MANIFEST = ROOT / "samples" / "manifest.json"
 RESULTS = ROOT / "artifacts" / "test-results" / "results.csv"
 
-
-def tokenize(text: str) -> list[str]:
-    t = text.lower().replace("ё", "е")
-    for ch in ".,!?;:«»\"'()[]":
-        t = t.replace(ch, " ")
-    return [w for w in t.split() if w]
-
-
-def levenshtein(a: list[str], b: list[str]) -> int:
-    if not a:
-        return len(b)
-    if not b:
-        return len(a)
-    prev = list(range(len(b) + 1))
-    for i, ca in enumerate(a, 1):
-        cur = [i]
-        for j, cb in enumerate(b, 1):
-            ins, delete, sub = cur[j - 1] + 1, prev[j] + 1, prev[j - 1] + (ca != cb)
-            cur.append(min(ins, delete, sub))
-        prev = cur
-    return prev[-1]
-
-
-def wer(ref: str, hyp: str) -> float | None:
-    r = tokenize(ref)
-    if not r:
-        return None
-    return levenshtein(r, tokenize(hyp)) / len(r)
+tokenize = M.tokenize
+levenshtein = M.levenshtein
+wer = M.wer
 
 
 def utterance_text(doc: dict) -> str:
@@ -93,10 +80,32 @@ def main() -> int:
     p = argparse.ArgumentParser()
     p.add_argument("--hyp-dir", type=Path, default=ROOT / "artifacts" / "eval" / "hyp")
     p.add_argument("--write-csv", action="store_true", help="overwrite results.csv (only with real numbers)")
+    p.add_argument(
+        "--suite",
+        choices=("clips", "demo-stress", "all"),
+        default="clips",
+        help="clips = overnight clip_01..03; demo-stress = 20-talker cocktail mix",
+    )
+    p.add_argument(
+        "--run-host",
+        action="store_true",
+        help="Linux sherpa-onnx inference (demo-stress suite, and clips when --suite clips/all)",
+    )
     args = p.parse_args()
+    rc = 0
+    if args.suite in ("demo-stress", "all"):
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from eval_demo_stress import run_demo_stress
+
+        rc = run_demo_stress(run_host=args.run_host)
+        if args.suite == "demo-stress":
+            return rc
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     rows = []
     print("test_id\tstatus\twer\trtf\tnotes")
+    if args.run_host:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import host_asr_diar
     for clip in manifest["clips"]:
         test_id = clip["test_id"]
         wav = ROOT / clip["file"]
@@ -107,6 +116,18 @@ def main() -> int:
         wer_s = ""
         rtf_s = ""
         notes = []
+        if args.run_host and wav.is_file():
+            nclust = 3 if test_id == "clip_03" else 2
+            try:
+                doc, meta = host_asr_diar.transcribe_file(
+                    wav, ROOT / "models", num_clusters=nclust
+                )
+                args.hyp_dir.mkdir(parents=True, exist_ok=True)
+                hyp_path.write_text(json.dumps(doc, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+                wall_path.write_text(str(meta["wall_ms"]) + "\n", encoding="utf-8")
+            except Exception as e:
+                notes.append(f"host inference blocked: {type(e).__name__}: {e}")
+                status = "blocked"
         if not wav.is_file():
             notes.append("wav missing")
         if not ref_path.is_file():
@@ -130,16 +151,31 @@ def main() -> int:
                 notes.append("RTF needs duration + wall_ms")
         note = "; ".join(notes) if notes else clip.get("notes", "")
         print(f"{test_id}\t{status}\t{wer_s or '-'}\t{rtf_s or '-'}\t{note}")
+        dur = wav_duration_ms(wav) if wav.is_file() else None
+        wall = None
+        if wall_path.is_file():
+            try:
+                wall = int(wall_path.read_text().strip())
+            except ValueError:
+                wall = None
+        try:
+            import subprocess as _sp
+
+            commit = _sp.check_output(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, text=True).strip()
+        except Exception:
+            commit = ""
         rows.append(
             {
                 "test_id": test_id,
-                "timestamp_utc": "",
-                "commit": "",
+                "timestamp_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "commit": commit,
                 "file_name": clip["file"],
-                "duration_ms": "",
-                "wall_ms": "",
+                "duration_ms": "" if dur is None else str(dur),
+                "wall_ms": "" if wall is None else str(wall),
                 "rtf": rtf_s,
+                "wer": wer_s,
                 "speakers_hyp": "",
+                "status": status,
                 "notes": note or "pending real on-device run",
             }
         )
@@ -156,7 +192,9 @@ def main() -> int:
                     "duration_ms",
                     "wall_ms",
                     "rtf",
+                    "wer",
                     "speakers_hyp",
+                    "status",
                     "notes",
                 ],
             )
@@ -164,7 +202,7 @@ def main() -> int:
             for r in rows:
                 w.writerow(r)
         print(f"wrote {RESULTS} (empty metrics unless hyp+ref+wav existed)", file=sys.stderr)
-    return 0
+    return rc
 
 
 if __name__ == "__main__":

@@ -1,2 +1,4 @@
-test_id,timestamp_utc,commit,file_name,duration_ms,wall_ms,rtf,speakers_hyp,notes
-# no rows yet — fill after a real on-device run
+test_id,timestamp_utc,commit,file_name,duration_ms,wall_ms,rtf,wer,speakers_hyp,status,notes
+clip_01,2026-11-06T18:10:41Z,ef70323,samples/clip_01.wav,22908,3142,0.1372,0.0345,,measured,"RU two speakers, no overlap. Place wav locally."
+clip_02,2026-11-06T18:10:41Z,ef70323,samples/clip_02.wav,18336,2236,0.1219,0.0000,,measured,"RU two speakers, longer pause between turns."
+clip_03,2026-11-06T18:10:41Z,ef70323,samples/clip_03.wav,23904,3086,0.1291,0.0000,,measured,RU three speakers if we record it; otherwise two.

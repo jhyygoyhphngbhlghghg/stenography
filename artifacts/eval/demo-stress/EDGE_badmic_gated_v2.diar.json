@@ -1,0 +1,24 @@
+{
+  "der": 0.7444380236925537,
+  "der_no_collar": 0.7301390609941096,
+  "jer": 0.7707073970931928,
+  "speaker_purity": 0.9548973409626318,
+  "der_miss_s": 44.68000000000027,
+  "der_fa_s": 6.6099999999999035,
+  "der_speaker_error_s": 0.24000000000000007,
+  "der_ref_speech_s": 69.22000000000216,
+  "collar_ms": 250,
+  "frame_ms": 10,
+  "n_ref_speakers": 20,
+  "n_hyp_speakers": 6,
+  "metric_impl": "scripts/eval_metrics.py (NIST-style DER, DIHARD-like JER, cluster purity); WER Hex.Team 2026-11-06: keep ,.?!, fold ё→е; not pyannote.metrics",
+  "mapping_hyp_to_ref": {
+    "speaker_1": "speaker_1",
+    "speaker_17": "speaker_13",
+    "speaker_5": "speaker_6",
+    "speaker_6": "speaker_4",
+    "speaker_8": "speaker_3",
+    "speaker_9": "speaker_2"
+  },
+  "wer_main": 0.3793103448275862
+}

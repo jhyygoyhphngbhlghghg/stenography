@@ -1,0 +1,30 @@
+{
+  "label": "REAL",
+  "engine": "common_voice_17_ru",
+  "target_snr_db": 3.0,
+  "stagger_ms": 90,
+  "seed": 20261106,
+  "n_talkers": 20,
+  "licenses": {
+    "audio": "Mozilla Common Voice 17.0 Russian, test split",
+    "license": "CC0-1.0",
+    "source": "fsicoli/common_voice_17_0 (packaging of commonvoice.mozilla.org)",
+    "gold": "corpus sentence field (not eSpeak, not ASR)"
+  },
+  "host_linux_only": true,
+  "no_kvm_adb": true,
+  "supersedes": "eSpeak SYNTHETIC baseline (WER=1.0 OOD); see artifacts/eval/demo-stress/espeak-baseline/",
+  "smoke": {
+    "duration_ms": 1240,
+    "snr_db_measured": 3.0
+  },
+  "full": {
+    "duration_ms": 18736,
+    "snr_db_measured": 3.0,
+    "n_utterances_ref": 22,
+    "n_utterances_ref_per_stream": 22,
+    "dry_tracks": "unlooped original clips (Path B PresentConnect)",
+    "mix_babble": "looped (Path A cocktail)",
+    "n_talkers": 20
+  }
+}

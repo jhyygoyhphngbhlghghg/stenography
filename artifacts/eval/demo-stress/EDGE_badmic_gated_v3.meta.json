@@ -1,0 +1,439 @@
+{
+  "dry_dir": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_badmic",
+  "wall_ms": 7163,
+  "duration_ms": 18736,
+  "n_segments": 50,
+  "n_hyp_speakers": 20,
+  "n_streams": 20,
+  "path": "B_per_stream",
+  "vad": "rms",
+  "pad_ms": 250,
+  "min_duration_on": 0.2,
+  "min_duration_off": 0.45,
+  "rel_thresh": 0.04,
+  "pcm_gate": true,
+  "pcm_gate_no_hush": false,
+  "pcm_gate_v2": false,
+  "pcm_gate_v3": true,
+  "pcm_gate_source": "StreamPcmGate.kt v3 @ a5b7aed (sha256 == Platform 686ac4a; bound BAND_LIMITED soft + still ASR)",
+  "streams_passed": 20,
+  "streams_dropped": 0,
+  "pcm_gate_codes": {},
+  "pcm_gate_soft_flags": {
+    "BAND_LIMITED": 14
+  },
+  "stack": "linux-sherpa-onnx per-stream StreamPcmGate v3+RMS-VAD+ASR (oracle stream id), merge by time",
+  "streams": [
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_badmic/spk_01.wav",
+      "n_segments": 2,
+      "wall_ms": 1135,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [],
+        "code": null,
+        "message": "Pass",
+        "rms_fs": 0.2357939546703118,
+        "hf_ratio": 0.06104278202165882,
+        "speech_occupancy": 7,
+        "hf_occupancy": 1,
+        "bound_seat": true,
+        "version": 3,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_badmic/spk_02.wav",
+      "n_segments": 1,
+      "wall_ms": 279,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [
+          "BAND_LIMITED"
+        ],
+        "code": null,
+        "message": "Pass",
+        "rms_fs": 0.07714992961631219,
+        "hf_ratio": 0.007171464274724852,
+        "speech_occupancy": 6,
+        "hf_occupancy": 0,
+        "bound_seat": true,
+        "version": 3,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_badmic/spk_03.wav",
+      "n_segments": 1,
+      "wall_ms": 402,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [
+          "BAND_LIMITED"
+        ],
+        "code": null,
+        "message": "Pass",
+        "rms_fs": 0.080030748316266,
+        "hf_ratio": 0.010131190724679178,
+        "speech_occupancy": 6,
+        "hf_occupancy": 0,
+        "bound_seat": true,
+        "version": 3,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_badmic/spk_04.wav",
+      "n_segments": 1,
+      "wall_ms": 235,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [
+          "BAND_LIMITED"
+        ],
+        "code": null,
+        "message": "Pass",
+        "rms_fs": 0.07995941249604886,
+        "hf_ratio": 0.00688009846054802,
+        "speech_occupancy": 3,
+        "hf_occupancy": 0,
+        "bound_seat": true,
+        "version": 3,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_badmic/spk_05.wav",
+      "n_segments": 1,
+      "wall_ms": 249,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [],
+        "code": null,
+        "message": "Pass",
+        "rms_fs": 0.05864844705310795,
+        "hf_ratio": 0.005129768222323834,
+        "speech_occupancy": 1,
+        "hf_occupancy": 0,
+        "bound_seat": true,
+        "version": 3,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_badmic/spk_06.wav",
+      "n_segments": 1,
+      "wall_ms": 255,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [],
+        "code": null,
+        "message": "Pass",
+        "rms_fs": 0.06373373144338215,
+        "hf_ratio": 0.00913854965644883,
+        "speech_occupancy": 1,
+        "hf_occupancy": 0,
+        "bound_seat": true,
+        "version": 3,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_badmic/spk_07.wav",
+      "n_segments": 1,
+      "wall_ms": 254,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [
+          "BAND_LIMITED"
+        ],
+        "code": null,
+        "message": "Pass",
+        "rms_fs": 0.06778650222799833,
+        "hf_ratio": 0.008322316416253413,
+        "speech_occupancy": 2,
+        "hf_occupancy": 0,
+        "bound_seat": true,
+        "version": 3,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_badmic/spk_08.wav",
+      "n_segments": 1,
+      "wall_ms": 258,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [],
+        "code": null,
+        "message": "Pass",
+        "rms_fs": 0.08599931361693881,
+        "hf_ratio": 0.009588657841676165,
+        "speech_occupancy": 1,
+        "hf_occupancy": 0,
+        "bound_seat": true,
+        "version": 3,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_badmic/spk_09.wav",
+      "n_segments": 5,
+      "wall_ms": 270,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [],
+        "code": null,
+        "message": "Pass",
+        "rms_fs": 0.03192735374348578,
+        "hf_ratio": 0.04818577822825842,
+        "speech_occupancy": 6,
+        "hf_occupancy": 1,
+        "bound_seat": true,
+        "version": 3,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_badmic/spk_10.wav",
+      "n_segments": 8,
+      "wall_ms": 396,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [
+          "BAND_LIMITED"
+        ],
+        "code": null,
+        "message": "Pass",
+        "rms_fs": 0.07022501114756423,
+        "hf_ratio": 0.024133750282061706,
+        "speech_occupancy": 8,
+        "hf_occupancy": 0,
+        "bound_seat": true,
+        "version": 3,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_badmic/spk_11.wav",
+      "n_segments": 1,
+      "wall_ms": 281,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [
+          "BAND_LIMITED"
+        ],
+        "code": null,
+        "message": "Pass",
+        "rms_fs": 0.07869397606503091,
+        "hf_ratio": 0.012330463422516414,
+        "speech_occupancy": 6,
+        "hf_occupancy": 0,
+        "bound_seat": true,
+        "version": 3,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_badmic/spk_12.wav",
+      "n_segments": 1,
+      "wall_ms": 259,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [
+          "BAND_LIMITED"
+        ],
+        "code": null,
+        "message": "Pass",
+        "rms_fs": 0.0733208362531023,
+        "hf_ratio": 0.02225040700666887,
+        "speech_occupancy": 2,
+        "hf_occupancy": 0,
+        "bound_seat": true,
+        "version": 3,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_badmic/spk_13.wav",
+      "n_segments": 1,
+      "wall_ms": 404,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [
+          "BAND_LIMITED"
+        ],
+        "code": null,
+        "message": "Pass",
+        "rms_fs": 0.08278858496825117,
+        "hf_ratio": 0.016593117676939453,
+        "speech_occupancy": 5,
+        "hf_occupancy": 0,
+        "bound_seat": true,
+        "version": 3,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_badmic/spk_14.wav",
+      "n_segments": 1,
+      "wall_ms": 392,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [
+          "BAND_LIMITED"
+        ],
+        "code": null,
+        "message": "Pass",
+        "rms_fs": 0.07998800673635074,
+        "hf_ratio": 0.002269887414859506,
+        "speech_occupancy": 5,
+        "hf_occupancy": 0,
+        "bound_seat": true,
+        "version": 3,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_badmic/spk_15.wav",
+      "n_segments": 1,
+      "wall_ms": 409,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [
+          "BAND_LIMITED"
+        ],
+        "code": null,
+        "message": "Pass",
+        "rms_fs": 0.06602175838609535,
+        "hf_ratio": 0.008817390772208092,
+        "speech_occupancy": 3,
+        "hf_occupancy": 0,
+        "bound_seat": true,
+        "version": 3,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_badmic/spk_16.wav",
+      "n_segments": 6,
+      "wall_ms": 340,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [
+          "BAND_LIMITED"
+        ],
+        "code": null,
+        "message": "Pass",
+        "rms_fs": 0.07625501610899448,
+        "hf_ratio": 0.021089975999181065,
+        "speech_occupancy": 6,
+        "hf_occupancy": 0,
+        "bound_seat": true,
+        "version": 3,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_badmic/spk_17.wav",
+      "n_segments": 4,
+      "wall_ms": 408,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [],
+        "code": null,
+        "message": "Pass",
+        "rms_fs": 0.07212828087911947,
+        "hf_ratio": 0.004479398814626759,
+        "speech_occupancy": 1,
+        "hf_occupancy": 0,
+        "bound_seat": true,
+        "version": 3,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_badmic/spk_18.wav",
+      "n_segments": 1,
+      "wall_ms": 273,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [
+          "BAND_LIMITED"
+        ],
+        "code": null,
+        "message": "Pass",
+        "rms_fs": 0.0690266463768911,
+        "hf_ratio": 0.015733242383307464,
+        "speech_occupancy": 5,
+        "hf_occupancy": 0,
+        "bound_seat": true,
+        "version": 3,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_badmic/spk_19.wav",
+      "n_segments": 1,
+      "wall_ms": 265,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [
+          "BAND_LIMITED"
+        ],
+        "code": null,
+        "message": "Pass",
+        "rms_fs": 0.08872527637542507,
+        "hf_ratio": 0.004273682706544114,
+        "speech_occupancy": 3,
+        "hf_occupancy": 0,
+        "bound_seat": true,
+        "version": 3,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_badmic/spk_20.wav",
+      "n_segments": 11,
+      "wall_ms": 380,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [
+          "BAND_LIMITED"
+        ],
+        "code": null,
+        "message": "Pass",
+        "rms_fs": 0.07156050423858003,
+        "hf_ratio": 0.0062832994608552325,
+        "speech_occupancy": 5,
+        "hf_occupancy": 0,
+        "bound_seat": true,
+        "version": 3,
+        "crops_skipped": 0
+      }
+    }
+  ],
+  "no_kvm_adb": true,
+  "json_schema": "transcript[].{speaker_id,start_ms,end_ms,text}",
+  "rtf": 0.38231212638770284
+}

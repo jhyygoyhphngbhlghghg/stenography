@@ -1,0 +1,21 @@
+{
+  "test_id": "DEMO_STAGE6_impl_hardcap6",
+  "wer_aggregate": 0.6470588235294118,
+  "per_speaker": {
+    "speaker_1": 0.21428571428571427,
+    "speaker_2": 0.3333333333333333,
+    "speaker_3": 1.0,
+    "speaker_4": 0.9,
+    "speaker_5": 1.0,
+    "speaker_6": 0.6923076923076923
+  },
+  "n_ref_words": 68,
+  "n_edits": 44,
+  "mapping_hyp_to_ref": {
+    "speaker_1": "speaker_1",
+    "speaker_3": "speaker_2",
+    "speaker_4": "speaker_3",
+    "speaker_5": "speaker_4",
+    "speaker_6": "speaker_6"
+  }
+}

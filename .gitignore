@@ -61,9 +61,28 @@ samples/*.mp3
 samples/*.m4a
 samples/ref/*.json
 !samples/ref/.gitkeep
+!samples/ref/clip_01.json
+!samples/ref/clip_02.json
+!samples/ref/clip_03.json
 artifacts/eval/hyp/*.json
 artifacts/eval/hyp/*.wall_ms
 !artifacts/eval/hyp/.gitkeep
+!artifacts/eval/hyp/clip_*.json
+!artifacts/eval/hyp/clip_*.wall_ms
+
+# demo-stress: generated full mix + dry tracks stay local; smoke wav is committed
+samples/demo-stress/*.wav
+samples/demo-stress/dry/
+samples/demo-stress/corpus/
+!samples/demo-stress/smoke.wav
+samples/demo-stress/adversarial/**/*.wav
+!samples/demo-stress/adversarial/smoke_worst.wav
+samples/demo-stress/stage6/**/*.wav
+!samples/demo-stress/stage6/smoke.wav
+# Handoff: commit small slices; keep the full mix local/gitignored
+artifacts/demo-stage6-handoff/DEMO_STAGE6.wav
+!artifacts/eval/demo-stress/*.log
+!artifacts/eval/demo-stress/run.log
 apk/*.apk
 apk/*.aab
 
