@@ -1,0 +1,45 @@
+{
+  "test_id": "EXCLUSIVE_PHASES_EXPERIMENT",
+  "date": "2026-11-07",
+  "status": "uncommitted-prototype",
+  "revert_point": "3af1e5a",
+  "android_device_execution": false,
+  "changes": [
+    "SherpaStenoPipeline.transcribe: ASR session evicted after ASR phase, before LLM loads (runExclusivePhases)",
+    "ExclusivePhases.kt + ExclusivePhasesTest.kt (5 contract tests)",
+    "No model, fixture, gain/EQ/VAD, or decoder changes"
+  ],
+  "lever_2_custom_jni": {
+    "decision": "not built: null RAM result",
+    "evidence": "artifacts/compact/build/ubatch-rss-b8054.json",
+    "bundled_llama_build": "b8054",
+    "host_peak_rss_mb_ubatch_512": 639.455232,
+    "host_peak_rss_mb_ubatch_128": 630.140928,
+    "host_peak_rss_mb_ubatch_64": 625.283072,
+    "outputs_identical_across_ubatch": true,
+    "note": "b8054 already allocates logits efficiently; batch control would save ~14 MB, not the feared ~311 MB. NDK downloaded then removed unused."
+  },
+  "host_component_rss": {
+    "asr_only_peak_mb": 273.362944,
+    "asr_note": "includes Python+numpy interpreter baseline",
+    "llm_only_peak_mb": 630.140928,
+    "llm_config": "ctx 1024, ubatch 128, threads 2, CPU, mmap default"
+  },
+  "ram_estimate_android_not_measured": {
+    "before_exclusive_phases": "ASR + LLM resident simultaneously: ~0.9-1.3 GB peak (estimate)",
+    "after_exclusive_phases": "max(diar, ASR, LLM) + UI: ~0.7-0.8 GB peak (estimate)",
+    "target_400_800_mb": "upper band plausible; unverified without device PSS",
+    "baseline_under_1500_mb": "plausible both before and after; unverified"
+  },
+  "latency_tradeoff": "ASR reloads each run (~590 ms prepared-encoder init, host) instead of staying warm; LLM stays warm after first run. First-run latency unchanged.",
+  "verification": {
+    "stenographer_jvm": "131 tests, 0 failures (126 + 5 new)",
+    "present_connect_jvm": "131 tests, 0 failures",
+    "compact_apk_built": true,
+    "exclusive_phases_in_dex": true,
+    "apk_path": "apk/app-stenographer-compact-excl-phases.apk",
+    "apk_bytes": 449911919,
+    "apk_sha256": "f8cebb36783210e83e63a4ab65d117cf323780f192ee0ceec5b6dceba233bafd",
+    "signature_verified": true
+  }
+}
