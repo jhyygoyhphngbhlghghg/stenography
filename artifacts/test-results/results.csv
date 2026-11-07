@@ -1,4 +1,7 @@
-test_id,timestamp_utc,commit,file_name,duration_ms,wall_ms,rtf,wer,speakers_hyp,status,notes
-clip_01,2026-11-06T18:10:41Z,ef70323,samples/clip_01.wav,22908,3142,0.1372,0.0345,,measured,"RU two speakers, no overlap. Place wav locally."
-clip_02,2026-11-06T18:10:41Z,ef70323,samples/clip_02.wav,18336,2236,0.1219,0.0000,,measured,"RU two speakers, longer pause between turns."
-clip_03,2026-11-06T18:10:41Z,ef70323,samples/clip_03.wav,23904,3086,0.1291,0.0000,,measured,RU three speakers if we record it; otherwise two.
+test_id,clip_id,timestamp_utc,commit,file_name,duration_ms,wall_ms,rtf,wer,speakers_hyp,speakers_ref,status,notes
+clip_01,clip_01,2026-11-06T18:10:41Z,ef70323,samples/clip_01.wav,22908,3142,0.1372,0.0345,2,2,measured-host-synthetic,"Common Voice 17 RU mix, host Linux ingest (scripts/eval_metrics.py). NOT an on-device run and NOT the DEMO_STAGE6 number."
+clip_02,clip_02,2026-11-06T18:10:41Z,ef70323,samples/clip_02.wav,18336,2236,0.1219,0.0000,2,2,measured-host-synthetic,"Common Voice 17 RU mix, host Linux ingest (scripts/eval_metrics.py). NOT an on-device run and NOT the DEMO_STAGE6 number."
+clip_03,clip_03,2026-11-06T18:10:41Z,ef70323,samples/clip_03.wav,23904,3086,0.1291,0.0000,3,3,measured-host-synthetic,"Common Voice 17 RU mix, host Linux ingest (scripts/eval_metrics.py). NOT an on-device run and NOT the DEMO_STAGE6 number."
+check_apk_clip_01,clip_01,,,,,,pending,pending,,,pending,Fill from the installed check APK on the demo phone: python3 -m eval.metrics.wer_rtf --hyp <export.json> --gold eval/gold/clip_01.gold.json --duration-ms <d> --wall-ms <w> --on-device --out artifacts/test-results/results.csv Do not type a number. Gate: eval/GATE.md
+check_apk_clip_02,clip_02,,,,,,pending,pending,,,pending,Fill from the installed check APK on the demo phone: python3 -m eval.metrics.wer_rtf --hyp <export.json> --gold eval/gold/clip_02.gold.json --duration-ms <d> --wall-ms <w> --on-device --out artifacts/test-results/results.csv Do not type a number. Gate: eval/GATE.md
+check_apk_clip_03,clip_03,,,,,,pending,pending,,,pending,Fill from the installed check APK on the demo phone: python3 -m eval.metrics.wer_rtf --hyp <export.json> --gold eval/gold/clip_03.gold.json --duration-ms <d> --wall-ms <w> --on-device --out artifacts/test-results/results.csv Do not type a number. Gate: eval/GATE.md
