@@ -80,6 +80,7 @@ button[disabled] { opacity: 0.45; cursor: not-allowed; }
 .console-row { display: grid; grid-template-columns: 84px 1fr; gap: 10px; font-size: 13px; border-bottom: 1px solid var(--rule-soft); padding-bottom: 7px; }
 .console-row span:first-child { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
 .console-row[data-source="replay"] span:last-child,
+.console-row[data-source="replay"] span:last-child,
 .console-row[data-source="simulated"] span:last-child { color: var(--amber); }
 
 @media (max-width: 560px) {

@@ -13,21 +13,24 @@ function str(name: string, fallback: string): string {
   return raw === undefined || raw.trim() === '' ? fallback : raw;
 }
 
+function clampPort(value: number): number {
+  return value >= 1 && value <= 65535 ? value : 8080;
+}
+
 const here = dirname(fileURLToPath(import.meta.url));
+// dist/server.js -> dist -> backend -> web ; src/server.ts -> src -> backend -> web
+const webRoot = resolve(here, '../..');
 
 export const config = {
   host: str('HOST', '0.0.0.0'),
-  port: int('PORT', 8080),
-  /** Static site root. dist/ -> ../public ; src/ under tsx -> ../../public */
-  publicDir: str('PUBLIC_DIR', resolve(here, '../../public')),
+  port: clampPort(int('PORT', 8080)),
+  /** Static site root: web/public. Override with PUBLIC_DIR. */
+  publicDir: str('PUBLIC_DIR', resolve(webRoot, 'public')),
 
   /** present-connect/1 constants — must match docs/PRESENT_CONNECT.md */
   protocol: 'present-connect/1',
   encoding: 'pcm_s16le',
   sampleRate: 16_000,
-  maxStreams: int('MAX_STREAMS', 20),
-
-  sessionTtlMs: int('SESSION_TTL_MS', 6 * 60 * 60 * 1000),
 
   /** Contract §2: ping the phone every ~15 s. */
   pingIntervalMs: int('PING_INTERVAL_MS', 15_000),
@@ -59,7 +62,7 @@ export const SLIDES = [
 
 export type SlideId = (typeof SLIDES)[number];
 
-export function isSlideId(value: unknown): value is SlideId {
+function isSlideId(value: unknown): value is SlideId {
   return typeof value === 'string' && (SLIDES as readonly string[]).includes(value);
 }
 

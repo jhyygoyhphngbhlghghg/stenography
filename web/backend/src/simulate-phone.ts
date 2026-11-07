@@ -106,6 +106,7 @@ ws.on('close', (code: number, reason: Buffer) => {
 
 ws.on('error', (error: Error) => {
   console.error(`[sim] error: ${error.message}`);
+  if (timer) clearInterval(timer);
 });
 
 process.on('SIGINT', () => {

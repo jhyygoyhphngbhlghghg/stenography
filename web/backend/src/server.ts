@@ -106,10 +106,14 @@ function enterFallbackIfLive(reason: string): void {
   if (session.demo.phase === 'live') setDemoPhase('fallback', reason);
 }
 
-/** The phone came back: leave reserve mode only if we were in it for that reason. */
+/** The phone came back: leave reserve mode only if we were in it for a phone reason. */
 function maybeBackToLive(reason: string): void {
   if (session.demo.phase !== 'fallback') return;
-  const phoneCaused = session.demo.reason === 'phone_disconnected' || session.demo.reason === 'phone_stall' || session.demo.reason === 'phone_offline_at_begin';
+  const phoneCaused =
+    session.demo.reason === 'phone_disconnected' ||
+    session.demo.reason === 'phone_stall' ||
+    session.demo.reason === 'phone_offline_at_begin' ||
+    session.demo.reason === 'phone_stub_models_missing';
   if (!phoneCaused) return;
   setDemoPhase('live', reason);
 }
@@ -235,6 +239,11 @@ function handlePhoneMessage(sock: Sock, raw: string): void {
 
   switch (msg.type) {
     case 'hello': {
+      if (msg.protocol !== config.protocol) {
+        send(sock.ws, { type: 'error', code: 'BAD_PROTOCOL', message: `expected ${config.protocol}` });
+        sock.ws.close(4002, 'bad protocol');
+        return;
+      }
       const models = msg.models ?? [];
       const stub = models.length === 0;
       if (phoneSock && phoneSock !== sock && phoneSock.ws.readyState === phoneSock.ws.OPEN) {
@@ -242,7 +251,7 @@ function handlePhoneMessage(sock: Sock, raw: string): void {
         phoneSock.ws.close(4003, 'superseded');
       }
       phoneSock = sock;
-      sock.deviceId = msg.protocol ? `phone_${sock.id}` : `phone_${sock.id}`;
+      sock.deviceId = sock.deviceId ?? `phone_${sock.id}`;
       session.phone.connected = true;
       session.phone.deviceId = sock.deviceId;
       session.phone.engine = models[0] ?? session.phone.engine;
@@ -428,17 +437,31 @@ function readBody(req: http.IncomingMessage, limit = config.maxBodyBytes): Promi
   return new Promise((resolvePromise, reject) => {
     const chunks: Buffer[] = [];
     let size = 0;
+    let settled = false;
+    const fail = (error: Error) => {
+      if (settled) return;
+      settled = true;
+      reject(error);
+      req.destroy();
+    };
     req.on('data', (chunk: Buffer) => {
       size += chunk.length;
       if (size > limit) {
-        reject(new Error('body too large'));
-        req.destroy();
+        fail(new Error('body too large'));
         return;
       }
       chunks.push(chunk);
     });
-    req.on('end', () => resolvePromise(Buffer.concat(chunks).toString('utf8')));
-    req.on('error', reject);
+    req.on('end', () => {
+      if (settled) return;
+      settled = true;
+      resolvePromise(Buffer.concat(chunks).toString('utf8'));
+    });
+    req.on('error', (error) => {
+      if (settled) return;
+      settled = true;
+      reject(error);
+    });
   });
 }
 
@@ -871,6 +894,7 @@ server.listen(config.port, config.host, () => {
   console.log(`[web] phone http POST /v1/transcript  GET /v1/presentation`);
   console.log(`[web] slides   ${SLIDES.join(' → ')}`);
   if (!config.adminToken) console.warn('[web] ADMIN_TOKEN is empty — presenter console is disabled');
+  if (!config.phoneToken) console.warn('[web] PHONE_TOKEN is empty — /v1/transcript is open to any client on the network');
 });
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {

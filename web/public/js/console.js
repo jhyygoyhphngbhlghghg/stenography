@@ -69,6 +69,7 @@ async function login() {
     controls.hidden = false;
     setHint('');
     await refresh();
+    await updateInvite();
     connect();
   } catch {
     setHint('Сервер недоступен.', true);
@@ -159,21 +160,9 @@ function render(snapshot) {
 
   if (Array.isArray(snapshot.transcript)) {
     cRows.textContent = `${snapshot.transcript.length} строк`;
-    cFeed.innerHTML = '';
-    for (const row of snapshot.transcript.slice(-24).reverse()) {
-      const div = document.createElement('div');
-      div.className = 'console-row';
-      div.dataset.source = row.source ?? 'phone';
-      const who = document.createElement('span');
-      who.textContent = row.speaker_id;
-      const what = document.createElement('span');
-      what.textContent = row.text;
-      div.append(who, what);
-      cFeed.appendChild(div);
-    }
+    renderTranscriptOnly(snapshot.transcript);
   }
 
-  updateInvite();
 }
 
 /* ------------------------------------------------------------------ *
@@ -249,7 +238,7 @@ function connect() {
   ws.addEventListener('close', () => {
     state.ws = null;
     startPolling();
-    setTimeout(() => { if (state.authed) connect(); }, state.reconnectDelay);
+    setTimeout(() => { if (state.authed && !state.ws) connect(); }, state.reconnectDelay);
     state.reconnectDelay = Math.min(8000, state.reconnectDelay * 1.7);
   });
   ws.addEventListener('error', () => { try { ws.close(); } catch { /* closed */ } });
@@ -268,7 +257,33 @@ let rowsRefreshQueued = false;
 function refreshRowsOnly() {
   if (rowsRefreshQueued) return;
   rowsRefreshQueued = true;
-  requestAnimationFrame(() => { rowsRefreshQueued = false; void refresh(); });
+  requestAnimationFrame(() => {
+    rowsRefreshQueued = false;
+    // Fetch only the transcript slice, not the whole state.
+    fetch('/api/state', { cache: 'no-store', credentials: 'same-origin' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((snapshot) => {
+        if (!snapshot || !Array.isArray(snapshot.transcript)) return;
+        renderTranscriptOnly(snapshot.transcript);
+        cRows.textContent = `${snapshot.transcript.length} строк`;
+      })
+      .catch(() => { /* keep previous */ });
+  });
+}
+
+function renderTranscriptOnly(transcript) {
+  cFeed.replaceChildren();
+  for (const row of transcript.slice(-24).reverse()) {
+    const div = document.createElement('div');
+    div.className = 'console-row';
+    div.dataset.source = row.source ?? 'phone';
+    const who = document.createElement('span');
+    who.textContent = row.speaker_id;
+    const what = document.createElement('span');
+    what.textContent = row.text;
+    div.append(who, what);
+    cFeed.appendChild(div);
+  }
 }
 
 /* ------------------------------------------------------------------ *
@@ -327,6 +342,7 @@ void (async () => {
         loginPanel.hidden = true;
         controls.hidden = false;
         render(snapshot);
+        await updateInvite();
         connect();
         return;
       }
@@ -337,3 +353,14 @@ void (async () => {
   setHint('');
   await updateInvite();
 })();
+
+// After session rotate the invite URL changes; refresh it.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && state.authed) void updateInvite();
+});
+
+/* Clean up on pagehide. */
+window.addEventListener('pagehide', () => {
+  stopPolling();
+  if (state.ws) { try { state.ws.close(); } catch { /* already closed */ } }
+}, { once: true });

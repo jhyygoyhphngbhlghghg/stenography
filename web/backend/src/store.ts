@@ -1,4 +1,4 @@
-import { randomBytes, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { SLIDES, config, slideIndexOf, type SlideId } from './config.js';
 import type { TranscriptRow } from './protocol.js';
 
@@ -47,11 +47,11 @@ export interface SessionState {
   transcript: TranscriptRow[];
 }
 
-export function newSessionId(): string {
+function newSessionId(): string {
   return `sess_${randomBytes(6).toString('hex')}`;
 }
 
-export function newFollowToken(): string {
+function newFollowToken(): string {
   return randomBytes(12).toString('base64url');
 }
 
@@ -67,7 +67,9 @@ export function streamIdForSeat(seat: number): string {
 /** Seat number behind a `speaker_N` id, used to colour the on-stage circles. */
 export function seatFromSpeakerId(speakerId: string): number {
   const m = /^speaker[_-]?(\d+)$/i.exec(speakerId.trim());
-  return m?.[1] ? Number.parseInt(m[1], 10) : 0;
+  const n = m?.[1] ? Number.parseInt(m[1], 10) : 0;
+  // Only the six on-stage seats map to a circle position; anything else is 0.
+  return n >= 1 && n <= 6 ? n : 0;
 }
 
 export function createSession(id = newSessionId()): SessionState {
@@ -172,9 +174,13 @@ export function sortBrief(rows: TranscriptRow[]): Array<{ speaker_id: string; st
     .sort((a, b) => a.start_ms - b.start_ms || a.speaker_id.localeCompare(b.speaker_id));
 }
 
+/**
+ * Constant-time comparison that does not leak length: both sides are hashed to
+ * a fixed 32-byte digest before timingSafeEqual, so a wrong-length guess takes
+ * the same time as a near-miss.
+ */
 export function constantTimeEqual(a: string, b: string): boolean {
-  const ba = Buffer.from(a);
-  const bb = Buffer.from(b);
-  if (ba.length !== bb.length) return false;
-  return timingSafeEqual(ba, bb);
+  const ha = createHash('sha256').update(a).digest();
+  const hb = createHash('sha256').update(b).digest();
+  return timingSafeEqual(ha, hb);
 }
