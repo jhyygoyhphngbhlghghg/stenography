@@ -1,6 +1,7 @@
 package team.mikcoders.neurosteno.ui
 
 import android.Manifest
+import android.content.Intent
 import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -23,11 +24,10 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import team.mikcoders.neurosteno.present.PresentConnectLimits
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -53,15 +53,6 @@ fun StenoApp(vm: StenoViewModel = viewModel()) {
             }
         vm.onFilePicked(uri, name)
     }
-    val jsonSaver = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/json"),
-    ) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        val json = vm.state.value.jsonPreview ?: return@rememberLauncherForActivityResult
-        context.contentResolver.openOutputStream(uri)?.use { os ->
-            os.write(json.toByteArray(Charsets.UTF_8))
-        }
-    }
     val recPerm = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
     ) { granted ->
@@ -83,12 +74,76 @@ fun StenoApp(vm: StenoViewModel = viewModel()) {
         ) {
             Text(
                 if (state.presentConnect) {
-                    "PresentConnect Path B ≤20 — побочный codepath, не слайд. Live demo = DEMO_STAGE6: один телефонный mic."
+                    "PresentConnect Path B ≤20 — опциональный сетевой режим, не слайд. Live demo = DEMO_STAGE6: один телефонный mic."
                 } else {
-                    "Live demo = DEMO_STAGE6: один mic, 6 говорящих по-русски, 3–6 м. Diar/VAD s5 (gain/EQ frozen). Path B ≤20 — не сцена защиты."
+                    "Live demo = DEMO_STAGE6: один mic (Nothing-class), 6 говорящих по-русски, 3–6 м, большая комната, не студия. Path B ≤20 — опциональный PresentConnect."
                 },
                 style = MaterialTheme.typography.bodyMedium,
             )
+            if (state.presentConnect) {
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = state.wsUrl,
+                    onValueChange = { vm.updateWsUrl(it) },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("PresentConnect wss") },
+                    singleLine = true,
+                )
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = { vm.connectPresent() }, enabled = !state.presentConnected) {
+                        Text("WS connect")
+                    }
+                    OutlinedButton(onClick = { vm.disconnectPresent() }, enabled = state.presentConnected) {
+                        Text("Disconnect")
+                    }
+                    Text(
+                        "потоков ${state.activeStreams.size}/20",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 12.dp),
+                    )
+                }
+                if (state.activeStreams.isNotEmpty()) {
+                    Spacer(Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        state.activeStreams.forEach { s ->
+                            FilterChip(
+                                selected = s.role == "main",
+                                onClick = {},
+                                label = {
+                                    Text(
+                                        buildString {
+                                            append(s.streamId)
+                                            append('→')
+                                            append(s.speakerId)
+                                            s.qualityCode?.let { append(" $it") }
+                                        },
+                                    )
+                                },
+                            )
+                        }
+                    }
+                }
+                state.overCapacityId?.let { id ->
+                    Text(
+                        "OVER_CAPACITY: $id (stream 21)",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                state.micFlags.forEach { f ->
+                    Text(
+                        "${f.code}: ${f.streamId}→${f.speakerId}" +
+                            if (f.hardReject) " (ASR skipped)" else " (soft, ASR ran)",
+                        color = if (f.hardReject) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+            }
             Spacer(Modifier.height(8.dp))
             if (state.modelsLoading) {
                 Text(
@@ -103,10 +158,18 @@ fun StenoApp(vm: StenoViewModel = viewModel()) {
                 )
             } else if (state.modelsReady) {
                 Text(
-                    "Офлайн: Zipformer-ru + VAD + diar (Platform pack).",
+                    "Офлайн: Zipformer-ru + Silero VAD + diar (models в APK).",
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
+            Text(
+                if (state.jniLoaded) {
+                    "JNI libsherpa-onnx-jni.so: loaded"
+                } else {
+                    "JNI libsherpa-onnx-jni.so: FAIL ${state.jniError ?: "not probed"}"
+                },
+                style = MaterialTheme.typography.bodySmall,
+            )
             Text(
                 "LLM: ${state.llmName}",
                 color = if (state.llmOnDevice) {
@@ -117,31 +180,6 @@ fun StenoApp(vm: StenoViewModel = viewModel()) {
                 style = MaterialTheme.typography.bodySmall,
             )
             Spacer(Modifier.height(12.dp))
-            if (state.presentConnect) {
-                Text(
-                    "Потоки ${state.presentStreams}/${PresentConnectLimits.MAX_STREAMS}" +
-                        (if (state.presentWorkerId.isNotBlank()) " · worker ${state.presentWorkerId}" else ""),
-                    style = MaterialTheme.typography.labelLarge,
-                )
-                OutlinedTextField(
-                    value = state.presentWsUrl,
-                    onValueChange = vm::onPresentWsUrl,
-                    label = { Text("wss PresentConnect") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                )
-                OutlinedTextField(
-                    value = state.presentSession,
-                    onValueChange = vm::onPresentSession,
-                    label = { Text("session_id") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                )
-                OutlinedButton(onClick = { vm.togglePresentConnect() }) {
-                    Text(if (state.presentConnected) "Отключить worker" else "Подключить worker")
-                }
-                Spacer(Modifier.height(8.dp))
-            }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = { picker.launch(arrayOf("audio/*", "application/octet-stream")) }) {
                     Text("Импорт")
@@ -151,13 +189,21 @@ fun StenoApp(vm: StenoViewModel = viewModel()) {
                 }
                 Button(
                     onClick = { vm.transcribe() },
-                    enabled = !state.running && !state.modelsLoading,
+                    enabled = !state.running,
                 ) {
                     Text("Расшифровать")
                 }
                 OutlinedButton(
                     enabled = state.jsonPreview != null,
-                    onClick = { jsonSaver.launch("transcript.json") },
+                    onClick = {
+                        val json = state.jsonPreview ?: return@OutlinedButton
+                        val send = Intent(Intent.ACTION_SEND).apply {
+                            type = "application/json"
+                            putExtra(Intent.EXTRA_TEXT, json)
+                            putExtra(Intent.EXTRA_TITLE, "transcript.json")
+                        }
+                        context.startActivity(Intent.createChooser(send, "Экспорт JSON"))
+                    },
                 ) {
                     Text("Экспорт JSON")
                 }
@@ -182,7 +228,11 @@ fun StenoApp(vm: StenoViewModel = viewModel()) {
             val rows = state.transcript?.transcript.orEmpty()
             if (rows.isEmpty() && !state.running) {
                 Text(
-                    "Пусто. Импортируйте запись и нажмите «Расшифровать».",
+                    if (state.presentConnect) {
+                        "Path B: жду stream.start (s01→speaker_1 … s20→speaker_20). Brief без stream_id."
+                    } else {
+                        "Пусто. Импортируйте запись и нажмите «Расшифровать»."
+                    },
                     style = MaterialTheme.typography.bodyMedium,
                 )
             } else {

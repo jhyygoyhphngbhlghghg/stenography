@@ -177,7 +177,9 @@ class SherpaStenoPipeline(
         while (!vad.empty()) {
             val seg = vad.front()
             vad.pop()
-            val start = seg.start
+            // SpeechSegment.start is Int on sherpa-onnx ≤1.13.5 and Long on
+            // v2.0.1; toInt() keeps this compiling against both AARs.
+            val start = seg.start.toInt()
             val end = start + seg.samples.size
             if (end > start) out += SpeechRegion(start, end)
         }
