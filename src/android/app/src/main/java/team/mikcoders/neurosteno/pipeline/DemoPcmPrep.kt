@@ -3,15 +3,17 @@ package team.mikcoders.neurosteno.pipeline
 import team.mikcoders.neurosteno.audio.FarFieldGain
 import team.mikcoders.neurosteno.audio.FarFieldGainResult
 import team.mikcoders.neurosteno.audio.Pcm
+import team.mikcoders.neurosteno.audio.PhoneDistanceEq
+import team.mikcoders.neurosteno.audio.PhoneDistanceEqResult
 import team.mikcoders.neurosteno.present.PresentConnectCodes
 import team.mikcoders.neurosteno.present.StreamPcmGate
 import team.mikcoders.neurosteno.present.StreamPcmStats
 
 /**
  * Single-channel **DEMO_STAGE6** prep (offline ViewModel path only — not Path B).
- * CLIPPED/BAD_MIC/empty on **raw** PCM (hard), then **per-turn** far-field
- * gain so quiet 4–6 m islands clear the ASR floor without attenuating a loud
- * near seat, then inspect as bound main: SOFT_LOW / soft BAND_LIMITED,
+ * CLIPPED/BAD_MIC/empty on **raw** PCM (hard), then frozen per-turn gain
+ * (do not retune), then **phone-distance EQ** on far islands only (near seat
+ * identity). Inspect as bound main: SOFT_LOW / soft BAND_LIMITED,
  * **never hard-drop distant talkers**.
  */
 object DemoPcmPrep {
@@ -27,21 +29,24 @@ object DemoPcmPrep {
                 rawGate = rawGate,
                 afterGate = rawGate,
                 gain = FarFieldGain.stage(FloatArray(0)),
+                eq = PhoneDistanceEq.apply(FloatArray(0)),
             )
         }
         val gain = FarFieldGain.stage(audio.samples)
+        val eq = PhoneDistanceEq.apply(gain.samples)
         val afterGate = StreamPcmGate.inspect(
-            Pcm.floatToS16le(gain.samples),
+            Pcm.floatToS16le(eq.samples),
             audio.sampleRate,
             boundSeat = boundMain,
         )
         return PreparedDemoPcm(
-            audio = PcmAudio(gain.samples, audio.sampleRate, audio.sourceName),
+            audio = PcmAudio(eq.samples, audio.sampleRate, audio.sourceName),
             skipAsr = false,
             skipCode = null,
             rawGate = rawGate,
             afterGate = afterGate,
             gain = gain,
+            eq = eq,
         )
     }
 
@@ -64,4 +69,5 @@ data class PreparedDemoPcm(
     val rawGate: StreamPcmStats,
     val afterGate: StreamPcmStats,
     val gain: FarFieldGainResult,
+    val eq: PhoneDistanceEqResult,
 )

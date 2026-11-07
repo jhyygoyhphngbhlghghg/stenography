@@ -1,0 +1,69 @@
+result=PARTIAL
+command=./scripts/host-jni-smoke.sh
+wall_ms=1021
+aar_source=gradle-cache JitPack com.github.k2-fsa.sherpa-onnx:sherpa-onnx:v2.0.1
+aar=/home/ubuntu/.gradle/caches/modules-2/files-2.1/com.github.k2-fsa.sherpa-onnx/sherpa-onnx/v2.0.1/2ae8d5c3305517cc53bbfce10d824485c701b618/sherpa-onnx-v2.0.1.aar
+aar_bytes=49441341
+aar_sha256=a8d09d1d32f3eb8520482c6d3d43fae674681c5b050385967c70a3c2c9bf0ee7
+coordinate=com.github.k2-fsa.sherpa-onnx:sherpa-onnx:v2.0.1
+post_pr2_canonical_url=https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.13.5/sherpa-onnx-1.13.5.aar
+so=/tmp/neurosteno-host-jni-smoke/aar/jni/x86_64/libsherpa-onnx-jni.so
+file=/tmp/neurosteno-host-jni-smoke/aar/jni/x86_64/libsherpa-onnx-jni.so: ELF 64-bit LSB shared object, x86-64, version 1 (SYSV), dynamically linked, BuildID[sha1]=fa34ea51f3ec2dde12e60c0db2aea4f93b257afc, stripped
+soname=libsherpa-onnx-jni.so
+needed=libandroid.so,liblog.so,libonnxruntime.so,libm.so,libdl.so,libc.so
+jni_onload=0
+jni_symbol_count=134
+dlopen_status=fail_android_ndk_or_bionic
+dlopen_rc=2
+dlopen_msg=libandroid.so: cannot open shared object file: No such file or directory
+ctypes_status=fail
+ctypes_msg=ctypes_fail: libandroid.so: cannot open shared object file: No such file or directory
+note=Host dlopen of an Android NDK .so is expected to fail on glibc (bionic, liblog). This is not an on-device UnsatisfiedLinkError probe.
+
+== JNI symbols (first 40 of 134) ==
+Java_com_k2fsa_sherpa_onnx_AudioTagging_compute
+Java_com_k2fsa_sherpa_onnx_AudioTagging_createStream
+Java_com_k2fsa_sherpa_onnx_AudioTagging_delete
+Java_com_k2fsa_sherpa_onnx_AudioTagging_newFromAsset
+Java_com_k2fsa_sherpa_onnx_AudioTagging_newFromFile
+Java_com_k2fsa_sherpa_onnx_DenoisedAudio_saveImpl
+Java_com_k2fsa_sherpa_onnx_GeneratedAudio_saveImpl
+Java_com_k2fsa_sherpa_onnx_KeywordSpotter_createStream
+Java_com_k2fsa_sherpa_onnx_KeywordSpotter_decode
+Java_com_k2fsa_sherpa_onnx_KeywordSpotter_delete
+Java_com_k2fsa_sherpa_onnx_KeywordSpotter_getResult
+Java_com_k2fsa_sherpa_onnx_KeywordSpotter_isReady
+Java_com_k2fsa_sherpa_onnx_KeywordSpotter_newFromAsset
+Java_com_k2fsa_sherpa_onnx_KeywordSpotter_newFromFile
+Java_com_k2fsa_sherpa_onnx_KeywordSpotter_reset
+Java_com_k2fsa_sherpa_onnx_OfflineDiacritization_addDiacritics
+Java_com_k2fsa_sherpa_onnx_OfflineDiacritization_delete
+Java_com_k2fsa_sherpa_onnx_OfflineDiacritization_newFromAsset
+Java_com_k2fsa_sherpa_onnx_OfflineDiacritization_newFromFile
+Java_com_k2fsa_sherpa_onnx_OfflinePunctuation_addPunctuation
+Java_com_k2fsa_sherpa_onnx_OfflinePunctuation_delete
+Java_com_k2fsa_sherpa_onnx_OfflinePunctuation_newFromAsset
+Java_com_k2fsa_sherpa_onnx_OfflinePunctuation_newFromFile
+Java_com_k2fsa_sherpa_onnx_OfflineRecognizer_createStream
+Java_com_k2fsa_sherpa_onnx_OfflineRecognizer_createStreamWithHotwords
+Java_com_k2fsa_sherpa_onnx_OfflineRecognizer_decode
+Java_com_k2fsa_sherpa_onnx_OfflineRecognizer_decodeStreams
+Java_com_k2fsa_sherpa_onnx_OfflineRecognizer_delete
+Java_com_k2fsa_sherpa_onnx_OfflineRecognizer_getResult
+Java_com_k2fsa_sherpa_onnx_OfflineRecognizer_newFromAsset
+Java_com_k2fsa_sherpa_onnx_OfflineRecognizer_newFromFile
+Java_com_k2fsa_sherpa_onnx_OfflineRecognizer_prependAdspLibraryPath
+Java_com_k2fsa_sherpa_onnx_OfflineRecognizer_setConfig
+Java_com_k2fsa_sherpa_onnx_OfflineSpeakerDiarization_delete
+Java_com_k2fsa_sherpa_onnx_OfflineSpeakerDiarization_getSampleRate
+Java_com_k2fsa_sherpa_onnx_OfflineSpeakerDiarization_newFromAsset
+Java_com_k2fsa_sherpa_onnx_OfflineSpeakerDiarization_newFromFile
+Java_com_k2fsa_sherpa_onnx_OfflineSpeakerDiarization_process
+Java_com_k2fsa_sherpa_onnx_OfflineSpeakerDiarization_processWithCallback
+Java_com_k2fsa_sherpa_onnx_OfflineSpeakerDiarization_setConfig
+
+== all libsherpa-onnx-jni.so in AAR ==
+/tmp/neurosteno-host-jni-smoke/aar/jni/arm64-v8a/libsherpa-onnx-jni.so
+/tmp/neurosteno-host-jni-smoke/aar/jni/armeabi-v7a/libsherpa-onnx-jni.so
+/tmp/neurosteno-host-jni-smoke/aar/jni/x86_64/libsherpa-onnx-jni.so
+/tmp/neurosteno-host-jni-smoke/aar/jni/x86/libsherpa-onnx-jni.so

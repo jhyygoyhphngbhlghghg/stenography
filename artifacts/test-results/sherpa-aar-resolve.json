@@ -1,0 +1,27 @@
+{
+  "coordinate": "com.github.k2-fsa.sherpa-onnx:sherpa-onnx:v2.0.1",
+  "url": "https://jitpack.io/com/github/k2-fsa/sherpa-onnx/sherpa-onnx/v2.0.1/sherpa-onnx-v2.0.1.aar",
+  "http_code": 200,
+  "bytes": 49441341,
+  "wall_ms": 444,
+  "sha256": "a8d09d1d32f3eb8520482c6d3d43fae674681c5b050385967c70a3c2c9bf0ee7",
+  "result": "PASS",
+  "jni_so": [
+    "jni/arm64-v8a/libonnxruntime.so",
+    "jni/arm64-v8a/libsherpa-onnx-c-api.so",
+    "jni/arm64-v8a/libsherpa-onnx-cxx-api.so",
+    "jni/arm64-v8a/libsherpa-onnx-jni.so",
+    "jni/armeabi-v7a/libonnxruntime.so",
+    "jni/armeabi-v7a/libsherpa-onnx-c-api.so",
+    "jni/armeabi-v7a/libsherpa-onnx-cxx-api.so",
+    "jni/armeabi-v7a/libsherpa-onnx-jni.so",
+    "jni/x86/libonnxruntime.so",
+    "jni/x86/libsherpa-onnx-c-api.so",
+    "jni/x86/libsherpa-onnx-cxx-api.so",
+    "jni/x86/libsherpa-onnx-jni.so",
+    "jni/x86_64/libonnxruntime.so",
+    "jni/x86_64/libsherpa-onnx-c-api.so",
+    "jni/x86_64/libsherpa-onnx-cxx-api.so",
+    "jni/x86_64/libsherpa-onnx-jni.so"
+  ]
+}

@@ -1,8 +1,73 @@
+import java.io.File
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.kotlin.plugin.serialization")
+}
+
+val repoRoot: File = rootProject.projectDir.resolve("../..").normalize()
+val modelsSrc: File = File(repoRoot, "models")
+val embeddedModelsAssets = layout.buildDirectory.dir("generated/embeddedModels/assets")
+val judgeModelRelPaths = listOf(
+    "asr/zipformer-ru-int8/encoder.int8.onnx",
+    "asr/zipformer-ru-int8/decoder.onnx",
+    "asr/zipformer-ru-int8/joiner.int8.onnx",
+    "asr/zipformer-ru-int8/tokens.txt",
+    "vad/silero_vad.onnx",
+    "diar/segmentation.onnx",
+    "diar/embedding.onnx",
+)
+
+fun resolveJudgeModel(rel: String): File {
+    val direct = File(modelsSrc, rel)
+    if (direct.isFile) return direct
+    if (rel.endsWith("embedding.onnx")) {
+        val alt = File(modelsSrc, "diar/3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx")
+        if (alt.isFile) return alt
+    }
+    if (rel.endsWith("segmentation.onnx")) {
+        val alt = File(modelsSrc, "diar/model.onnx")
+        if (alt.isFile) return alt
+        val nested = File(modelsSrc, "diar/sherpa-onnx-pyannote-segmentation-3-0/model.onnx")
+        if (nested.isFile) return nested
+    }
+    return direct
+}
+
+val prepareEmbeddedModels by tasks.registering {
+    group = "build"
+    description = "Copy Zipformer-ru + Silero VAD + diar ONNX into judge APK assets/models"
+    outputs.dir(embeddedModelsAssets)
+    doLast {
+        var missing = judgeModelRelPaths.filter { !resolveJudgeModel(it).isFile }
+        if (missing.isNotEmpty()) {
+            val script = File(repoRoot, "scripts/download-models.sh")
+            require(script.isFile) { "missing $script and models $missing" }
+            exec {
+                commandLine("bash", script.absolutePath)
+                workingDir(repoRoot)
+            }
+            missing = judgeModelRelPaths.filter { !resolveJudgeModel(it).isFile }
+        }
+        require(missing.isEmpty()) { "judge models missing after download: $missing" }
+        val destRoot = embeddedModelsAssets.get().asFile.resolve("models")
+        destRoot.deleteRecursively()
+        for (rel in judgeModelRelPaths) {
+            val src = resolveJudgeModel(rel)
+            val dest = File(destRoot, rel)
+            dest.parentFile.mkdirs()
+            src.copyTo(dest, overwrite = true)
+        }
+        File(destRoot, ".embedded").writeText(
+            judgeModelRelPaths.joinToString("\n") { rel ->
+                val f = File(destRoot, rel)
+                "$rel ${f.length()}"
+            } + "\n",
+        )
+        println("embedded ${judgeModelRelPaths.size} model files into $destRoot (${destRoot.walkTopDown().filter { it.isFile }.sumOf { it.length() }} bytes)")
+    }
 }
 
 android {
@@ -20,6 +85,7 @@ android {
         ndk {
             abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
         }
+        // EMBEDDED_MODELS is set per build type (debug/release = true, slim = false).
     }
 
     flavorDimensions += "role"
@@ -37,13 +103,36 @@ android {
     }
 
     buildTypes {
+        debug {
+            buildConfigField("Boolean", "EMBEDDED_MODELS", "true")
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            buildConfigField("Boolean", "EMBEDDED_MODELS", "true")
         }
+        create("slim") {
+            initWith(getByName("debug"))
+            matchingFallbacks += listOf("debug")
+            versionNameSuffix = "-slim"
+            buildConfigField("Boolean", "EMBEDDED_MODELS", "false")
+        }
+    }
+
+    sourceSets {
+        getByName("debug") {
+            assets.srcDir(embeddedModelsAssets)
+        }
+        getByName("release") {
+            assets.srcDir(embeddedModelsAssets)
+        }
+    }
+
+    androidResources {
+        noCompress += listOf("onnx", "txt")
     }
 
     compileOptions {
@@ -67,37 +156,6 @@ android {
     }
 }
 
-val sherpaOnnxVersion = "1.13.5"
-val sherpaAar = layout.projectDirectory.file("libs/sherpa-onnx-$sherpaOnnxVersion.aar")
-
-val fetchSherpaOnnxAar by tasks.registering {
-    group = "build"
-    description = "Download sherpa-onnx Android AAR (same file JitPack jitpack.yml wget's)."
-    outputs.file(sherpaAar)
-    outputs.upToDateWhen { sherpaAar.asFile.isFile && sherpaAar.asFile.length() > 1_000_000L }
-    doLast {
-        val dest = sherpaAar.asFile
-        dest.parentFile.mkdirs()
-        if (dest.isFile && dest.length() > 1_000_000L) return@doLast
-        val url =
-            uri("https://github.com/k2-fsa/sherpa-onnx/releases/download/v$sherpaOnnxVersion/sherpa-onnx-$sherpaOnnxVersion.aar")
-        logger.lifecycle("GET $url")
-        url.toURL().openStream().use { input ->
-            dest.outputStream().buffered().use { output -> input.copyTo(output) }
-        }
-        require(dest.length() > 1_000_000L) {
-            "sherpa-onnx AAR download too small (${dest.length()} bytes)"
-        }
-    }
-}
-
-tasks.matching { it.name.startsWith("pre") && it.name.endsWith("Build") }.configureEach {
-    dependsOn(fetchSherpaOnnxAar)
-}
-tasks.matching { it.name.contains("compile") && it.name.contains("Kotlin") }.configureEach {
-    dependsOn(fetchSherpaOnnxAar)
-}
-
 dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2024.10.01")
     implementation(composeBom)
@@ -114,17 +172,30 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    // sherpa-onnx Android AAR (Kotlin API + JNI). JitPack coordinate
-    // com.github.k2-fsa.sherpa-onnx:sherpa-onnx:v2.0.1 is 404; v1.13.5 AAR is
-    // what k2-fsa jitpack.yml wget's from GitHub Releases (settings ivy + fetch).
-    implementation(files(sherpaAar))
-    // Tiny on-device GGUF (Qwen2-0.5B) via llama.cpp JNI. Weights are NOT packed
-    // here — Platform PR #3 @ af71d91 embeds ASR/VAD/diar; GGUF lives in
-    // filesDir/models/llm after that unpack (download-models.sh).
+    // JNI + Java API: ASR, Silero VAD, OfflineSpeakerDiarization. JitPack AAR
+    // (packaging=aar), 49 441 341 bytes, sha256 a8d09d1d32f3eb8520482c6d3d43fae
+    // 674681c5b050385967c70a3c2c9bf0ee7 — re-check with scripts/inspect-sherpa-aar.sh.
+    implementation("com.github.k2-fsa.sherpa-onnx:sherpa-onnx:v2.0.1")
+    // Tiny on-device GGUF (llama.cpp prebuilt JNI, MIT, arm64-v8a, API 24+).
+    // Weights are NOT packed here — ASR/VAD/diar assets come from
+    // prepareEmbeddedModels; the GGUF lands in filesDir/models/llm
+    // (scripts/download-models.sh).
     implementation("dev.ffmpegkit-maintained:llama-android:0.1.1")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
+}
+
+afterEvaluate {
+    tasks.matching { t ->
+        val n = t.name
+        !n.contains("Slim", ignoreCase = true) &&
+            n.contains("Assets") &&
+            (n.startsWith("merge") || n.startsWith("generate") || n.startsWith("package"))
+    }.configureEach {
+        dependsOn(prepareEmbeddedModels)
+    }
 }
 
 tasks.register<Copy>("copyApkToDrop") {

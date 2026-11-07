@@ -8,22 +8,27 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import team.mikcoders.neurosteno.BuildConfig
 import team.mikcoders.neurosteno.audio.AudioDecoder
 import team.mikcoders.neurosteno.audio.MicRecorder
+import team.mikcoders.neurosteno.audio.Pcm
 import team.mikcoders.neurosteno.export.TranscriptFile
 import team.mikcoders.neurosteno.export.TranscriptJson
-import team.mikcoders.neurosteno.audio.Pcm
 import team.mikcoders.neurosteno.pipeline.DemoPcmPrep
+import team.mikcoders.neurosteno.pipeline.ModelPaths
 import team.mikcoders.neurosteno.pipeline.PipelineFactory
 import team.mikcoders.neurosteno.pipeline.PipelineProgress
 import team.mikcoders.neurosteno.pipeline.PipelineStage
 import team.mikcoders.neurosteno.pipeline.PcmAudio
+import team.mikcoders.neurosteno.pipeline.SherpaJni
 import team.mikcoders.neurosteno.pipeline.StenoPipeline
+import team.mikcoders.neurosteno.pipeline.StubStenoPipeline
 import team.mikcoders.neurosteno.present.OkHttpPresentConnectClient
+import team.mikcoders.neurosteno.present.PathBSession
 import team.mikcoders.neurosteno.present.PresentConnectConfig
 import team.mikcoders.neurosteno.present.PresentConnectEvent
 import team.mikcoders.neurosteno.present.PresentConnectLimits
@@ -40,123 +45,161 @@ data class StenoUiState(
     val presentConnect: Boolean = BuildConfig.PRESENT_CONNECT,
     val engineName: String = "stub",
     val modelsReady: Boolean = false,
+    // Model load (ONNX unpack out of the judge-APK assets + GGUF probe) runs off
+    // the main thread; the UI shows "Загрузка pipeline…" while this is true.
     val modelsLoading: Boolean = true,
-    val llmName: String = "llm-unset",
-    val llmOnDevice: Boolean = false,
     val recording: Boolean = false,
     val heldPcm: PcmAudio? = null,
-    val presentWsUrl: String = "ws://10.0.2.2:8080/v1/present-connect",
-    val presentSession: String = "sess_demo",
+    val jniLoaded: Boolean = false,
+    val jniError: String? = null,
+    val llmName: String = "llm-unset",
+    val llmOnDevice: Boolean = false,
+    val activeStreams: List<ActiveStreamChip> = emptyList(),
+    val overCapacityId: String? = null,
     val presentConnected: Boolean = false,
-    val presentStreams: Int = 0,
     val presentWorkerId: String = "",
+    val presentStreams: Int = 0,
+    val wsUrl: String = "wss://present.example.local/v1/present-connect?session=demo&role=worker&device=phone",
+    val micFlags: List<MicFlagChip> = emptyList(),
+)
+
+data class ActiveStreamChip(
+    val streamId: String,
+    val speakerId: String,
+    val role: String,
+    val qualityCode: String? = null,
+)
+
+data class MicFlagChip(
+    val streamId: String,
+    val speakerId: String,
+    val code: String,
+    val hardReject: Boolean,
 )
 
 class StenoViewModel(app: Application) : AndroidViewModel(app) {
-    @Volatile private var pipeline: StenoPipeline = team.mikcoders.neurosteno.pipeline.StubStenoPipeline()
+    @Volatile private var pipeline: StenoPipeline = StubStenoPipeline()
+    @Volatile private var models: ModelPaths? = null
+    @Volatile private var pathB: PathBSession? = null
+    @Volatile private var presentClient: OkHttpPresentConnectClient? = null
 
-    private val _state = MutableStateFlow(StenoUiState())
+    private val _state = MutableStateFlow(
+        StenoUiState(
+            jniLoaded = SherpaJni.last.loaded,
+            jniError = SherpaJni.last.error,
+        ),
+    )
     val state: StateFlow<StenoUiState> = _state
     private val mic = MicRecorder()
-    private val present = if (BuildConfig.PRESENT_CONNECT) OkHttpPresentConnectClient() else null
 
     init {
         viewModelScope.launch {
-            val created = withContext(Dispatchers.IO) {
-                PipelineFactory.create(getApplication())
-            }
+            val created = withContext(Dispatchers.IO) { PipelineFactory.create(getApplication()) }
             pipeline = created.first
+            models = created.second
             _state.update {
                 it.copy(
                     engineName = created.first.displayName,
-                    stubPath = created.first is team.mikcoders.neurosteno.pipeline.StubStenoPipeline,
+                    stubPath = created.first is StubStenoPipeline,
                     modelsReady = created.second.readyForOfflineDemo,
                     modelsLoading = false,
                     llmName = created.first.llmDisplayName,
                     llmOnDevice = created.first.llmIsOnDevice,
+                    jniLoaded = SherpaJni.last.loaded,
+                    jniError = SherpaJni.last.error,
                 )
             }
-        }
-        val client = present
-        if (client != null) {
-            viewModelScope.launch {
-                client.events.collect { ev ->
-                    when (ev) {
-                        is PresentConnectEvent.HelloOk -> _state.update {
-                            it.copy(presentConnected = true, presentWorkerId = ev.workerId, error = null)
-                        }
-                        is PresentConnectEvent.Disconnected -> _state.update {
-                            it.copy(presentConnected = false, presentStreams = 0)
-                        }
-                        is PresentConnectEvent.StreamStarted -> _state.update {
-                            it.copy(presentStreams = client.activeStreamCount())
-                        }
-                        is PresentConnectEvent.StreamEnded -> {
-                            _state.update { it.copy(presentStreams = client.activeStreamCount()) }
-                            if (ev.pcmS16le.isNotEmpty()) {
-                                transcribeStream(ev.streamId, ev.pcmS16le)
-                            }
-                        }
-                        is PresentConnectEvent.OverCapacity -> _state.update {
-                            it.copy(error = "OVER_CAPACITY: поток ${ev.rejectedStreamId} (уже ${PresentConnectLimits.MAX_STREAMS})")
-                        }
-                        is PresentConnectEvent.Error -> _state.update {
-                            it.copy(error = "${ev.code}: ${ev.message}")
-                        }
-                        else -> Unit
-                    }
-                }
+            if (BuildConfig.PRESENT_CONNECT && presentClient == null) {
+                val session = PathBSession.fromPipeline(created.first)
+                pathB = session
+                val client = OkHttpPresentConnectClient(pathB = session)
+                presentClient = client
+                viewModelScope.launch { client.events.collect { onPresentEvent(it) } }
             }
         }
     }
 
-    fun onPresentWsUrl(url: String) {
-        _state.update { it.copy(presentWsUrl = url) }
-    }
-
-    fun onPresentSession(session: String) {
-        _state.update { it.copy(presentSession = session) }
-    }
-
-    fun togglePresentConnect() {
-        val client = present ?: return
-        viewModelScope.launch {
-            if (_state.value.presentConnected) {
-                client.disconnect()
-            } else {
-                client.connect(
-                    PresentConnectConfig(
-                        wsUrl = _state.value.presentWsUrl,
-                        httpBaseUrl = _state.value.presentWsUrl.substringBefore("/v1").replace("ws://", "http://").replace("wss://", "https://"),
-                        sessionId = _state.value.presentSession,
-                        deviceId = "phone-demo",
-                    ),
-                )
-            }
-        }
-    }
-
-    private fun transcribeStream(streamId: String, pcmS16le: ByteArray) {
-        viewModelScope.launch {
-            try {
-                val audio = withContext(Dispatchers.Default) {
-                    PcmAudio(Pcm.s16leToFloat(pcmS16le), Pcm.TARGET_HZ, "stream-$streamId")
-                }
-                val result = pipeline.transcribe(audio) { p ->
-                    _state.update { it.copy(progress = p, running = true) }
-                }
-                present?.sendTranscriptFinal(streamId, result)
+    private fun onPresentEvent(e: PresentConnectEvent) {
+        when (e) {
+            is PresentConnectEvent.HelloOk ->
                 _state.update {
-                    it.copy(
-                        running = false,
-                        transcript = result,
-                        jsonPreview = TranscriptJson.encode(result),
+                    it.copy(presentConnected = true, presentWorkerId = e.workerId, error = null)
+                }
+            is PresentConnectEvent.StreamStarted ->
+                _state.update { s ->
+                    s.copy(
+                        activeStreams = s.activeStreams.filterNot { it.streamId == e.streamId } +
+                            ActiveStreamChip(e.streamId, e.speakerId, e.role),
+                        micFlags = s.micFlags.filterNot { it.streamId == e.streamId },
+                        presentStreams = (presentClient?.activeStreamCount() ?: s.presentStreams)
+                            .coerceAtMost(PresentConnectLimits.MAX_STREAMS),
                     )
                 }
-            } catch (t: Throwable) {
-                _state.update { it.copy(running = false, error = t.message ?: "pipeline") }
+            is PresentConnectEvent.StreamEnded ->
+                _state.update { s ->
+                    s.copy(
+                        activeStreams = s.activeStreams.filterNot { it.streamId == e.streamId },
+                        presentStreams = presentClient?.activeStreamCount() ?: s.presentStreams,
+                    )
+                }
+            is PresentConnectEvent.Final -> {
+                val brief = pathB?.brief() ?: return
+                _state.update {
+                    it.copy(
+                        transcript = brief,
+                        jsonPreview = team.mikcoders.neurosteno.present.PresentConnectWire
+                            .briefJson(brief.transcript),
+                    )
+                }
             }
+            is PresentConnectEvent.OverCapacity ->
+                _state.update { it.copy(overCapacityId = e.rejectedStreamId) }
+            is PresentConnectEvent.Error ->
+                _state.update { it.copy(error = "${e.code}: ${e.message}") }
+            is PresentConnectEvent.MicQuality ->
+                _state.update { s ->
+                    s.copy(
+                        activeStreams = s.activeStreams.map { chip ->
+                            if (chip.streamId == e.streamId) chip.copy(qualityCode = e.code) else chip
+                        },
+                        micFlags = s.micFlags.filterNot { it.streamId == e.streamId } +
+                            MicFlagChip(e.streamId, e.speakerId, e.code, e.hardReject),
+                    )
+                }
+            PresentConnectEvent.Disconnected ->
+                _state.update {
+                    it.copy(
+                        presentConnected = false,
+                        presentStreams = 0,
+                        activeStreams = emptyList(),
+                        micFlags = emptyList(),
+                    )
+                }
+            is PresentConnectEvent.Partial -> { }
         }
+    }
+
+    fun updateWsUrl(url: String) {
+        _state.update { it.copy(wsUrl = url) }
+    }
+
+    fun connectPresent() {
+        val client = presentClient ?: return
+        val url = _state.value.wsUrl
+        viewModelScope.launch {
+            client.connect(
+                PresentConnectConfig(
+                    wsUrl = url,
+                    httpBaseUrl = url.substringBefore("/v1").ifBlank { url },
+                    sessionId = "demo",
+                    deviceId = "phone",
+                ),
+            )
+        }
+    }
+
+    fun disconnectPresent() {
+        viewModelScope.launch { presentClient?.disconnect() }
     }
 
     fun onFilePicked(uri: Uri, displayName: String?) {
@@ -210,8 +253,8 @@ class StenoViewModel(app: Application) : AndroidViewModel(app) {
                         held != null && uriStr == null -> held
                         uriStr != null -> AudioDecoder.decode(getApplication(), Uri.parse(uriStr), label)
                         else -> PcmAudio(
-                            samples = FloatArray(16_000 * 4),
-                            sampleRate = 16_000,
+                            samples = FloatArray(Pcm.TARGET_HZ * 4),
+                            sampleRate = Pcm.TARGET_HZ,
                             sourceName = label,
                         )
                     }
@@ -232,7 +275,7 @@ class StenoViewModel(app: Application) : AndroidViewModel(app) {
                     it.copy(
                         progress = PipelineProgress(
                             PipelineStage.Decode,
-                            "PCM ready (${prep.gain.segments.size} energy windows; gain/EQ frozen)",
+                            if (prep.eq.applied) "phone-distance EQ" else "per-turn far-field +${prep.gain.gainDb} dB",
                             0.08f,
                         ),
                     )
@@ -245,7 +288,7 @@ class StenoViewModel(app: Application) : AndroidViewModel(app) {
                         running = false,
                         transcript = result,
                         jsonPreview = TranscriptJson.encode(result),
-                        stubPath = pipeline is team.mikcoders.neurosteno.pipeline.StubStenoPipeline,
+                        stubPath = pipeline is StubStenoPipeline,
                         engineName = pipeline.displayName,
                         llmName = pipeline.llmDisplayName,
                         llmOnDevice = pipeline.llmIsOnDevice,
