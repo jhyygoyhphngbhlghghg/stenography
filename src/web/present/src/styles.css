@@ -62,6 +62,8 @@
   --scene-surface: #242a28;
   --dialogue-secondary: oklch(0.8 0.1 210);
   --track-grid: oklch(1 0 0 / 4%);
+  /* Акцент дальнего фона; Deck переписывает его на каждом чекпоинте. */
+  --slide-accent: var(--neon);
 }
 
 @layer base {
@@ -80,11 +82,14 @@
 @utility text-glow { text-shadow: 0 0 18px oklch(0.9 0.24 135 / 55%); }
 @utility grid-bg {
   background-image:
-    linear-gradient(var(--border) 1px, transparent 1px),
-    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    linear-gradient(color-mix(in oklch, var(--slide-accent) 26%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in oklch, var(--slide-accent) 26%, transparent) 1px, transparent 1px);
   background-size: 64px 64px;
   mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+  transition: background-image 700ms ease;
 }
+/* Дальний фон живёт своим цветом, текст остаётся читаемым неоном. */
+.ring { color: var(--slide-accent); transition: color 700ms ease; }
 @utility kicker {
   font-family: var(--font-mono);
   font-size: 0.75rem;
@@ -95,29 +100,116 @@
 @keyframes blink { 50% { opacity: 0; } }
 @utility caret { animation: blink 1s steps(1) infinite; }
 
-.demo-workspace { width: 100%; max-width: 1200px; }
-.demo-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:32px; }
-.live-dot { display:inline-block; width:6px; height:6px; margin-right:10px; background:var(--neon); border-radius:50%; animation:blink 2s ease-in-out infinite; }
-.demo-telemetry { display:flex; gap:28px; }
-.demo-telemetry strong { margin-left:8px; font-weight:400; }
-.dialogue-editor { position:relative; border-top:1px solid var(--border); border-bottom:1px solid var(--border); background:var(--background); }
-.timeline-ruler { display:grid; grid-template-columns:130px repeat(4,1fr); font-size:10px; padding:18px 0; border-bottom:1px solid var(--border); }
-.timeline-ruler span:not(:first-child) { padding-left:16px; border-left:1px solid var(--border); }
-.dialogue-lanes { max-height:360px; overflow:auto; }
-.dialogue-lane { display:grid; grid-template-columns:130px minmax(0,1fr); min-height:140px; border-bottom:1px solid var(--border); }
-.speaker-label { display:flex; flex-direction:column; justify-content:center; gap:10px; padding:20px 12px; font-size:11px; overflow-wrap:anywhere; }
-.dialogue-clips { display:flex; align-items:center; gap:12px; padding:16px; min-width:0; overflow:hidden; background-image:linear-gradient(90deg,var(--track-grid) 1px,transparent 1px); background-size:25% 100%; }
-.dialogue-clip { flex:1; min-width:0; align-self:stretch; padding:12px 14px; background:var(--neon-dim); border-left:2px solid var(--neon); animation:clip-enter 600ms ease-out both; }
-.dialogue-clip.alternate { border-color:var(--dialogue-secondary); background:color-mix(in oklch,var(--dialogue-secondary) 10%,transparent); }
-.dialogue-clip>span { font-size:9px; }
-.dialogue-clip p { margin:8px 0; font-size:14px; line-height:1.5; overflow-wrap:anywhere; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
-.clip-wave { display:flex; align-items:center; height:18px; gap:3px; opacity:0.45; }
-.clip-wave i { flex:1; max-width:3px; background:var(--neon); transform:scaleY(var(--voice-envelope,1)); }
-.alternate .clip-wave i { background:var(--dialogue-secondary); }
-.empty-track { font-size:12px; opacity:0.3; }
-.timeline-playhead { position:absolute; top:40px; bottom:38px; left:calc(130px + 8%); width:1px; background:var(--neon); opacity:0.6; pointer-events:none; }
-.timeline-playhead span { position:absolute; top:0; left:-3px; width:7px; height:7px; background:var(--neon); }
-.timeline-footer { display:flex; justify-content:space-between; gap:16px; padding:14px 0; font-size:9px; }
+/* ------------------------------------------------------------------ top bar
+   Порядок слева направо: знак колледжа, подпись команды, живая лента, телефон.
+*/
+.deck-top {
+  position: fixed;
+  inset: 24px 24px auto 24px;
+  z-index: 45;
+  display: flex;
+  align-items: flex-start;
+  gap: 28px;
+  pointer-events: none;
+}
+.deck-logo {
+  flex: none;
+  height: 30px;
+  width: auto;
+  color: var(--foreground);
+}
+.presentation-hud {
+  flex: none;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--muted-foreground);
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* ---------------------------------------------------------------- live feed */
+.live-feed {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 46ch;
+  font-size: 13px;
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: opacity 600ms ease, transform 600ms ease;
+}
+.live-feed[data-visible="true"] { opacity: 1; transform: none; }
+.live-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  background: var(--slide-accent);
+  border-radius: 50%;
+  animation: blink 2s ease-in-out infinite;
+}
+.live-feed-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 10px;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+.live-feed-flag { color: var(--amber-400, #fbbf24); letter-spacing: 0.1em; }
+.live-feed-rows { display: grid; gap: 8px; margin-top: 14px; }
+.live-feed-row {
+  display: grid;
+  grid-template-columns: 3px minmax(0, 3.5ch) minmax(0, 1fr);
+  gap: 12px;
+  align-items: baseline;
+}
+.live-feed-bar {
+  width: 3px;
+  height: 100%;
+  min-height: 1.4em;
+  background: var(--speaker, var(--neon));
+  animation: feed-bar 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.live-feed-name { color: var(--speaker, var(--neon)); font-size: 11px; }
+.live-feed-text {
+  overflow-wrap: anywhere;
+  animation: feed-row 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.live-feed-empty { margin-top: 14px; color: var(--muted-foreground); }
+@keyframes feed-bar { from { transform: scaleY(0); opacity: 0; } to { transform: scaleY(1); opacity: 1; } }
+@keyframes feed-row { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* ------------------------------------------------------------- phone widget */
+.phone-info {
+  margin-left: auto;
+  flex: none;
+  display: grid;
+  gap: 8px;
+  justify-items: end;
+  width: 92px;
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: opacity 600ms ease, transform 600ms ease;
+}
+.phone-info[data-visible="true"] { opacity: 1; transform: none; }
+.phone-frame { width: 60px; height: auto; }
+.phone-shell { fill: none; stroke: var(--border); stroke-width: 2; }
+.phone-screen { fill: color-mix(in oklch, var(--slide-accent) 8%, transparent); }
+.phone-speaker { stroke: var(--border); stroke-width: 3; stroke-linecap: round; }
+.phone-mic rect { fill: var(--slide-accent); opacity: 0.85; transform: scaleY(var(--voice-envelope, 0.08)); transition: transform 120ms linear; }
+.phone-telemetry {
+  display: flex;
+  gap: 12px;
+  font-size: 9px;
+  line-height: 1.3;
+  text-align: right;
+}
+.phone-telemetry dt { color: var(--muted-foreground); letter-spacing: 0.15em; }
+.phone-telemetry dd { color: var(--foreground); }
+
+/* ------------------------------------------------------------- demo scene */
+.demo-stage { width: 100%; max-width: 1100px; }
 .technology-workspace { width:100%; max-width:1200px; }
 .pipeline-stage { height:320px; position:relative; margin-top:24px; }
 .pipeline-canvas { position:absolute; inset:0; }
@@ -140,13 +232,13 @@
 @keyframes output-reveal { 0%,65% { opacity:0; transform:translateX(-14px); } 100% { opacity:1; transform:translateX(0); } }
 @keyframes clip-enter { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
 @media(max-width:640px) {
-  .demo-header { margin-bottom:20px; }.demo-telemetry { gap:12px; font-size:10px; }
-  .timeline-ruler { grid-template-columns:68px repeat(4,1fr); font-size:8px; }
-  .timeline-ruler>span:first-child { font-size:7px; }
-  .dialogue-lane { grid-template-columns:68px minmax(0,1fr); min-height:120px; }
-  .speaker-label { font-size:8px; padding:12px 6px; }.dialogue-clips { gap:6px; padding:10px; }
-  .dialogue-clip { padding:8px; }.dialogue-clip p { font-size:12px; }
-  .timeline-playhead { left:calc(68px + 8%); }.timeline-footer { font-size:7px; }
+  .deck-top { gap:14px; inset:16px 16px auto 16px; }
+  .deck-logo { height:22px; }
+  .live-feed { font-size:11px; max-width:34ch; }
+  .live-feed-row { grid-template-columns:3px minmax(0,3ch) minmax(0,1fr); gap:8px; }
+  .phone-info { width:64px; gap:6px; }
+  .phone-frame { width:42px; }
+  .phone-telemetry { font-size:8px; gap:8px; }
   .technology-workspace h2 { font-size:28px; }.pipeline-stage { height:280px; }
   .pipeline-source { top:4%; font-size:8px; width:30%; }.pipeline-source p { font-size:10px; }
   .pipeline-model { font-size:8px; left:47%; width:23%; }.pipeline-model small { font-size:7px; }
@@ -155,7 +247,7 @@
   .technology-explanation { font-size:12px; }.terminal-preview { font-size:8px; }
 }
 @media(prefers-reduced-motion:reduce) {
-  .live-dot,.is-active .pipeline-source p,.is-active .pipeline-output,.dialogue-clip { animation:none; }
+  .live-dot,.is-active .pipeline-source p,.is-active .pipeline-output,.live-feed-bar,.live-feed-text { animation:none; }
 }
 
 .compact-pipeline { margin:24px 0; display:grid; gap:22px; }
@@ -171,7 +263,7 @@
 
 @media(max-width:767px) {
   .presentation { letter-spacing:0; }
-  .presentation-hud { left:20px; right:20px; top:max(18px,env(safe-area-inset-top)); display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px; font-size:9px; letter-spacing:0; }
+  .presentation-hud { font-size:9px; letter-spacing:0; }
   .presentation-hud>div { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin:0; }
   .presentation-nav { left:20px; right:20px; bottom:max(12px,env(safe-area-inset-bottom)); gap:8px; }
   .presentation-nav>button { min-height:44px; }
@@ -193,8 +285,6 @@
   .presentation .team-list li>span:last-child { grid-column:2; font-size:10px; letter-spacing:0; }
   .presentation .team-list+* { min-width:0; }
   .presentation .a-line.mt-10 { margin-top:24px; }
-  .presentation .pulse-ring { height:64px; width:64px; font-size:10px; }
-  .presentation .pulse-ring .pr { display:none; }
   .presentation .mt-14 { margin-top:28px; }
   .presentation .solutions-list { grid-template-columns:minmax(0,1fr); gap:0; }
   .presentation .solutions-list>div { display:grid; grid-template-columns:minmax(0,1fr) auto; column-gap:12px; border:0; border-top:1px solid var(--border); background:none; padding:16px 0; }
@@ -202,22 +292,6 @@
   .presentation .solutions-list h3 { margin:0; font-size:18px; }
   .presentation .solutions-list p { margin-top:6px; grid-column:1; font-size:12px; line-height:1.5; }
   .presentation .solutions-list>div>div:last-child { grid-column:2; grid-row:1 / span 2; align-self:center; font-size:20px; }
-  .demo-header { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px; margin-bottom:18px; }
-  .demo-header>span { min-width:0; font-size:10px; white-space:nowrap; }
-  .demo-telemetry { gap:10px; font-size:9px; flex-shrink:0; }
-  .demo-telemetry strong { display:block; margin:5px 0 0; font-size:10px; }
-  .live-dot { animation:none; margin-right:6px; }
-  .timeline-ruler { grid-template-columns:60px repeat(4,minmax(0,1fr)); font-size:8px; padding:12px 0; }
-  .timeline-ruler>span:first-child { font-size:0; }.timeline-ruler>span:first-child::after { content:"VOICE"; font-size:8px; }
-  .timeline-ruler span:not(:first-child) { padding-left:5px; }
-  .dialogue-lanes { max-height:none; overflow:hidden; }
-  .dialogue-lane { grid-template-columns:60px minmax(0,1fr); min-height:96px; }
-  .speaker-label { padding:10px 4px; font-size:8px; gap:6px; }
-  .dialogue-clips { padding:10px; background-image:none; }
-  .dialogue-clip { padding:8px; animation:none; }
-  .dialogue-clip p { font-size:12px; -webkit-line-clamp:2; }
-  .timeline-playhead { display:none; }
-  .timeline-footer { font-size:8px; gap:8px; padding:12px 0; }.timeline-footer>span:first-child { display:none; }
   .tech-bottom { grid-template-columns:minmax(0,1fr); padding-top:18px; gap:0; }
   .technology-explanation { font-size:13px; line-height:1.65; }
 }

@@ -2,7 +2,8 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Deck } from "./Deck";
-import { CHECKPOINTS } from "./data";
+import { CHECKPOINTS, SPEAKER_COLORS } from "./data";
+import { sceneAccent } from "./state";
 
 // WebGL scenes cannot run in jsdom, and they are irrelevant to checkpoint
 // wiring: the deck's contract is which scene is addressed, not what it draws.
@@ -157,17 +158,51 @@ describe("live transcript surface", () => {
       expect(inside.getByText("Добрый день!")).toBeTruthy();
     });
     expect(inside.getByText("Привет всем.")).toBeTruthy();
-    expect(inside.getByText("speaker_1")).toBeTruthy();
+    // `speaker_3` reads as `03` on a projector; identifiers are not shown.
+    expect(inside.getByText("01")).toBeTruthy();
     expect(inside.getByText(/Показана запись/)).toBeTruthy();
 
-    const demo = document.querySelector("[data-demo]");
-    expect(within(demo as HTMLElement).getByText("Добрый день!")).toBeTruthy();
+    // One row per utterance: the demo scene no longer repeats the feed.
+    expect(document.querySelectorAll(".live-feed-row")).toHaveLength(2);
+    const colors = Array.from(document.querySelectorAll<HTMLElement>(".live-feed-row")).map((row) =>
+      row.style.getPropertyValue("--speaker"),
+    );
+    expect(colors[0]).toBe(SPEAKER_COLORS[0]);
+    expect(colors[1]).toBe(SPEAKER_COLORS[1]);
+    expect(new Set(colors).size).toBe(2);
   });
 
-  it("does not invent transcript text when nothing has arrived", () => {
+  it("says it is quiet rather than inventing transcript text", () => {
     connection.current = { ...connection.current, connected: true, slideIndex: 2, transcript: [] };
     render(<Deck />);
     const inside = within(document.querySelector("#asr-box") as HTMLElement);
-    expect(inside.getByText(/тут распознанный текст/)).toBeTruthy();
+    expect(inside.getByText(/пока тишина/)).toBeTruthy();
+    expect(document.querySelectorAll(".live-feed-row")).toHaveLength(0);
+  });
+});
+
+describe("top bar and per-slide background", () => {
+  it("puts the college mark in the top-left corner", () => {
+    render(<Deck />);
+    const logo = document.querySelector<HTMLImageElement>(".deck-logo");
+    expect(logo).toBeTruthy();
+    expect(logo?.getAttribute("src")).toBe("/college-logo.svg");
+    // The audience sees whose college this is, so it is not hidden from them.
+    expect(logo?.getAttribute("alt")).toBe("Логотип колледжа");
+  });
+
+  it("hands the checkpoint accent to CSS and to the 3D scene together", async () => {
+    connection.current = { ...connection.current, connected: true, slideIndex: 0 };
+    const view = render(<Deck />);
+    const root = document.querySelector(".presentation") as HTMLElement;
+    expect(root.style.getPropertyValue("--slide-accent")).toBe(CHECKPOINTS[0].accent);
+    expect(sceneAccent.hex).toBe(CHECKPOINTS[0].accent);
+
+    connection.current = { ...connection.current, connected: true, slideIndex: 4 };
+    view.rerender(<Deck />);
+    await waitFor(() => {
+      expect(document.querySelector(".presentation")?.getAttribute("data-slide")).toBe("demo");
+    });
+    expect(sceneAccent.hex).toBe(CHECKPOINTS[4].accent);
   });
 });

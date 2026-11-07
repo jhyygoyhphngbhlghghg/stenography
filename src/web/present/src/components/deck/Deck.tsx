@@ -3,8 +3,18 @@ import { ClientOnly } from "@tanstack/react-router";
 import { animate, stagger, utils } from "animejs";
 import QRCode from "qrcode";
 import { Transcript } from "./Transcript";
-import { scrollState } from "./state";
-import { CASE_TEXT, CASE_TITLE, CHECKPOINTS, SOLUTIONS, TEAM, TEAM_NAME } from "./data";
+import { PhoneInfo } from "./PhoneInfo";
+import { scrollState, sceneAccent } from "./state";
+import {
+  CASE_OWNER,
+  CASE_TEXT,
+  CASE_TITLE,
+  CASE_TRACK,
+  CHECKPOINTS,
+  SOLUTIONS,
+  TEAM,
+  TEAM_NAME,
+} from "./data";
 import { LiveDemo } from "./LiveDemo";
 import { Technology } from "./Technology";
 import { usePresentationInput } from "./useDialogue";
@@ -14,6 +24,7 @@ import { useCompactPresentation } from "./useCompactPresentation";
 
 const Scene3D = lazy(() => import("./Scene3D"));
 const TECH_IDX = CHECKPOINTS.findIndex((c) => c.id === "tech");
+const DEMO_IDX = CHECKPOINTS.findIndex((c) => c.id === "demo");
 const ANIMATED = ".a, .ch, .a-line, .qr-dot, .m-ch, .m-bar, .pr";
 const GLYPHS = "!<>-_\\/[]{}—=+*^?#01";
 
@@ -125,22 +136,19 @@ export function Deck() {
     };
   }, []);
 
+  // three.js reads its colour from shared state, not from CSS, so the scene
+  // and the DOM background layers are handed the same accent per checkpoint.
+  useEffect(() => {
+    sceneAccent.hex = (CHECKPOINTS[idx] ?? CHECKPOINTS[0]).accent;
+  }, [idx]);
+
   // Ambient loops. The dialogue waveforms are not here on purpose: their
-  // amplitude comes from --voice-envelope, written by LiveDemo's rAF loop.
+  // amplitude comes from --voice-envelope, written by the phone infographic.
   useEffect(() => {
     if (compact) return;
     const a = animate(".ring", { rotate: "1turn", duration: 60000, loop: true, ease: "linear" });
-    const c = animate(".pr", {
-      scale: [1, 2.2],
-      opacity: [0.8, 0],
-      duration: 2000,
-      delay: stagger(1000),
-      loop: true,
-      ease: "outQuad",
-    });
     return () => {
       a.pause();
-      c.pause();
     };
   }, [compact]);
 
@@ -268,6 +276,8 @@ export function Deck() {
     <div
       ref={root}
       className="presentation relative h-dvh w-full overflow-hidden bg-background select-none"
+      data-slide={cp.id}
+      style={{ "--slide-accent": cp.accent } as React.CSSProperties}
     >
       {!compact && <div className="grid-bg pointer-events-none absolute inset-0" />}
       {!compact && (
@@ -279,7 +289,7 @@ export function Deck() {
       )}
       {!compact && (
         <svg
-          className="ring pointer-events-none absolute left-1/2 top-1/2 -ml-[45vmin] -mt-[45vmin] h-[90vmin] w-[90vmin] text-neon opacity-20"
+          className="ring pointer-events-none absolute left-1/2 top-1/2 -ml-[45vmin] -mt-[45vmin] h-[90vmin] w-[90vmin] opacity-20"
           viewBox="0 0 200 200"
         >
           <circle
@@ -311,28 +321,42 @@ export function Deck() {
         />
       </div>
 
-      {/* HUD */}
-      <div className="presentation-hud fixed left-6 top-6 z-40 font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-        <div className="flex items-center gap-2 text-neon">
-          <span
-            className={`h-1.5 w-1.5 rounded-full ${backend.connected ? "bg-neon glow" : "bg-red-500"}`}
-          />
-          {TEAM_NAME}
-        </div>
-        <div className="mt-1">
-          CP {String(idx + 1).padStart(2, "0")}/{String(CHECKPOINTS.length).padStart(2, "0")} —{" "}
-          {backend.connected ? backend.slideLabel : cp.label}
-        </div>
-        {backend.banner && <div className="mt-1 text-amber-400">{backend.banner}</div>}
-        {paused && <div className="mt-1 text-foreground">⏸ paused</div>}
-      </div>
-      {!compact && (
-        <Transcript
-          visible={idx > 0 && idx < TECH_IDX - 1}
-          entries={backend.transcript}
-          banner={backend.banner}
+      {/*
+        Верхняя панель: знак колледжа, подпись команды, живая лента, телефон.
+        Слева направо — в том порядке, в котором ведущий читает экран, поэтому
+        ни один из четырёх элементов не прячется в углу.
+      */}
+      <header className="deck-top">
+        <img
+          src="/college-logo.svg"
+          alt="Логотип колледжа"
+          className="deck-logo"
+          width={54}
+          height={30}
         />
-      )}
+        <div className="presentation-hud font-mono">
+          <div className="flex items-center gap-2 text-neon">
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${backend.connected ? "bg-neon glow" : "bg-red-500"}`}
+            />
+            {TEAM_NAME}
+          </div>
+          <div className="mt-1">
+            CP {String(idx + 1).padStart(2, "0")}/{String(CHECKPOINTS.length).padStart(2, "0")} —{" "}
+            {backend.connected ? backend.slideLabel : cp.label}
+          </div>
+          {backend.banner && <div className="mt-1 text-amber-400">{backend.banner}</div>}
+          {paused && <div className="mt-1 text-foreground">⏸ paused</div>}
+        </div>
+        {!compact && (
+          <Transcript
+            visible={idx > 0 && idx <= TECH_IDX}
+            entries={backend.transcript}
+            banner={backend.banner}
+          />
+        )}
+        {!compact && <PhoneInfo visible={idx === DEMO_IDX || idx === TECH_IDX} />}
+      </header>
 
       <div className="presentation-nav fixed inset-x-6 bottom-6 z-40 flex gap-2">
         {CHECKPOINTS.map((c, i) => (
@@ -391,13 +415,13 @@ export function Deck() {
           <div className="w-full max-w-5xl">
             <p className="a kicker">// 01 — команда</p>
             <h2 className="a mt-4 text-6xl font-medium tracking-tight">
-              Мы — <span className="text-neon text-glow">{TEAM_NAME}</span>
+              Наша <span className="text-neon text-glow">команда</span>
             </h2>
             <div className="a-line mt-10 h-px origin-left bg-neon/50" />
             <ul className="team-list">
               {TEAM.map((m, i) => (
                 <li
-                  key={i}
+                  key={m.name}
                   className="a flex items-baseline justify-between border-b border-border py-5"
                 >
                   <span className="font-mono text-sm text-neon">
@@ -420,6 +444,9 @@ export function Deck() {
             <h2 className="a mt-6 text-7xl font-medium leading-[1.05] tracking-tight">
               {CASE_TITLE}
             </h2>
+            <p className="a mt-4 font-mono text-sm uppercase tracking-[0.25em] text-neon">
+              {CASE_OWNER} · {CASE_TRACK}
+            </p>
             <div className="a-line my-10 h-px w-40 origin-left bg-neon" />
             <p className="a max-w-2xl text-2xl leading-relaxed text-muted-foreground">
               {CASE_TEXT}
@@ -427,21 +454,14 @@ export function Deck() {
           </div>
         </Scene>
 
-        {/* 04 Tester */}
+        {/* 04 Tester — только текст: инфографика здесь была декорацией. */}
         <Scene>
-          <div className="text-center">
+          <div className="max-w-4xl text-center">
             <p className="a kicker">// 03 — нужна помощь</p>
-            <h2 className="a mx-auto mt-6 max-w-5xl text-7xl font-medium leading-[1.05] tracking-tight">
-              Нам потребуется <span className="text-neon text-glow">человек</span> для проверки
-              приложения
+            <h2 className="a mx-auto mt-6 max-w-5xl text-6xl font-medium leading-[1.08] tracking-tight">
+              Для демонстрации потребуются{" "}
+              <span className="text-neon text-glow">люди из аудитории</span>
             </h2>
-            <div className="a mt-14 flex justify-center">
-              <div className="pulse-ring relative flex h-28 w-28 items-center justify-center rounded-full border border-neon font-mono text-sm text-neon">
-                <span className="pr absolute inset-0 rounded-full border border-neon" />
-                <span className="pr absolute inset-0 rounded-full border border-neon" />
-                TEST
-              </div>
-            </div>
           </div>
         </Scene>
 
@@ -449,7 +469,7 @@ export function Deck() {
         <Scene>
           <LiveDemo
             compact={compact}
-            active={idx === TECH_IDX - 1}
+            active={idx === DEMO_IDX}
             backendEntries={backend.transcript}
           />
         </Scene>
@@ -463,10 +483,12 @@ export function Deck() {
         <Scene>
           <div className="w-full max-w-6xl">
             <p className="a kicker">// 06 — решения</p>
-            <h2 className="a mt-6 text-6xl font-medium tracking-tight">Что мы сделали</h2>
+            <h2 className="a mt-6 text-6xl font-medium tracking-tight">
+              <span className="text-neon text-glow">Решения</span>
+            </h2>
             <div className="solutions-list mt-14 grid grid-cols-3 gap-6">
               {SOLUTIONS.map((s, i) => (
-                <div key={i} className="a border border-border bg-card/50 p-8">
+                <div key={s.t} className="a border border-border bg-card/50 p-8">
                   <div className="font-mono text-sm text-neon">
                     <span data-count={i + 1}>00</span>
                   </div>
@@ -484,12 +506,10 @@ export function Deck() {
         <Scene>
           <div className="text-center">
             <p className="a kicker">// eof</p>
-            <h2 className="a mt-6 text-6xl md:text-9xl font-medium leading-none tracking-tighter">
-              Спасибо<span className="text-neon caret">_</span>
+            <h2 className="a mt-6 text-6xl md:text-8xl font-medium leading-none tracking-tighter">
+              Спасибо за внимание<span className="text-neon caret">_</span>
             </h2>
-            <p className="a mt-8 font-mono text-muted-foreground">
-              {TEAM_NAME} · [контакт / ссылка]
-            </p>
+            <p className="a mt-8 font-mono text-muted-foreground">{TEAM_NAME}</p>
           </div>
         </Scene>
       </div>

@@ -1,35 +1,48 @@
 import { Canvas, useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
-import { scrollState } from "./state";
+import { sceneAccent, scrollState } from "./state";
 
-// three.js cannot read oklch tokens; this mirrors --neon.
-const NEON = "#9dff3a";
+// three.js cannot read oklch tokens; the accent arrives from sceneAccent, which
+// the deck updates per checkpoint, and materials ease toward it.
 const STEP = 7; // world units between checkpoints
 
 function Shape({ i, children }: { i: number; children: React.ReactNode }) {
   const ref = useRef<THREE.Mesh>(null);
+  const material = useRef<THREE.MeshBasicMaterial>(null);
+  const target = useMemo(() => new THREE.Color(), []);
   const side = i % 2 === 0 ? 1 : -1;
   useFrame((_, dt) => {
     const m = ref.current;
-    if (!m) return;
+    const mat = material.current;
+    if (!m || !mat) return;
     const d = Math.min(dt, 0.05);
+    target.set(sceneAccent.hex);
+    mat.color.lerp(target, 1 - Math.exp(-3 * d));
     m.rotation.x += d * 0.25;
     m.rotation.y += d * 0.35;
     const near = 1 - Math.min(1, Math.abs(scrollState.p - i));
     const s = THREE.MathUtils.damp(m.scale.x, 0.7 + near * 0.5, 3, d);
     m.scale.setScalar(s);
-    (m.material as THREE.MeshBasicMaterial).opacity = 0.05 + near * 0.17;
+    mat.opacity = 0.05 + near * 0.17;
   });
   return (
     <mesh ref={ref} position={[side * 6, -i * STEP, -5]}>
       {children}
-      <meshBasicMaterial color={NEON} wireframe transparent opacity={0.3} />
+      <meshBasicMaterial
+        ref={material}
+        color={sceneAccent.hex}
+        wireframe
+        transparent
+        opacity={0.3}
+      />
     </mesh>
   );
 }
 
 function Particles() {
+  const material = useRef<THREE.PointsMaterial>(null);
+  const target = useMemo(() => new THREE.Color(), []);
   const geo = useMemo(() => {
     const n = 1400;
     const arr = new Float32Array(n * 3);
@@ -42,9 +55,20 @@ function Particles() {
     g.setAttribute("position", new THREE.BufferAttribute(arr, 3));
     return g;
   }, []);
+  useFrame((_, dt) => {
+    if (!material.current) return;
+    target.set(sceneAccent.hex);
+    material.current.color.lerp(target, 1 - Math.exp(-3 * Math.min(dt, 0.05)));
+  });
   return (
     <points geometry={geo}>
-      <pointsMaterial color={NEON} size={0.03} transparent opacity={0.4} />
+      <pointsMaterial
+        ref={material}
+        color={sceneAccent.hex}
+        size={0.03}
+        transparent
+        opacity={0.4}
+      />
     </points>
   );
 }
