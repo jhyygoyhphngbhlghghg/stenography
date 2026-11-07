@@ -3,12 +3,15 @@ package team.mikcoders.neurosteno.llm
 import dev.ffmpegkit.llama.Llama
 import dev.ffmpegkit.llama.LlamaConfig
 import java.io.File
+import team.mikcoders.neurosteno.pipeline.InferenceSession
 
 /** Tiny on-device GGUF completion. No cloud. */
 interface OnDeviceLlmRunner {
     val engineName: String
     val ready: Boolean
     suspend fun complete(system: String, user: String): String
+    suspend fun trimMemory() {}
+    suspend fun close() {}
 }
 
 /**
@@ -26,31 +29,33 @@ class LlamaCppGgufRunner(
     @Volatile override var ready: Boolean = false
         private set
 
-    @Volatile private var session: (suspend (String, String) -> String)? = null
+    private val session = InferenceSession(
+        create = {
+            require(gguf.isFile && gguf.length() > 0L) { "GGUF missing: ${gguf.path}" }
+            Llama.loadModel(
+                modelPath = gguf.absolutePath,
+                config = LlamaConfig(contextSize = contextSize, threads = threads),
+            ).also { ready = true }
+        },
+        destroy = { model ->
+            ready = false
+            Llama.releaseModel(model)
+        },
+    )
 
-    override suspend fun complete(system: String, user: String): String {
-        val run = session ?: openSession()
-        return run(system, user)
-    }
-
-    private suspend fun openSession(): suspend (String, String) -> String {
-        require(gguf.isFile && gguf.length() > 0L) { "GGUF missing: ${gguf.path}" }
-        val model = Llama.loadModel(
-            modelPath = gguf.absolutePath,
-            config = LlamaConfig(contextSize = contextSize, threads = threads),
-        )
-        val fn: suspend (String, String) -> String = { sys, usr ->
+    override suspend fun complete(system: String, user: String): String =
+        session.run { getModel ->
             Llama.complete(
-                model,
-                prompt = usr,
-                systemPrompt = sys,
+                getModel(),
+                prompt = user,
+                systemPrompt = system,
                 maxTokens = maxTokens,
             ).text.trim()
         }
-        session = fn
-        ready = true
-        return fn
-    }
+
+    override suspend fun trimMemory() = session.evict()
+
+    override suspend fun close() = session.close()
 }
 
 /** Test double — still the GGUF post-pass path, not identity. */

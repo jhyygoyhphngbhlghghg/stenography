@@ -1,10 +1,15 @@
 package team.mikcoders.neurosteno.ui
 
 import android.app.Application
+import android.content.ComponentCallbacks2
 import android.content.Intent
+import android.content.res.Configuration
 import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -91,8 +96,48 @@ class StenoViewModel(app: Application) : AndroidViewModel(app) {
     )
     val state: StateFlow<StenoUiState> = _state
     private val mic = MicRecorder()
+    private val memoryCallbacks = object : ComponentCallbacks2 {
+        override fun onConfigurationChanged(newConfig: Configuration) = Unit
+        override fun onLowMemory() = trimModels()
+        override fun onTrimMemory(level: Int) {
+            if (level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW) trimModels()
+        }
+    }
+
+    private fun trimModels() {
+        viewModelScope.launch {
+            try {
+                pipeline.trimMemory()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Throwable) {
+                Log.w("StenoViewModel", "Native model eviction failed", failure)
+            }
+        }
+    }
+
+    override fun onCleared() {
+        getApplication<Application>().unregisterComponentCallbacks(memoryCallbacks)
+        val retiringPipeline = pipeline
+        val retiringClient = presentClient
+        // viewModelScope is cancelled at this point. Teardown must outlive it,
+        // wait for JNI to return, and never block the main thread.
+        CoroutineScope(Dispatchers.Default).launch {
+            try {
+                try {
+                    retiringClient?.disconnect()
+                } finally {
+                    retiringPipeline.close()
+                }
+            } catch (failure: Throwable) {
+                Log.w("StenoViewModel", "Native model teardown failed", failure)
+            }
+        }
+        super.onCleared()
+    }
 
     init {
+        app.registerComponentCallbacks(memoryCallbacks)
         viewModelScope.launch {
             val created = withContext(Dispatchers.IO) { PipelineFactory.create(getApplication()) }
             pipeline = created.first
@@ -242,13 +287,14 @@ class StenoViewModel(app: Application) : AndroidViewModel(app) {
 
     fun transcribe() {
         val label = _state.value.fileLabel ?: "mic-or-unknown"
-        if (_state.value.running) return
+        if (_state.value.running || _state.value.modelsLoading) return
+        val request = _state.value
         viewModelScope.launch {
             _state.update { it.copy(running = true, error = null, progress = PipelineProgress(PipelineStage.Decode, "start", 0f)) }
             try {
                 val audio = withContext(Dispatchers.Default) {
-                    val held = _state.value.heldPcm
-                    val uriStr = _state.value.importedUri
+                    val held = request.heldPcm
+                    val uriStr = request.importedUri
                     when {
                         held != null && uriStr == null -> held
                         uriStr != null -> AudioDecoder.decode(getApplication(), Uri.parse(uriStr), label)
@@ -259,7 +305,7 @@ class StenoViewModel(app: Application) : AndroidViewModel(app) {
                         )
                     }
                 }
-                val prep = DemoPcmPrep.prepare(audio)
+                val prep = withContext(Dispatchers.Default) { DemoPcmPrep.prepare(audio) }
                 if (prep.skipAsr) {
                     _state.update {
                         it.copy(
@@ -294,6 +340,9 @@ class StenoViewModel(app: Application) : AndroidViewModel(app) {
                         llmOnDevice = pipeline.llmIsOnDevice,
                     )
                 }
+            } catch (cancelled: CancellationException) {
+                _state.update { it.copy(running = false) }
+                throw cancelled
             } catch (t: Throwable) {
                 _state.update {
                     it.copy(running = false, error = t.message ?: t::class.java.simpleName)

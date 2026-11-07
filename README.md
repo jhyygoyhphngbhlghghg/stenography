@@ -80,7 +80,7 @@ to `src/android/local.properties` and set `sdk.dir` (that file is gitignored).
 
 ```bash
 cd src/android
-./gradlew :app:testStenographerDebugUnitTest    # 110 JVM unit tests, 20 classes
+./gradlew :app:testStenographerDebugUnitTest    # 126 JVM unit tests, 21 classes
 ./gradlew :app:assembleStenographerDebug         # check APK: ASR+VAD+diar inside
 ./gradlew :app:assembleStenographerSlim          # same app, no weights (UX karma)
 ./gradlew :app:assemblePresentConnectDebug       # optional network worker

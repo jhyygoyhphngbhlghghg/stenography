@@ -15,6 +15,8 @@ import com.k2fsa.sherpa.onnx.SileroVadModelConfig
 import com.k2fsa.sherpa.onnx.SpeakerEmbeddingExtractorConfig
 import com.k2fsa.sherpa.onnx.Vad
 import com.k2fsa.sherpa.onnx.VadModelConfig
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import team.mikcoders.neurosteno.audio.FarFieldGain
 import team.mikcoders.neurosteno.audio.FarFieldVad
 import team.mikcoders.neurosteno.audio.Pcm
@@ -46,10 +48,29 @@ class SherpaStenoPipeline(
     override val llmDisplayName: String = llm.displayName
     override val llmIsOnDevice: Boolean = llm.isOnDeviceLlm
 
+    private val inference = InferenceSession(
+        create = { createRecognizer() },
+        destroy = { it.release() },
+    )
+
+    override suspend fun trimMemory() {
+        inference.evict { llm.trimMemory() }
+    }
+
+    override suspend fun close() {
+        try {
+            inference.close()
+        } finally {
+            llm.close()
+        }
+    }
+
     override suspend fun transcribe(
         audio: PcmAudio,
         onProgress: (PipelineProgress) -> Unit,
-    ): TranscriptFile {
+    ): TranscriptFile = inference.run { getRecognizer ->
+        val context = currentCoroutineContext()
+        fun checkpoint() = context.ensureActive()
         require(audio.sampleRate == Pcm.TARGET_HZ) { "need 16 kHz PCM" }
         onProgress(PipelineProgress(PipelineStage.Decode, "PCM ${audio.samples.size} samples", 0.05f))
 
@@ -72,39 +93,35 @@ class SherpaStenoPipeline(
                 0.18f,
             ),
         )
-        val silero = if (paths.hasVad) collectSilero(work) else emptyList()
+        checkpoint()
+        val silero = if (paths.hasVad) collectSilero(work, ::checkpoint) else emptyList()
         val regions = FarFieldVad.union(energy, silero)
 
-        val recognizer = createRecognizer()
-        try {
-            val raw = if (paths.hasDiar) {
-                onProgress(PipelineProgress(PipelineStage.Diarize, "OfflineSpeakerDiarization K=${scene.expectedSpeakers}", 0.25f))
-                diarizeThenAsr(work, regions, recognizer, onProgress)
-            } else {
-                onProgress(PipelineProgress(PipelineStage.Vad, "Silero VAD chunks", 0.25f))
-                vadThenAsr(work, recognizer, onProgress)
+        val raw = if (paths.hasDiar) {
+            onProgress(PipelineProgress(PipelineStage.Diarize, "OfflineSpeakerDiarization K=${scene.expectedSpeakers}", 0.25f))
+            // Release segmentation/embedding sessions before loading the cold
+            // ASR model. Subsequent calls may reuse one warm ASR model.
+            val segments = diarize(work, regions)
+            checkpoint()
+            if (segments.isEmpty()) emptyList() else {
+                transcribeSegments(work, segments, getRecognizer(), onProgress, ::checkpoint)
             }
-            onProgress(
-                PipelineProgress(
-                    PipelineStage.Llm,
-                    llm.displayName,
-                    0.92f,
-                ),
-            )
-            val cleaned = llm.cleanup(raw)
-            onProgress(PipelineProgress(PipelineStage.Done, "${cleaned.size} utterances", 1f))
-            return TranscriptFile(transcript = cleaned.sortedBy { it.startMs })
-        } finally {
-            recognizer.release()
+        } else {
+            onProgress(PipelineProgress(PipelineStage.Vad, "Silero VAD chunks", 0.25f))
+            vadThenAsr(work, getRecognizer(), onProgress, ::checkpoint)
         }
+        checkpoint()
+        onProgress(PipelineProgress(PipelineStage.Llm, llm.displayName, 0.92f))
+        val cleaned = llm.cleanup(raw)
+        checkpoint()
+        onProgress(PipelineProgress(PipelineStage.Done, "${cleaned.size} utterances", 1f))
+        TranscriptFile(transcript = cleaned.sortedBy { it.startMs })
     }
 
-    private fun diarizeThenAsr(
+    private fun diarize(
         audio: PcmAudio,
         vadRegions: List<SpeechRegion>,
-        recognizer: OfflineRecognizer,
-        onProgress: (PipelineProgress) -> Unit,
-    ): List<Utterance> {
+    ): List<DiarSeg> {
         val diar = createDiarizer()
         try {
             val segs = diar.process(audio.samples)
@@ -115,42 +132,52 @@ class SherpaStenoPipeline(
                     endMs = (s.end * 1000).toLong(),
                 )
             }
-            val reconciled = VadDiarReconcile.run(
+            return VadDiarReconcile.run(
                 vadRegions,
                 mapped,
                 audio.sampleRate,
                 scene,
                 samples = audio.samples,
             )
-            val out = ArrayList<Utterance>(reconciled.size)
-            reconciled.forEachIndexed { i, seg ->
-                onProgress(
-                    PipelineProgress(
-                        PipelineStage.Asr,
-                        "ASR ${i + 1}/${reconciled.size} ${seg.speakerId}",
-                        0.3f + 0.6f * (i + 1) / reconciled.size.coerceAtLeast(1),
-                    ),
-                )
-                val pad = scene.asrCropPadMs
-                val crop = crop(audio.samples, audio.sampleRate, seg.startMs - pad, seg.endMs + pad)
-                val stagedCrop = FarFieldGain.stage(crop)
-                val text = asr(recognizer, stagedCrop.samples, audio.sampleRate)
-                if (text.isNotBlank()) {
-                    out += Utterance(
-                        speakerId = seg.speakerId,
-                        startMs = seg.startMs,
-                        endMs = seg.endMs,
-                        text = text,
-                    )
-                }
-            }
-            return out
         } finally {
             diar.release()
         }
     }
 
-    private fun collectSilero(audio: PcmAudio): List<SpeechRegion> {
+    private fun transcribeSegments(
+        audio: PcmAudio,
+        reconciled: List<DiarSeg>,
+        recognizer: OfflineRecognizer,
+        onProgress: (PipelineProgress) -> Unit,
+        checkpoint: () -> Unit,
+    ): List<Utterance> {
+        val out = ArrayList<Utterance>(reconciled.size)
+        reconciled.forEachIndexed { i, seg ->
+            checkpoint()
+            onProgress(
+                PipelineProgress(
+                    PipelineStage.Asr,
+                    "ASR ${i + 1}/${reconciled.size} ${seg.speakerId}",
+                    0.3f + 0.6f * (i + 1) / reconciled.size.coerceAtLeast(1),
+                ),
+            )
+            val pad = scene.asrCropPadMs
+            val crop = crop(audio.samples, audio.sampleRate, seg.startMs - pad, seg.endMs + pad)
+            val stagedCrop = FarFieldGain.stage(crop)
+            val text = asr(recognizer, stagedCrop.samples, audio.sampleRate)
+            if (text.isNotBlank()) {
+                out += Utterance(
+                    speakerId = seg.speakerId,
+                    startMs = seg.startMs,
+                    endMs = seg.endMs,
+                    text = text,
+                )
+            }
+        }
+        return out
+    }
+
+    private fun collectSilero(audio: PcmAudio, checkpoint: () -> Unit): List<SpeechRegion> {
         val vad = createVad()
         try {
             val window = 512
@@ -158,6 +185,7 @@ class SherpaStenoPipeline(
             val samples = audio.samples
             val out = ArrayList<SpeechRegion>()
             while (offset + window <= samples.size) {
+                checkpoint()
                 vad.acceptWaveform(samples.copyOfRange(offset, offset + window))
                 offset += window
                 drainSilero(vad, out)
@@ -189,6 +217,7 @@ class SherpaStenoPipeline(
         audio: PcmAudio,
         recognizer: OfflineRecognizer,
         onProgress: (PipelineProgress) -> Unit,
+        checkpoint: () -> Unit,
     ): List<Utterance> {
         if (!paths.hasVad) {
             onProgress(PipelineProgress(PipelineStage.Asr, "ASR whole file (no VAD)", 0.5f))
@@ -204,6 +233,7 @@ class SherpaStenoPipeline(
             val out = ArrayList<Utterance>()
             var idx = 0
             while (offset + window <= samples.size) {
+                checkpoint()
                 vad.acceptWaveform(samples.copyOfRange(offset, offset + window))
                 offset += window
                 while (!vad.empty()) {
@@ -220,6 +250,7 @@ class SherpaStenoPipeline(
             }
             vad.flush()
             while (!vad.empty()) {
+                checkpoint()
                 val seg = vad.front()
                 vad.pop()
                 val startMs = (seg.start.toDouble() / audio.sampleRate * 1000).toLong()

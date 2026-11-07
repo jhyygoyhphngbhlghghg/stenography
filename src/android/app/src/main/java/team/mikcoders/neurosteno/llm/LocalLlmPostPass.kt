@@ -1,5 +1,8 @@
 package team.mikcoders.neurosteno.llm
 
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import team.mikcoders.neurosteno.export.Utterance
 import java.io.File
 
@@ -19,6 +22,8 @@ interface LocalLlmPostPass {
     val displayName: String
 
     suspend fun cleanup(utterances: List<Utterance>): List<Utterance>
+    suspend fun trimMemory() {}
+    suspend fun close() {}
 }
 
 class IdentityLlmPostPass : LocalLlmPostPass {
@@ -72,11 +77,15 @@ class GgufLlmPostPass(
     override val isOnDeviceLlm: Boolean = true
     override val displayName: String = runner.engineName
 
+    override suspend fun trimMemory() = runner.trimMemory()
+    override suspend fun close() = runner.close()
+
     override suspend fun cleanup(utterances: List<Utterance>): List<Utterance> {
         if (!weightsPresent) {
             return HeuristicPunctuationPostPass.applyIntonation(utterances)
         }
         return utterances.mapIndexed { i, u ->
+            currentCoroutineContext().ensureActive()
             val nextGap = if (i + 1 < utterances.size) {
                 (utterances[i + 1].startMs - u.endMs).coerceAtLeast(0L)
             } else {
@@ -84,6 +93,8 @@ class GgufLlmPostPass(
             }
             val candidate = try {
                 runner.complete(SYSTEM, userPrompt(u.text, nextGap))
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (_: Throwable) {
                 null
             }

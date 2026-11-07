@@ -4,7 +4,7 @@ Built 2026-11-07 on this machine (gradle 8.11.1, AGP 8.7.3, compileSdk 35,
 JDK 21). `.apk` files are gitignored — binaries do not go into the git tree;
 the hand-in publishes them as Release assets:
 **[v0.1.0-stage6](https://github.com/jhyygoyhphngbhlghghg/stenography/releases/tag/v0.1.0-stage6)**
-(with `v0.1.0-stage6` pointing at the pushed `main`).
+(the pre-runtime-optimization hand-in snapshot; the tag is not moved by later commits).
 
 
 | file | bytes | MiB | sha256 | what it is |
@@ -13,6 +13,18 @@ the hand-in publishes them as Release assets:
 | `app-stenographer-debug-embedLlm.apk` | 573 498 719 | 546.9 | `f89bc45a318507b462a508ac493c38a3c5045954a814ade93d638ad226ea3678` | same app, plus the 352 969 408-byte Qwen2-0.5B-Instruct Q4_0 GGUF (8 files, 472 435 459 asset bytes). This is the artifact that satisfies «локальная LLM» with nothing else pushed to the phone. Build with `-PembedLlm=true`. |
 | `app-presentConnect-debug.apk` | 220 401 103 | 210.2 | `b9afd39f4ee9c7bd80b282e882df792fa911c0e935605285ee57e3490f980d83` | Path B flavor (`applicationIdSuffix .present`), ≤20 per-stream workers. Optional mode, not the defense claim. |
 | `app-stenographer-slim.apk` | 97 599 021 | 93.1 | `6c52e259647d300fccf15216e2d8b188f71bd415f4e716d388b5b85eeae78311` | `assembleStenographerSlim`, no weights. Small download, needs models pushed before it can transcribe — UX karma only, **not** the check APK. |
+
+## Local runtime-optimized candidate (2026-11-07)
+
+`app-stenographer-runtime-embedLlm.apk` contains the serialized warm ASR/GGUF
+session implementation and all eight unchanged model assets. Size
+573 498 719 B; SHA-256
+`f80d8ab14ed5fc7d2f5612b3448b562dad0a88835aab5cc6fa574e5fccb6b377`.
+APK v2 signature, embedded model hashes, DEX content and 126 JVM tests per
+flavor were checked. No phone execution has run. This is a **local candidate**,
+not an uploaded release replacement; see
+[verification.json](../artifacts/optimization/verification.json). It retains
+the existing package/version, so identify this build by the filename/hash.
 
 ## Which one to install
 

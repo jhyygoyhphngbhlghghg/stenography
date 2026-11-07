@@ -1,5 +1,6 @@
 package team.mikcoders.neurosteno.llm
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -51,6 +52,44 @@ class GgufLlmPostPassTest {
         assertEquals("speaker_1", out.speakerId)
         val json = TranscriptJson.encode(TranscriptFile(listOf(out)))
         assertTrue(TranscriptJson.matchesBriefShape(json))
+    }
+
+    @Test
+    fun cancellationStopsLaterUtterancesInsteadOfUsingHeuristics() = runBlocking {
+        var calls = 0
+        val runner = object : OnDeviceLlmRunner {
+            override val ready = true
+            override val engineName = "test"
+            override suspend fun complete(system: String, user: String): String {
+                calls++
+                throw CancellationException("cancelled")
+            }
+        }
+        val pass = GgufLlmPostPass(gguf(), runner)
+        try {
+            pass.cleanup(List(3) { Utterance("speaker_1", 0, 1_000, "Текст") })
+            org.junit.Assert.fail("cancellation was swallowed")
+        } catch (_: CancellationException) {
+            assertEquals(1, calls)
+        }
+    }
+
+    @Test
+    fun memoryAndLifecycleSignalsReachTheNativeOwner() = runBlocking {
+        var trims = 0
+        var closes = 0
+        val runner = object : OnDeviceLlmRunner {
+            override val ready = true
+            override val engineName = "test"
+            override suspend fun complete(system: String, user: String) = user
+            override suspend fun trimMemory() { trims++ }
+            override suspend fun close() { closes++ }
+        }
+        val pass = GgufLlmPostPass(gguf(), runner)
+        pass.trimMemory()
+        pass.close()
+        assertEquals(1, trims)
+        assertEquals(1, closes)
     }
 
     @Test
