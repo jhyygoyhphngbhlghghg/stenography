@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import test from 'node:test';
 import WebSocket from 'ws';
 import { startServer, type RunningServer } from './harness.ts';
@@ -43,15 +46,15 @@ async function json(base: string, path: string, init?: RequestInit) {
   return { status: response.status, body, headers: response.headers, text };
 }
 
-test('serves the deck and blocks path traversal', async (t) => {
-  const server: RunningServer = await startServer({ ADMIN_TOKEN: ADMIN });
+test('serves the built-in deck when the React build is absent, and blocks path traversal', async (t) => {
+  const server: RunningServer = await startServer({ ADMIN_TOKEN: ADMIN, PRESENT_DIR: '/nonexistent-deck-build' });
   t.after(() => server.stop());
 
   const root = await json(server.base, '/');
   assert.equal(root.status, 200);
   assert.match(root.text, /НЕЙРО-СТЕНОГРАФИСТ/);
 
-  for (const asset of ['/css/style.css', '/js/deck.js', '/vendor/anime.js', '/presenter', '/join']) {
+  for (const asset of ['/css/style.css', '/js/deck.js', '/vendor/anime.js', '/presenter', '/join', '/stage']) {
     const response = await fetch(server.base + asset);
     assert.equal(response.status, 200, `${asset} should be served`);
     await response.arrayBuffer();
@@ -78,6 +81,54 @@ test('serves the deck and blocks path traversal', async (t) => {
   const health = await json(server.base, '/v1/health');
   assert.equal(health.status, 200);
   assert.equal((health.body as { ok: boolean }).ok, true);
+});
+
+test('the built React deck takes / and the built-in deck stays at /deck-legacy', async (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'present-build-'));
+  mkdirSync(join(dir, 'assets'));
+  writeFileSync(join(dir, '_shell.html'), '<!doctype html><html><body>REACT_DECK_SHELL</body></html>');
+  writeFileSync(join(dir, 'assets', 'index.js'), 'console.log("deck")');
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+
+  const server: RunningServer = await startServer({ ADMIN_TOKEN: ADMIN, PRESENT_DIR: dir });
+  t.after(() => server.stop());
+
+  const root = await json(server.base, '/');
+  assert.equal(root.status, 200);
+  assert.match(root.text, /REACT_DECK_SHELL/);
+
+  // The deck's own hashed assets come from the build dir.
+  const asset = await fetch(server.base + '/assets/index.js');
+  assert.equal(asset.status, 200);
+  assert.match(await asset.text(), /console\.log\("deck"\)/);
+
+  // Join and stage are audience routes: the React deck, not the legacy one.
+  for (const route of ['/join', '/stage']) {
+    const response = await fetch(server.base + route);
+    assert.match(await response.text(), /REACT_DECK_SHELL/, `${route} should show the React deck`);
+  }
+
+  // The built-in deck and the console stay reachable from publicDir.
+  const legacy = await json(server.base, '/deck-legacy');
+  assert.equal(legacy.status, 200);
+  assert.match(legacy.text, /НЕЙРО-СТЕНОГРАФИСТ/);
+  for (const asset of ['/js/deck.js', '/css/style.css', '/presenter']) {
+    const response = await fetch(server.base + asset);
+    assert.equal(response.status, 200, `${asset} should still be served`);
+    await response.arrayBuffer();
+  }
+
+  // Traversal is blocked against both roots.
+  for (const attack of ['/../backend/package.json', '/assets/../../backend/src/server.ts', '/../../etc/passwd']) {
+    const response = await fetch(server.base + attack);
+    const text = await response.text();
+    assert.ok(
+      response.status === 403 || text.startsWith('<!doctype') || text.includes('REACT_DECK_SHELL'),
+      `${attack} leaked content (status ${response.status}): ${text.slice(0, 80)}`,
+    );
+    assert.ok(!text.includes('"scripts"'), `${attack} leaked package.json`);
+    assert.ok(!text.includes('import http'), `${attack} leaked server source`);
+  }
 });
 
 test('presenter commands are authenticated and drive checkpoints', async (t) => {
