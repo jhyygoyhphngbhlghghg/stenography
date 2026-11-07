@@ -26,6 +26,21 @@ class LlamaCppGgufRunner(
 ) : OnDeviceLlmRunner {
     override val engineName: String = "llama.cpp GGUF ${gguf.name}"
 
+    /**
+     * prompts longer than this are skipped for the GGUF: a very long utterance
+     * would overflow the small context (ctx 1024) and at best waste time,
+     * at worst abort the llama.cpp context. Kotlin estimate: Russian text
+     * tokenizes to roughly 3 chars/token, punctuation-less ASR output is
+     * dense, so 2 chars/token is a conservative lower bound for skip length —
+     * prompts under it stay comfortably inside ctx.
+     */
+    internal val promptSkipChars: Int = (contextSize - maxTokens - NEAR_HEADROOM_TOKENS) * CHARS_PER_TOKEN
+
+    companion object {
+        const val CHARS_PER_TOKEN = 2
+        const val NEAR_HEADROOM_TOKENS = 96
+    }
+
     @Volatile override var ready: Boolean = false
         private set
 
@@ -43,8 +58,15 @@ class LlamaCppGgufRunner(
         },
     )
 
-    override suspend fun complete(system: String, user: String): String =
-        session.run { getModel ->
+    override suspend fun complete(system: String, user: String): String {
+        // Skip GGUF for prompts the small context cannot hold: throwing here
+        // routes every caller to the heuristic punctuation fallback. The
+        // measured native failure mode ({"error":"decode failed"}) is
+        // catchable, but skipping costs nothing and cannot poison a session.
+        require(user.length + system.length < promptSkipChars) {
+            "prompt too long for GGUF context: ${user.length} chars (skip > $promptSkipChars)"
+        }
+        return session.run { getModel ->
             Llama.complete(
                 getModel(),
                 prompt = user,
@@ -52,6 +74,7 @@ class LlamaCppGgufRunner(
                 maxTokens = maxTokens,
             ).text.trim()
         }
+    }
 
     override suspend fun trimMemory() = session.evict()
 

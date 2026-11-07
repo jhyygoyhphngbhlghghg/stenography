@@ -1,0 +1,72 @@
+{
+  "test_id": "LDPPLAYER_REAL_PIPELINE_CHECK",
+  "date": "2026-11-07",
+  "commit": "3af1e5a",
+  "status": "measured-on-emulator-arm-translation",
+  "device": {
+    "product": "SOV44",
+    "android": 14,
+    "sdk": 34,
+    "primary_abi": "x86_64",
+    "abilist": "x86_64,arm64-v8a,x86,armeabi-v7a,armeabi",
+    "ram_kb": 6086764,
+    "cpus": 6,
+    "note": "arm64 code runs through LDPlayer ARM translation; translation overhead is included in wall times"
+  },
+  "fixture": {
+    "path": "artifacts/compact/build/stage6_sequential.wav",
+    "sha256": "53f8e0c551ec3142af6c895b5aae853f6c7eabb34ded2f9505278e2d4733a4a5",
+    "construction": "six committed excerpts concatenated with 400 ms silence gaps in gold order; NOT the frozen room mix and NOT far-field proof",
+    "duration_ms": 42468,
+    "speakers": 6
+  },
+  "model_hashes_matched_host_to_device": {
+    "encoder_int8_onnx_prepared": "22842904d2439df2a52d29a7072e604595f90dcd70b6422a41fe30f303f6206a",
+    "decoder_onnx": "dcbe1ffa0211e77ca6d3a80164df13fbda3ec00e47d12b9f449f89572df12136",
+    "joiner_int8_onnx": "93f2e1d12b78d53e7802f1606488c14bb3d764b15fadf5ef6c022f6ba1fa40f7",
+    "tokens_txt": "93bbbc0bae6b78c0bbb743d4aa9fded3bb5ff3aac5f0200e3a769a5a05e0fdf6",
+    "silero_vad_onnx": "9e2449e1087496d8d4caba907f23e0bd3f78d91fa552479bb9c23ac09cbb1fd6",
+    "segmentation_onnx": "220ad67ca923bef2fa91f2390c786097bf305bceb5e261d4af67b38e938e1079",
+    "embedding_onnx": "1a331345f04805badbb495c775a6ddffcdd1a732567d5ec8b3d5749e3c7a5e4b",
+    "qwen2_0_5b_instruct_q4_0_gguf": "aca679832ded61145239ce7f5c5ebddb1c57ada786c9c23733899c3888e0596f"
+  },
+  "encoder_ab_original_vs_prepared": {
+    "identical_transcripts": true,
+    "parsed_encoders_equal": true,
+    "difference": "Segment labels differed only in speaker numbering for the last turn (prepared speaker_5 vs original speaker_6); timestamps and all text were byte-identical. Hot A/B control runs were later found to reuse an older installed build, so no decoder claim is drawn from those; the clean comparison is this rerun on the last successful APK where the flag was confirmed.",
+    "host_preparation_validation": "artifacts/compact/encoder-validation.json"
+  },
+  "pipeline_asr_only_no_llm": {
+    "utterances": 4,
+    "hyp_speakers": 4,
+    "wall_s": 23.657,
+    "rtf": 0.5571,
+    "stage_ms": {
+      "decode": 7,
+      "vad": 88,
+      "diarize": 1146,
+      "asr_first_crop_done": 21901,
+      "asr_sixth_crop_done": 23176,
+      "llm_stage_started": 23613,
+      "done": 23648
+    },
+    "peak_pss_mb": 244.253,
+    "pss_start_kb": 140451,
+    "transcript": "artifacts/compact/build/ldplayer-prepared-nollm-final-transcript.json",
+    "quality": "turn fragmentation: only 4 of 6 turns emitted and crops split first turns into ~1.3 s pieces, so ASR saw partial speech and produced garbage fragments",
+    "note": "same fragmented boundaries with original and prepared encoders; root cause is frozen gain/VAD/reconcile on this reconstructed clean fixture, not encoder preparation"
+  },
+  "pipeline_full_with_llm": {
+    "runs": 2,
+    "run0": {
+      "wall_s": 349.623,
+      "rtf": 8.2326,
+      "asr_done_s": 19.471,
+      "llm_phase_s": 330.152,
+      "peak_pss_mb": 399.547,
+      "utterances": 4
+    },
+    "inference_verdict": "real llama.cpp GGUF inference executed on device: the LLM phase advanced and completed after ~330 s under ARM translation, and the final transcript changed (observed plus-sign and quotations) — proof it ran; quality on this fixture is poor because crops were already fragmented",
+    "note": "5.8-minute cold run reflects LDPlayer ARM translation plus GGUF load/generation, not a real phone timing claim"
+  }
+}
