@@ -1,0 +1,61 @@
+{
+  "test_id": "INFERENCE_SESSION_LIFECYCLE",
+  "date": "2026-11-07",
+  "baseline_commit": "8eb4bb5",
+  "status": "host-and-build-verified",
+  "android_device_execution": false,
+  "adb_devices": [],
+  "gguf_executed": false,
+  "full_stage6_gate_remeasured": false,
+  "tests": {
+    "stenographer_jvm": {"tests": 126, "classes": 21, "failures": 0, "errors": 0, "skipped": 0},
+    "present_connect_jvm": {"tests": 126, "classes": 21, "failures": 0, "errors": 0, "skipped": 0},
+    "python_scripts": {"tests": 61, "failures": 0},
+    "python_a12": {"tests": 18, "failures": 0}
+  },
+  "benchmark": {
+    "path": "artifacts/optimization/asr-runtime.json",
+    "scope": "ASR only on six committed oracle time excerpts, not end-to-end pipeline latency or diarization quality",
+    "repeats": 5,
+    "one_recognizer_at_a_time": true,
+    "cold_definition": "new ONNX sessions; OS file cache may be warm",
+    "median_cold_ms": 1852.6659999997719,
+    "median_warm_ms": 603.8160000007338,
+    "speedup": 3.0682625170540705,
+    "input_and_model_fingerprints_verified": true,
+    "text_tokens_timestamps_identical": true,
+    "medians_and_edit_totals_recomputed": true,
+    "decoder_ablation": {
+      "greedy_edits": 35,
+      "beam4_edits": 35,
+      "reference_tokens_including_punctuation": 68,
+      "production_decoder_changed": false
+    }
+  },
+  "apks": [
+    {
+      "path": "apk/app-stenographer-runtime-embedLlm.apk",
+      "bytes": 573498719,
+      "sha256": "f80d8ab14ed5fc7d2f5612b3448b562dad0a88835aab5cc6fa574e5fccb6b377",
+      "signature_v2_verified": true,
+      "model_assets_matched_by_sha256": 8,
+      "inference_session_present_in_dex": true
+    },
+    {
+      "path": "src/android/app/build/outputs/apk/presentConnect/slim/app-presentConnect-slim.apk",
+      "bytes": 97629501,
+      "sha256": "925f537f538bc97e5f8938c6c257f66dbc7c53d2c5a97af6d96f9e096db6da6e",
+      "model_assets": 0,
+      "inference_session_present_in_dex": true
+    }
+  ],
+  "commands": [
+    "JAVA_HOME=\"C:/Program Files/Java/jdk-21\" bash src/android/gradlew -p src/android :app:testStenographerDebugUnitTest :app:testPresentConnectDebugUnitTest --console=plain",
+    ".venv/Scripts/python.exe scripts/benchmark_asr_runtime.py --repeats 5 --out artifacts/optimization/asr-runtime.json",
+    ".venv/Scripts/python.exe -m unittest discover -s scripts -p 'test_*.py'",
+    ".venv/Scripts/python.exe -m unittest discover -s eval/metrics -p 'test_*.py'",
+    "JAVA_HOME=\"C:/Program Files/Java/jdk-21\" bash src/android/gradlew -p src/android :app:assembleStenographerDebug :app:assemblePresentConnectSlim -PembedLlm=true --console=plain",
+    "java -jar C:/Users/KMService/Android/Sdk/win/build-tools/35.0.0/lib/apksigner.jar verify --verbose src/android/app/build/outputs/apk/stenographer/debug/app-stenographer-debug.apk",
+    "C:/Users/KMService/Android/Sdk/win/platform-tools/adb.exe devices"
+  ]
+}

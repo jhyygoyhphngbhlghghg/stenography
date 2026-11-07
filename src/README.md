@@ -17,5 +17,5 @@ src/android/
 
 Сборка: см. корневой `README.md` и `docs/INSTALL.md`.
 
-Тесты: `./gradlew :app:testStenographerDebugUnitTest` (110 JVM-тестов, 20 классов).
+Тесты: `./gradlew :app:testStenographerDebugUnitTest` (126 JVM-тестов, 21 класс).
 Модули и что из какой ветки приехало — `docs/ARCHITECTURE.md`.

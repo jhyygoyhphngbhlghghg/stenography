@@ -23,7 +23,8 @@
 - `intonation_punct.py` — Python mirror of Impl `IntonationPunct.kt` @ `3c3f9ce`: ADD spoken commas (greeting/vocative/discourse/contrast) + terminal; never strip; fold ё→е. GGUF candidate optional.
 - `test_vad_diar_reconcile.py` — twelveVadIslandsNeverInventSpeakerSeven (unique 6); near seat not swallowed.
 - `test_intonation_punct.py` — punctless Zipformer accepts added intonation punct; never strips.
-- `host_asr_diar.py` — Zipformer-ru + OfflineSpeakerDiarization on Linux Python. `impl_second_pass` runs reconcile + IntonationPunct.
+- `host_asr_diar.py` — Zipformer-ru + OfflineSpeakerDiarization on Linux Python. `impl_second_pass` runs the historical `3c3f9ce` reconcile + IntonationPunct, not the current Android reconciliation implementation.
+- `benchmark_asr_runtime.py` — host-only ASR lifecycle/decoder ablation on the six committed STAGE6 oracle time excerpts. Five alternating new-session/warm-session trials, exact text/token/timestamp parity, greedy vs beam-4, input/model SHA-256, no signal changes. Requires `sherpa-onnx==2.0.1` and `numpy`; `--repeats 5 --out artifacts/optimization/asr-runtime.json`. Not the full frozen gate, Android latency, or diarization quality.
 - `eval_demo_stress.py` — DER/JER/purity + main-speaker WER + RTF; pending/blocked if inference cannot run.
 - `eval_metrics.py` — DER/JER/purity + WER. Hex.Team lock: keep `,` `.` `?` `!`; fold ё→е.
 - `test_eval_metrics.py` — unit checks of the metric code (not clip scores).

@@ -368,6 +368,8 @@ Dry WER=1.0 was eSpeak out-of-domain (hyp text `с`), not only overlap. REAL dry
 
 ## Сборка и самопроверка на смерженном дереве (2026-11-07, эта машина)
 
+Исторический snapshot до runtime-оптимизации; новые проверки приведены ниже.
+
 Все строки выше — хостовые замеры Eval-трека. Здесь — что проверено при
 сборке смерженного `main` (Windows, JDK 21.0.4, gradle 8.11.1, AGP 8.7.3,
 compileSdk 35, build-tools 35.0.0). Команды повторяемые.
@@ -431,3 +433,66 @@ JER, purity, WER_main, WER aggregate, RTF. Фикстура и gold не тро�
 - GGUF на хосте не исполнялся (arm64-only биндинг), поэтому в таблице
   `DEMO_STAGE6_impl_hardcap6` пунктуация — эвристика `IntonationPunct`, и в
   заголовке замера это помечено `gguf-missing`.
+
+## Runtime: повторное использование native-сессий (2026-11-07)
+
+Изменение относительно `8eb4bb5`: один лениво загружаемый ASR-распознаватель
+на pipeline, новые stream-объекты на каждый crop. `InferenceSession` сериализует
+весь вызов; DSP и native-инференс выполняются вне UI-потока. На холодном пути
+сессии diarization освобождаются **до** создания ASR. GGUF тоже имеет
+сериализованное владение и явный `Llama.releaseModel`. При memory pressure
+кэши весов очищаются между транзакциями; закрытие ждёт активного вызова JNI.
+Отмена не проглатывается LLM-фолбэком. Кэша готовых расшифровок нет.
+
+**Область замера ограничена:** Windows host, sherpa-onnx Python 2.0.1, CPU,
+2 потока, 5 повторов с чередованием cold/warm, один живой recognizer в каждом
+условии. Вход — шесть закоммиченных mix-excerpts из `artifacts/demo-stage6-handoff/`
+с известными границами, суммарно 40.068 с (включая повторяющиеся 200 мс перекрытия).
+Полного `DEMO_STAGE6.wav` здесь нет. Это **не** новая строка полного frozen gate,
+не Android RTF и не end-to-end latency. Никакой diarization/LLM в этом
+микробенчмарке нет; к PCM не добавлялись gain/EQ. Cold = создание новых ONNX
+сессий, а не сброшенный файловый кэш ОС или первый запуск APK.
+
+| ASR lifecycle | медиана, мс |
+|---|---:|
+| новый recognizer + decode всех шести excerpts | 1852.666 |
+| прогретый recognizer + новый decode тех же excerpts | 603.816 |
+| отношение cold/warm | **3.068×** |
+
+Текст, tokens и timestamps совпали точно во всех проверках. SHA-256 каждого
+входа, четырёх ASR-файлов и скрипта, отдельные времена всех повторов и гипотезы:
+[`asr-runtime.json`](../artifacts/optimization/asr-runtime.json).
+
+Альтернатива **не принята**: `modified_beam_search`, 4 пути — те же **35/68**
+ошибок, что у greedy, при 687.850 против 600.619 мс median decode (+14.5%).
+Пунктуация включена в 68 ref-токенов, `ё→е`; гипотезы в этом ASR-only замере
+без LLM-пунктуации. Это диагностический oracle-crop WER, не качество полной
+комнаты и не восстановление speaker_5. Production остаётся greedy.
+
+Проверки после изменения:
+
+- **126 JVM-тестов / 21 класс на каждом flavor**, 0 failures/errors/skips;
+  новые тесты проверяют dispatcher, lazy reuse, конкурентных клиентов,
+  отмену во время загрузки, отказ/повтор загрузки, eviction/close при активном
+  владельце, отмену самого close и прохождение LLM-cancellation.
+- **61 + 18** Python-тестов — OK. Веса, frozen gain/EQ/VAD, gold и строки gate
+  не изменялись. Сигнальный путь и параметры ASR остались прежними.
+- Собраны `stenographerDebug -PembedLlm=true` и `presentConnectSlim`.
+  Новый локальный check-APK: `apk/app-stenographer-runtime-embedLlm.apk`,
+  573 498 719 B, SHA-256 `f80d8ab14ed5fc7d2f5612b3448b562dad0a88835aab5cc6fa574e5fccb6b377`.
+  Проверены v2-подпись, наличие `InferenceSession` в DEX и SHA-256 **8/8**
+  модельных ассетов против локальных весов. APK в git не добавляется.
+- [`verification.json`](../artifacts/optimization/verification.json) хранит
+  команды, счётчики тестов, hashes APK и границы проверки.
+
+Телефона по `adb devices` нет. Native GGUF, Android RAM/энергопотребление,
+первый запуск и скорость всего pipeline **не измерены**; 3.068× нельзя
+выдавать за ускорение всего приложения или телефона. Сессии экономят повторную
+инициализацию ценой удержания весов до eviction/close. Новый локальный APK
+не заменяет ранее опубликованные release assets автоматически.
+
+Воспроизведение (из корня; `sherpa-onnx==2.0.1`, `numpy`):
+
+```bash
+python scripts/benchmark_asr_runtime.py --repeats 5 --out artifacts/optimization/asr-runtime.json
+```

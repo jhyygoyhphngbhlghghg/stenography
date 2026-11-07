@@ -89,6 +89,28 @@ Checkpoint polling (clients follow presenter) lives on the **web BE**, not in th
 
 Если модели не найдены, pipeline **явно** идёт в stub-режим (помечается в UI). Stub не выдаётся за ASR на защите.
 
+## Владение native-сессиями
+
+`InferenceSession` держит один ленивый ASR recognizer на pipeline; каждый
+crop создаёт новый stream. Mutex сериализует полную транзакцию, включая LLM,
+а `Dispatchers.Default` не допускает native-инференс на UI-потоке. Gain/EQ,
+VAD, speaker reconciliation, crop padding и greedy decoder не изменены.
+
+На холодном пути segmentation/embedding освобождаются до создания ASR.
+На повторном пути ASR остаётся тёплым; это обмен памяти на отсутствие повторной
+инициализации. `StenoViewModel` передаёт memory-pressure/UI-hidden события в
+`trimMemory()`; ASR/GGUF освобождаются между транзакциями. `onCleared()` запускает
+закрытие вне отменённого `viewModelScope`. JNI не прерывается посередине:
+отмена проверяется между вызовами, а close/eviction ждут владельца. Неуспешная
+транзакция сбрасывает потенциально повреждённую native-сессию. Кэша результатов
+распознавания нет.
+
+Хостовый ASR-only микробенчмарк на шести неизменённых excerpts:
+1852.666 → 603.816 мс при повторном использовании модели, **3.068×**, точное
+совпадение текста/tokens/timestamps. Это не скорость всего pipeline/телефона.
+Методика, отрицательный результат beam-search и ограничения:
+[TEST_RESULTS.md](TEST_RESULTS.md#runtime-повторное-использование-native-сессий-2026-11-07).
+
 ## Зависимости
 
 - AndroidX Compose / Material3 / Activity / DocumentFile
@@ -123,7 +145,7 @@ src/android/app/src/main/java/team/mikcoders/neurosteno/
               FarFieldVad · SpeechEnergy / SpeechEndpointing / AudioQualityGate (PR #6, тесты, не wired)
   pipeline/   ModelStore (+ensureUnpacked) · AssetModelUnpack (REQUIRED + OPTIONAL gguf) ·
               DemoPcmPrep (gate→gain→EQ) · SherpaStenoPipeline · VadDiarReconcile (K≤6) ·
-              FarFieldScene (stage6 / presentConnect) · SherpaJni · PipelineFactory
+              FarFieldScene (stage6 / presentConnect) · SherpaJni · PipelineFactory · InferenceSession
   llm/        LocalLlmPostPass (Gguf / Heuristic / Identity) · OnDeviceLlmRunner (llama.cpp) ·
               IntonationPunct (ADD, никогда не strip; ё→е)
   present/    PresentConnectClient · OkHttpPresentConnectClient · PresentConnectStreamTable ·
@@ -132,7 +154,7 @@ src/android/app/src/main/java/team/mikcoders/neurosteno/
   ui/         StenoApp (Compose) · StenoViewModel (async model load, прогресс, флаги)
 ```
 
-## Замеренный результат этого дерева (не обещание, а факт)
+## Исторический замер качества на Impl `3c3f9ce` (не runtime-бенчмарк)
 
 - Hex keep-punct WER: baseline **0.7794** → после hard-cap K≤6 и
   intonation-punct **0.6471** (44/68 слов); DER **0.2760**, JER **0.5454**,

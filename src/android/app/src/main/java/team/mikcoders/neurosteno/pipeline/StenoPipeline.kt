@@ -32,6 +32,12 @@ interface StenoPipeline {
     val llmDisplayName: String
     val llmIsOnDevice: Boolean
 
+    /** Evict warm native weights without changing the selected models. */
+    suspend fun trimMemory() {}
+
+    /** Wait for in-flight inference before releasing native state. */
+    suspend fun close() {}
+
     suspend fun transcribe(
         audio: PcmAudio,
         onProgress: (PipelineProgress) -> Unit,
