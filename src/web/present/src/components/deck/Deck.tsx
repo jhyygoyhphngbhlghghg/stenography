@@ -146,9 +146,14 @@ export function Deck() {
   // amplitude comes from --voice-envelope, written by the phone infographic.
   useEffect(() => {
     if (compact) return;
-    const a = animate(".ring", { rotate: "1turn", duration: 60000, loop: true, ease: "linear" });
+    const a = animateNodes(document.querySelectorAll(".ring"), {
+      rotate: "1turn",
+      duration: 60000,
+      loop: true,
+      ease: "linear",
+    });
     return () => {
-      a.pause();
+      a?.pause();
     };
   }, [compact]);
 
@@ -169,9 +174,9 @@ export function Deck() {
     utils.remove(sc);
 
     if (from === null) {
-      utils.set(el.querySelectorAll(".a, .ch"), { opacity: 0 });
-      utils.set(el.querySelectorAll(".a-line"), { scaleX: 0 });
-      utils.set(el.querySelectorAll(".qr-dot"), { opacity: 0 });
+      setNodes(el.querySelectorAll(".a, .ch"), { opacity: 0 });
+      setNodes(el.querySelectorAll(".a-line"), { scaleX: 0 });
+      setNodes(el.querySelectorAll(".qr-dot"), { opacity: 0 });
     }
 
     let lead = 0;
@@ -180,7 +185,7 @@ export function Deck() {
       if (!old) return;
       utils.remove(old.querySelectorAll<HTMLElement>(ANIMATED));
       if (from === 0 && !compact) {
-        animate(old.querySelectorAll(".qr-dot"), {
+        animateNodes(old.querySelectorAll(".qr-dot"), {
           translateY: [
             { to: () => -2 - Math.random() * 6, duration: 500, ease: "outQuad" },
             { to: () => 40 + Math.random() * 60, duration: 900, ease: "inQuart" },
@@ -201,7 +206,7 @@ export function Deck() {
     else animate(sc, { scrollTop: target, duration: scrollDur, delay: lead, ease: "inOutExpo" });
 
     const delay = lead + scrollDur * 0.5;
-    animate(next.querySelectorAll(".a"), {
+    animateNodes(next.querySelectorAll(".a"), {
       opacity: [0, 1],
       y: [compact ? 12 : 50, 0],
       filter: compact ? "none" : ["blur(12px)", "blur(0px)"],
@@ -209,7 +214,7 @@ export function Deck() {
       delay: stagger(compact ? 35 : 100, { start: delay + 150 }),
       ease: "outExpo",
     });
-    animate(next.querySelectorAll(".ch"), {
+    animateNodes(next.querySelectorAll(".ch"), {
       opacity: [0, 1],
       y: [compact ? "0.2em" : "0.8em", "0em"],
       rotateX: [compact ? 0 : -90, 0],
@@ -218,7 +223,7 @@ export function Deck() {
       delay: stagger(compact ? 0 : 20, { start: delay }),
       ease: "outExpo",
     });
-    animate(next.querySelectorAll(".a-line"), {
+    animateNodes(next.querySelectorAll(".a-line"), {
       scaleX: [0, 1],
       duration: 1600,
       delay: stagger(120, { start: delay + 300 }),
@@ -227,7 +232,7 @@ export function Deck() {
     if (!compact)
       next.querySelectorAll<HTMLElement>(".kicker").forEach((k) => scramble(k, delay + 100));
     if (idx === 0) {
-      animate(next.querySelectorAll(".qr-dot"), {
+      animateNodes(next.querySelectorAll(".qr-dot"), {
         opacity: [0, 1],
         translateY: compact ? 0 : [() => 20 + Math.random() * 40, 0],
         translateX: 0,
@@ -515,6 +520,22 @@ export function Deck() {
       </div>
     </div>
   );
+}
+
+/**
+ * anime.js logs "No target found" for an empty selector, and several accents
+ * exist only on some scenes (.a-line, .qr-dot). On stage the console must stay
+ * clean, so a missing target is skipped instead of animated.
+ */
+function animateNodes(nodes: NodeListOf<Element>, params: Parameters<typeof animate>[1]) {
+  if (nodes.length === 0) return null;
+  return animate(nodes, params);
+}
+
+/** Same rule for the initial state: `utils.set` warns on an empty target too. */
+function setNodes(nodes: NodeListOf<Element>, params: Parameters<typeof utils.set>[1]) {
+  if (nodes.length === 0) return;
+  utils.set(nodes, params);
 }
 
 function splitChars(h: HTMLElement) {
