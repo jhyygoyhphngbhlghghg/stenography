@@ -2,8 +2,10 @@
 
 Built 2026-11-07 on this machine (gradle 8.11.1, AGP 8.7.3, compileSdk 35,
 JDK 21). `.apk` files are gitignored — binaries do not go into the git tree;
-the hand-in publishes them as Release assets (or Git LFS) and links them from
-the top-level README.
+the hand-in publishes them as Release assets:
+**[v0.1.0-stage6](https://github.com/jhyygoyhphngbhlghghg/stenography/releases/tag/v0.1.0-stage6)**
+(with `v0.1.0-stage6` pointing at the pushed `main`).
+
 
 | file | bytes | MiB | sha256 | what it is |
 |---|---|---|---|---|

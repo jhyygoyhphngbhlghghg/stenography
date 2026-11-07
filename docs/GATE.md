@@ -25,7 +25,7 @@ H1 accepted the WORST_CASE table at `9908353`. These six Path B rows are the **f
 - Keep all six rows in `artifacts/eval/demo-stress/metrics.csv`, `metrics.json`, and `docs/TEST_RESULTS.md`.
 - Regression smoke: `python3 scripts/test_path_b_regression.py` (schema + 20/20 speakers on every frozen row; does **not** require low WER/DER).
 
-Accepted measured snapshot: `docs/TEST_RESULTS.md` (Johann hard-requirement table). Hold merge; overnight #2 still first.
+Accepted measured snapshot: `docs/TEST_RESULTS.md` (Johann hard-requirement table). All seven overnight branches are merged into `main` now, so this gate runs against the merged tree — the "hold merge for #2" state from the handout is closed.
 
 Harden-claim remeasures use **new** test_ids on the **same** frozen wavs. They do not replace the six frozen rows.
 

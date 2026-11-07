@@ -119,6 +119,14 @@ before the airplane-mode run; otherwise the app falls back to
 `llm-weights-missing (intonation punct only)` and the UI says so in red.
 Per-file sizes and sha256: `docs/MODELS.md`.
 
+## Hand-in artifacts
+
+The four APKs are published as release assets (git cannot carry files over
+100 MiB, and neither can the reviewers' downloads be expected to):
+**[v0.1.0-stage6](https://github.com/jhyygoyhphngbhlghghg/stenography/releases/tag/v0.1.0-stage6)** — check APK 220 529 139 B, LLM-inclusive APK
+573 498 719 B, PresentConnect 220 401 103 B, slim 97 599 021 B, each with its
+sha256 in `apk/README.md`.
+
 ## Install and run (what the experts do)
 
 `docs/INSTALL.md` is the hand-in instruction. Short version: install the APK →

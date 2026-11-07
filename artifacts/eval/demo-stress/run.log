@@ -1,4 +1,4 @@
-demo-stress eval  commit=1ca7eef  utc=2026-11-07T06:30:07.676756+00:00
+demo-stress eval  commit=5b9ca18  utc=2026-11-07T06:37:55.965778+00:00
 Cloud agents have no KVM/ADB — host Linux sherpa-onnx only.
 run_host=False only=None models=E:\Projects\neuro-stenographer\neuro-stenographer\models
 ROW DEMO_STAGE6 status=measured der=0.5174 jer=0.6280 purity=1.0000 wer_main=0.2857 rtf=0.0929 blocked='' notes='wav missing (run python3 scripts/generate_demo_stress_mix.py; full mix is gitignored); PRIMARY demo fixture: 6 RU CV17 talkers, one-mic mix, turn-taking + 200 ms end overlap, large-room IR, medium HVAC+babble, Nothing-class phone mic, 3–6 m. Path A diar+ASR. 20-stream suite is secondary regression. Baseline @ a8b39d5a — no far-field gain.'
