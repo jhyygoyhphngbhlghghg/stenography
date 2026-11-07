@@ -15,7 +15,9 @@ so the app ships exactly one Path B wire, while its audio helpers
 (`SpeechEnergy`, `SpeechEndpointing`, `AudioQualityGate`) are kept and tested
 but not wired into the frozen STAGE6 chain.
 
-Команда: **MIK Coders**. Этот репозиторий — Android-«backend» (обработка на телефоне) + контракт API для web FE/BE.
+Команда: **MIK Coders**. Этот репозиторий — Android-«backend» (обработка на
+телефоне), показ (Node-бэкенд + React-экраны + пульт, `src/web/`) и контракт
+между ними (`docs/PRESENT_CONNECT.md`).
 
 ## Компоненты
 
@@ -67,7 +69,16 @@ Browser mics (≤20) ──audio──► presentation BE ──WS/HTTP──►
                          presentation display ◄──transcript───┘
 ```
 
-Checkpoint polling (clients follow presenter) lives on the **web BE**, not in this app. See `docs/PRESENT_CONNECT.md`.
+Checkpoint polling (clients follow presenter) lives on the **web BE**, not in
+this app. See `docs/PRESENT_CONNECT.md`.
+
+Показ — `src/web/`, и он в этом же дереве: `backend/` держит контракт и
+раздаёт статику, `present/` — React-дек (8 чекпоинтов, `role=screen`,
+только чтение), `public/` — пульт ведущего и встроенный дек как запасной
+вариант. Один процесс, один origin: `SLIDES`/`SLIDE_LABELS` в
+`backend/src/config.ts` и `CHECKPOINTS` в `present/src/components/deck/data.ts`
+должны совпадать, и это проверяется тестами. Телефон для показа не обязателен —
+есть `npm run sim:phone`.
 
 ## Основные технические решения
 

@@ -424,6 +424,30 @@ const SECURITY_HEADERS: Record<string, string> = {
 };
 
 /**
+ * Policy for the React deck's HTML shell. Its build emits inline bootstrap
+ * scripts (TanStack Start hydration and scroll-restoration shims) and links the
+ * webfont from Google, both of which the strict policy above blocks — so the
+ * shell allows inline scripts and the font hosts and nothing else changes.
+ * Scoped to that one static file: no request data is ever interpolated into it,
+ * and the API, the console and the deck's own assets keep the strict policy.
+ */
+const DECK_SECURITY_HEADERS: Record<string, string> = {
+  ...SECURITY_HEADERS,
+  'content-security-policy': [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline'",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "img-src 'self' data:",
+    "font-src 'self' https://fonts.gstatic.com",
+    "connect-src 'self' ws: wss:",
+    "media-src 'self' blob:",
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+  ].join('; '),
+};
+
+/**
  * CORS for the separate React frontend (TanStack Start), which is served from
  * another origin than this backend. Deliberately no `allow-credentials`: the
  * presenter cookie is SameSite=Strict and must never ride along on a
@@ -528,16 +552,32 @@ function throttled(key: string): boolean {
   return entry.count > 8;
 }
 
-async function serveStatic(req: http.IncomingMessage, res: http.ServerResponse, pathname: string): Promise<void> {
-  const root = resolve(config.publicDir);
-  const rel = pathname === '/' ? 'index.html' : pathname.replace(/^\/+/, '');
-  const target = normalize(join(root, rel));
-  if (target !== root && !target.startsWith(root + sep)) {
-    json(res, 403, { error: 'forbidden' });
-    return;
+/**
+ * The built React deck owns the audience screens. TanStack Start's SPA build
+ * writes the shell as `_shell.html`; a plain `index.html` is accepted too so
+ * any static export layout works.
+ */
+async function deckShell(root: string): Promise<string | null> {
+  for (const name of ['index.html', '_shell.html']) {
+    const file = join(root, name);
+    try {
+      if ((await stat(file)).isFile()) return file;
+    } catch {
+      /* deck not built — caller falls back to the built-in deck */
+    }
   }
+  return null;
+}
 
-  const sendFile = async (file: string, type: string): Promise<boolean> => {
+async function serveStatic(req: http.IncomingMessage, res: http.ServerResponse, pathname: string): Promise<void> {
+  const publicRoot = resolve(config.publicDir);
+  const deckRoot = resolve(config.presentDir);
+
+  const sendFile = async (
+    file: string,
+    type: string,
+    headers: Record<string, string> = SECURITY_HEADERS,
+  ): Promise<boolean> => {
     try {
       const st = await stat(file);
       if (!st.isFile()) return false;
@@ -546,7 +586,7 @@ async function serveStatic(req: http.IncomingMessage, res: http.ServerResponse, 
         'content-type': type,
         'cache-control': 'no-store',
         'content-length': body.length,
-        ...SECURITY_HEADERS,
+        ...headers,
         ...CORS_HEADERS,
       });
       res.end(req.method === 'HEAD' ? undefined : body);
@@ -556,18 +596,42 @@ async function serveStatic(req: http.IncomingMessage, res: http.ServerResponse, 
     }
   };
 
-  const type = MIME[extname(target).toLowerCase()] ?? 'application/octet-stream';
-  if (await sendFile(target, type)) return;
+  const mimeFor = (file: string): string => MIME[extname(file).toLowerCase()] ?? 'application/octet-stream';
+  /** Resolve `rel` under `root` only — a traversal attempt returns null. */
+  const under = (root: string, rel: string): string | null => {
+    const target = normalize(join(root, rel));
+    return target === root || target.startsWith(root + sep) ? target : null;
+  };
+
+  const shell = await deckShell(deckRoot);
+
+  /* ---- 1. React deck: `/`, /join, /stage and its own hashed assets ---- */
+  if (shell) {
+    const deckFile = under(deckRoot, pathname.replace(/^\/+/, ''));
+    if (deckFile && (await sendFile(deckFile, mimeFor(deckFile)))) return;
+    if (pathname === '/' || pathname === '/join' || pathname === '/stage') {
+      if (await sendFile(shell, 'text/html; charset=utf-8', DECK_SECURITY_HEADERS)) return;
+    }
+  }
+
+  /* ---- 2. Built-in deck + presenter console, served from publicDir ---- */
+  const target = under(publicRoot, pathname === '/' ? 'index.html' : pathname.replace(/^\/+/, ''));
+  if (!target) {
+    json(res, 403, { error: 'forbidden' });
+    return;
+  }
+  if (await sendFile(target, mimeFor(target))) return;
 
   const pageMap: Record<string, string> = {
-    '/join': 'index.html',
-    '/stage': 'index.html',
     '/presenter': 'presenter.html',
+    '/deck-legacy': 'index.html',
   };
   const mapped = pageMap[pathname];
-  if (mapped && (await sendFile(join(root, mapped), 'text/html; charset=utf-8'))) return;
+  if (mapped && (await sendFile(join(publicRoot, mapped), 'text/html; charset=utf-8'))) return;
 
-  if (await sendFile(join(root, 'index.html'), 'text/html; charset=utf-8')) return;
+  /* ---- 3. Anything else is a screen route: the deck shell wins ---- */
+  if (shell && (await sendFile(shell, 'text/html; charset=utf-8', DECK_SECURITY_HEADERS))) return;
+  if (await sendFile(join(publicRoot, 'index.html'), 'text/html; charset=utf-8')) return;
   json(res, 404, { error: 'not_found' });
 }
 
@@ -942,6 +1006,14 @@ server.listen(config.port, config.host, () => {
   console.log(`[web] phone http POST /v1/transcript  GET /v1/presentation`);
   console.log(`[web] frontend   GET /v1/frontend/checkpoint  ws /v1/present-connect?role=screen`);
   console.log(`[web] slides   ${SLIDES.join(' → ')}`);
+  // Which deck the audience actually gets — the stage operator must not guess.
+  void deckShell(resolve(config.presentDir)).then((shell) =>
+    console.log(
+      shell
+        ? `[web] deck     React (${shell}); built-in deck stays at /deck-legacy`
+        : '[web] deck     built-in — src/web/present is not built (npm run build there for the React deck)',
+    ),
+  );
   if (!config.adminToken) console.warn('[web] ADMIN_TOKEN is empty — presenter console is disabled');
   if (!config.phoneToken) console.warn('[web] PHONE_TOKEN is empty — /v1/transcript is open to any client on the network');
 });

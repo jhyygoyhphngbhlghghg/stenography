@@ -119,6 +119,23 @@ before the airplane-mode run; otherwise the app falls back to
 `llm-weights-missing (intonation punct only)` and the UI says so in red.
 Per-file sizes and sha256: `docs/MODELS.md`.
 
+## Презентация (веб-часть)
+
+Один Node-процесс раздаёт API, React-экраны и пульт. Нужен Node 20+.
+
+```bash
+cd src/web/backend
+npm install
+ADMIN_TOKEN=<токен_ведущего> npm run build:all   # tsc + сборка React-дека
+ADMIN_TOKEN=<токен_ведущего> npm start           # http://localhost:8080
+```
+
+`/` — экраны (8 чекпоинтов), `/presenter` — пульт, `/deck-legacy` — встроенный
+дек как запасной вариант, `ws://…/v1/present-connect` — телефон. Если дек не
+собран, сервер это пишет в логе и отдаёт встроенный. Телефон при этом не нужен:
+для репетиции есть `npm run sim:phone`. Подробности — `src/web/README.md`,
+контракт — `docs/PRESENT_CONNECT.md`.
+
 ## Hand-in artifacts
 
 The four APKs are published as release assets (git cannot carry files over
@@ -174,10 +191,16 @@ python3 scripts/eval_metrics.py --test-id DEMO_STAGE6_impl_hardcap6
 
 Two product flavors, one codebase: **stenographer** (offline file/mic) and
 **presentConnect** (≤20 per-stream isolated ASR against the presentation
-backend). The web FE/BE is a separate track; this repo owns the Android worker
-and the contract in `docs/PRESENT_CONNECT.md`.
+backend). The presentation itself is in this repo too — `src/web/` (Node
+backend + React deck + presenter console), documented in `src/web/README.md`;
+this repo owns the Android worker, the screens and the contract in
+`docs/PRESENT_CONNECT.md`.
 
 ## Layout
+
+Пути под `src/` — по платформе, как требует
+[`hacathon_template`](https://github.com/grigorevmp/hacathon_template);
+инструкция по сборке каждой платформы — `src/README.md`.
 
 | Path | Role |
 |---|---|
@@ -189,7 +212,10 @@ and the contract in `docs/PRESENT_CONNECT.md`.
 | `docs/` | architecture, models, install, limitations, JSON, PresentConnect contract, gates |
 | `eval/` | A-12 three-clip WER/RTF harness + its gate |
 | `scripts/` | model download, host-eval mirrors of the Kotlin pipeline, JSON verifier, sideload probe |
-| `src/android/` | Kotlin + Compose module `:app` |
+| `src/android/` | **mobile**: Kotlin + Compose module `:app` |
+| `src/web/backend/` | **web**: Node server — WS/HTTP contract, checkpoints, static delivery |
+| `src/web/present/` | **web**: React deck (TanStack Start) — the audience screens, 8 checkpoints |
+| `src/web/public/` | **web**: presenter console + built-in (vanilla) deck as the fallback |
 | `samples/` | three fixed clip slots + `demo-stress/` mixes (large audio gitignored) |
 
 ## Docs index
@@ -201,3 +227,5 @@ and the contract in `docs/PRESENT_CONNECT.md`.
 - `docs/TEST_RESULTS.md` — every measured row, with the commit it was measured at
 - `docs/JSON.md` — export schema · `docs/PRESENT_CONNECT.md` — optional Path B contract
 - `docs/GATE.md`, `eval/GATE.md` — what must pass before defense
+- `src/README.md` — сборка и запуск обеих платформ (android, web)
+- `src/web/README.md` — экраны, пульт, бэкенд, API и режимы демо

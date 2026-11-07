@@ -18,6 +18,8 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "build:deck": "npm --prefix ../present ci && npm --prefix ../present run build",
+    "build:all": "npm run build && npm run build:deck",
     "start": "node dist/server.js",
     "dev": "tsx watch src/server.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",

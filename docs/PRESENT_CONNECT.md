@@ -234,7 +234,11 @@ Hard reject: no ASR, no brief row, wire `error` with `LOW_ENERGY|CLIPPED|BAD_MIC
 
 Clients follow the presenter:
 
-`GET /v1/presentation/{id}/checkpoint` → `{slide_index, t_ms, follow_token}`
+`GET /v1/presentation` → `{session_id, slide_index, slide_id, slide_label, t_ms, follow_token, revision, demo_phase, slides[], phone{}}`
+
+`GET /v1/frontend/checkpoint` — the same checkpoint plus the dialogue rows in
+the brief's four-field shape; this is what the React deck reads on boot before
+it upgrades to the WebSocket.
 
 Poll 1–2 Hz. Android **does not** implement this. QR should still encode `session_id` + optional `ws_url` so browsers know where to stream.
 

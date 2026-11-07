@@ -24,8 +24,15 @@ const webRoot = resolve(here, '../..');
 export const config = {
   host: str('HOST', '0.0.0.0'),
   port: clampPort(int('PORT', 8080)),
-  /** Static site root: web/public. Override with PUBLIC_DIR. */
+  /** Static site root for the built-in deck and the presenter console. Override with PUBLIC_DIR. */
   publicDir: str('PUBLIC_DIR', resolve(webRoot, 'public')),
+  /**
+   * Built React deck — `src/web/present` after `npm run build`, which emits a
+   * static SPA shell plus hashed assets. The backend serves it at `/` so the
+   * screens, the console and the API stay on one origin and one process.
+   * When this directory is missing the backend falls back to the built-in deck.
+   */
+  presentDir: str('PRESENT_DIR', resolve(webRoot, 'present/dist/client')),
 
   /** present-connect/1 constants — must match docs/PRESENT_CONNECT.md */
   protocol: 'present-connect/1',
