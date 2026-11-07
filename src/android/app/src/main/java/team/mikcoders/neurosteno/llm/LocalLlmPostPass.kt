@@ -7,9 +7,11 @@ import java.io.File
  * On-device LLM post-pass (Hex.Team TZ «локальная LLM»).
  *
  * Identity / heuristic-only **fails** the brief. Tiny GGUF
- * (Qwen2-0.5B-Instruct Q4_0) is loaded from filesDir/models/llm/ (gguf).
- * Platform pack unpacks assets — this PR does not re-pack. llama.cpp adds
- * spoken-intonation punct ([IntonationPunct]): Zipformer emits NONE.
+ * (Qwen2-0.5B-Instruct Q4_0) is loaded from filesDir/models/llm/. That tree is
+ * filled either by `AssetModelUnpack` when the APK was built with
+ * `-PembedLlm=true` (the hand-in check APK) or by
+ * `scripts/download-models.sh` + adb push during development. llama.cpp only
+ * adds spoken-intonation punct ([IntonationPunct]): Zipformer emits NONE.
  */
 interface LocalLlmPostPass {
     val weightsPresent: Boolean
