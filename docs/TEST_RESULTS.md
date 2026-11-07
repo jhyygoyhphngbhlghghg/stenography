@@ -405,6 +405,23 @@ compileSdk 35, build-tools 35.0.0). Команды повторяемые.
 не мог напечатать `−` в таблице demo-stress) — добавлен UTF-8 stdout в
 `eval_harness.py` / `eval_demo_stress.py`.
 
+### Пересчёт замеров на этой машине (re-score, не retune)
+
+`bash scripts/ci-check.sh` прогоняет `scripts/eval_metrics.py` по **уже
+закоммиченным** hyp-файлам (никакого нового инференса) и перезаписывает
+`artifacts/eval/demo-stress/metrics.csv` / `metrics.json` / `run.log`.
+Сравнение до/после (27 строк, игнорируя колонки `timestamp_utc` и `commit`):
+
+```
+metric differences (excluding timestamp/commit): 0
+```
+
+То есть таблица воспроизводима из hyp-ов на Windows/Python 3.13 — те же DER,
+JER, purity, WER_main, WER aggregate, RTF. Фикстура и gold не трогались
+(`docs/GATE.md`: fixtures change only with Lead sign-off). Поэтому в истории
+есть коммит, где у metrics.csv изменились только штамп времени и SHA — это
+следствие воспроизведения, а не перенастройки.
+
 ### Чего эта проверка не доказывает
 
 - Приложение не устанавливалось и не запускалось на телефоне: adb есть,
