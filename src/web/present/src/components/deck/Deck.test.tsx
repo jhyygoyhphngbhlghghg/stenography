@@ -219,3 +219,62 @@ describe("console hygiene", () => {
     expect(noisy).toEqual([]);
   });
 });
+
+describe("compact (audience phone) layout", () => {
+  const desktopMatchMedia = window.matchMedia;
+
+  afterEach(() => {
+    // Without this the stub leaks: every later test in the file would silently
+    // run in compact mode and assert against the wrong layout.
+    Object.defineProperty(window, "matchMedia", { writable: true, value: desktopMatchMedia });
+  });
+
+  function asPhone() {
+    Object.defineProperty(window, "matchMedia", {
+      writable: true,
+      value: (query: string) => ({
+        matches: true, // max-width: 767px — a spectator opened the QR link
+        media: query,
+        onchange: null,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        addListener: () => {},
+        removeListener: () => {},
+        dispatchEvent: () => false,
+      }),
+    });
+  }
+
+  it("keeps the live feed on the small screen: that is why the QR exists", async () => {
+    asPhone();
+    connection.current = {
+      ...connection.current,
+      connected: true,
+      slideIndex: 4,
+      transcript: [
+        { speaker_id: "speaker_1", text: "Первая реплика." },
+        { speaker_id: "speaker_2", text: "Вторая реплика." },
+        { speaker_id: "speaker_3", text: "Третья реплика." },
+      ],
+    };
+    render(<Deck />);
+    const box = document.querySelector("#asr-box");
+    expect(box).toBeTruthy();
+    await waitFor(() => {
+      expect(within(box as HTMLElement).getByText("Третья реплика.")).toBeTruthy();
+    });
+    // Two rows on a phone, not four: the screen is short.
+    expect(box?.querySelectorAll(".live-feed-row").length).toBeLessThanOrEqual(2);
+  });
+
+  it("drops the heavy graphics but not the content", () => {
+    asPhone();
+    render(<Deck />);
+    expect(document.querySelector(".phone-info")).toBeNull();
+    expect(document.querySelector(".ring")).toBeNull();
+    expect(document.querySelector(".grid-bg")).toBeNull();
+    // The college mark is identity, not decoration: it stays.
+    expect(document.querySelector(".deck-logo")).toBeTruthy();
+    expect(document.querySelector("#asr-box")).toBeTruthy();
+  });
+});
