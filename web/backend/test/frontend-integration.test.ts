@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import WebSocket from 'ws';
+import { SLIDES, SLIDE_LABELS } from '../src/config.ts';
 import { startServer, type RunningServer } from './harness.ts';
+
+/** First slide of the current deck — the deck itself is owned by config.ts. */
+const FIRST_SLIDE = SLIDES[0]!;
+const FIRST_LABEL = SLIDE_LABELS[FIRST_SLIDE]!;
 
 const ADMIN = 'test-admin-token';
 
@@ -90,11 +95,11 @@ test('/v1/frontend/checkpoint returns the checkpoint with slide_label and dialog
   const initial = await fetch(server.base + '/v1/frontend/checkpoint');
   assert.equal(initial.status, 200);
   const first = (await initial.json()) as Record<string, unknown>;
-  assert.equal(first.slide_id, 'title');
-  assert.equal(first.slide_label, 'QR');
+  assert.equal(first.slide_id, FIRST_SLIDE);
+  assert.equal(first.slide_label, FIRST_LABEL);
   assert.deepEqual(first.transcript, []);
   assert.equal(first.banner, null);
-  assert.ok(Array.isArray(first.slides) && first.slides.length === 9);
+  assert.deepEqual(first.slides, [...SLIDES], 'checkpoint echoes the configured deck');
 
   // Push two rows over HTTP ingest, then move the presenter to another slide.
   const push = await fetch(server.base + '/v1/transcript', {
@@ -110,21 +115,21 @@ test('/v1/frontend/checkpoint returns the checkpoint with slide_label and dialog
   const cookie = await login(server.base);
   const goto = await fetch(server.base + '/api/command', {
     method: 'POST', headers: { 'content-type': 'application/json', cookie },
-    body: JSON.stringify({ type: 'checkpoint.goto', slide: 'on-device' }),
+    body: JSON.stringify({ type: 'checkpoint.goto', slide: 'solutions' }),
   });
   assert.equal(goto.status, 200);
   const gotoBody = (await goto.json()) as { slide_label: string };
   // checkpointPayload carries the label everywhere, so presenter replies have it too.
-  assert.equal(gotoBody.slide_label, 'Приватность');
+  assert.equal(gotoBody.slide_label, SLIDE_LABELS.solutions);
 
   const response = await fetch(server.base + '/v1/frontend/checkpoint');
   const body = (await response.json()) as {
     slide_id: string; slide_label: string; slide_index: number;
     transcript: Array<Record<string, unknown>>;
   };
-  assert.equal(body.slide_id, 'on-device');
-  assert.equal(body.slide_label, 'Приватность');
-  assert.equal(body.slide_index, 4);
+  assert.equal(body.slide_id, 'solutions');
+  assert.equal(body.slide_label, SLIDE_LABELS.solutions);
+  assert.equal(body.slide_index, SLIDES.indexOf('solutions'));
   assert.equal(body.transcript.length, 2);
   // Dialogue schema: exactly the four fields the React screen validates.
   for (const row of body.transcript) {
@@ -139,15 +144,12 @@ test('/v1/frontend/checkpoint returns the checkpoint with slide_label and dialog
   // Same slide_id as the existing endpoint, plus the label.
   const poll = await (await fetch(server.base + '/v1/presentation')).json() as Record<string, unknown>;
   assert.equal(poll.slide_index, body.slide_index);
-  assert.equal(poll.slide_label, 'Приватность');
+  assert.equal(poll.slide_label, SLIDE_LABELS.solutions);
 
-  // Every label in the deck resolves, and none is an empty string.
-  const labels: Record<string, string> = {
-    title: 'QR', problem: 'Проблема', approach: 'Подход', pipeline: 'Конвейер',
-    'on-device': 'Приватность', live: 'Живое демо', resilience: 'Отказоустойчивость',
-    numbers: 'Цифры', team: 'Команда',
-  };
-  for (const [slideId, expected] of Object.entries(labels)) {
+  // Every slide in the deck resolves to a non-empty human-readable label.
+  for (const [slideId, expected] of Object.entries(SLIDE_LABELS)) {
+    assert.ok(expected.trim().length > 0, `${slideId} needs a label`);
+    assert.ok(SLIDES.includes(slideId as (typeof SLIDES)[number]), `${slideId} is not in the deck`);
     const moved = await fetch(server.base + '/api/command', {
       method: 'POST', headers: { 'content-type': 'application/json', cookie },
       body: JSON.stringify({ type: 'checkpoint.goto', slide: slideId }),
@@ -176,25 +178,30 @@ test('a role=screen socket gets slide_label and dialogue rows in its snapshot', 
   await new Promise((r) => screen.once('open', r));
 
   const snapshot = await waitFor(inbox, (m) => m.type === 'snapshot', 'screen snapshot');
-  assert.equal(snapshot.slide_id, 'title');
-  assert.equal(snapshot.slide_label, 'QR');
+  assert.equal(snapshot.slide_id, FIRST_SLIDE);
+  assert.equal(snapshot.slide_label, FIRST_LABEL);
   const rows = snapshot.transcript as Array<Record<string, unknown>>;
   assert.equal(rows.length, 1);
-  assert.deepEqual(Object.keys(rows[0]).sort(), ['end_ms', 'speaker_id', 'start_ms', 'text']);
   assert.equal(rows[0].text, 'Второе место.');
+  // Superset of the dialogue schema: the four required fields are present, and
+  // provenance stays for the built-in deck (it labels reserve rows «запись»).
+  for (const field of ['speaker_id', 'text', 'start_ms', 'end_ms']) {
+    assert.ok(field in rows[0], `snapshot row must carry ${field}`);
+  }
+  assert.equal(rows[0].source, 'phone', 'provenance is preserved on the socket');
 
   // Live checkpoint broadcasts carry the label as the presenter moves.
   const cookie = await login(server.base);
   const live = await fetch(server.base + '/api/command', {
     method: 'POST', headers: { 'content-type': 'application/json', cookie },
-    body: JSON.stringify({ type: 'checkpoint.goto', slide: 'live' }),
+    body: JSON.stringify({ type: 'checkpoint.goto', slide: 'demo' }),
   });
   assert.equal(live.status, 200);
   await live.arrayBuffer();
 
   const checkpoint = await waitFor(inbox, (m) => m.type === 'checkpoint', 'live checkpoint');
-  assert.equal(checkpoint.slide_id, 'live');
-  assert.equal(checkpoint.slide_label, 'Живое демо');
+  assert.equal(checkpoint.slide_id, 'demo');
+  assert.equal(checkpoint.slide_label, SLIDE_LABELS.demo);
 
   // Later rows still arrive one at a time for the incremental feed.
   const second = await fetch(server.base + '/v1/transcript', {
@@ -206,6 +213,10 @@ test('a role=screen socket gets slide_label and dialogue rows in its snapshot', 
 
   const row = await waitFor(inbox, (m) => m.type === 'transcript.final', 'incremental row');
   assert.equal((row.row as { speaker_id: string }).speaker_id, 'speaker_5');
+
+  // The frontend's non-strict zod dialogue schema accepts these rows as-is.
+  const dialogueOnly = rows.map(({ speaker_id, text, start_ms, end_ms }) => ({ speaker_id, text, start_ms, end_ms }));
+  assert.deepEqual(Object.keys(dialogueOnly[0]).sort(), ['end_ms', 'speaker_id', 'start_ms', 'text']);
 
   // The snapshot is capped so a long session cannot ship an unbounded payload.
   const capped = await fetch(server.base + '/v1/frontend/checkpoint');
