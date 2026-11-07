@@ -77,6 +77,11 @@ def wav_duration_ms(path: Path) -> int | None:
 
 
 def main() -> int:
+    for _stream in (sys.stdout, sys.stderr):
+        try:
+            _stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
     p = argparse.ArgumentParser()
     p.add_argument("--hyp-dir", type=Path, default=ROOT / "artifacts" / "eval" / "hyp")
     p.add_argument("--write-csv", action="store_true", help="overwrite results.csv (only with real numbers)")

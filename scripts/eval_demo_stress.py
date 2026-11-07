@@ -466,7 +466,17 @@ def run_demo_stress(
         log.close()
 
 
+def _force_utf8_stdout() -> None:
+    """Tables carry '−' and Cyrillic notes; a cp1251 console would abort the run."""
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):  # pragma: no cover - py<3.7 / redirected
+            pass
+
+
 def main() -> int:
+    _force_utf8_stdout()
     p = argparse.ArgumentParser()
     p.add_argument("--run-host", action="store_true", help="run Linux sherpa-onnx (not Android)")
     p.add_argument("--models", type=Path, default=ROOT / "models")

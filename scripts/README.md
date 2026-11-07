@@ -1,7 +1,7 @@
 # Scripts
 
-- `download-models.sh` — fetch Zipformer-ru int8 (exact HF names), Silero VAD, pyannote+embedding ONNX (extracts tarball), Qwen2-0.5B-Instruct Q4_0 GGUF, optional Whisper tiny / Vosk. Writes to `models/` (gitignored). Platform PR #3 packs assets — this branch does not.
-- `fetch-sherpa-aar.sh` — GitHub Releases Android AAR (JitPack `v2.0.1` unpublished).
+- `download-models.sh` — fetch Zipformer-ru int8 (exact HF names), Silero VAD, pyannote segmentation (float `model.onnx`, explicitly — not `find | head`), 3D-Speaker embedding and the Qwen2-0.5B-Instruct Q4_0 GGUF; optional Whisper tiny / Vosk. Logs url/bytes/sha256/wall per file to `models/_download-log.csv`. `:app:prepareEmbeddedModels` then packs ASR/VAD/diar into the check APK, and `-PembedLlm=true` adds the GGUF.
+- `inspect-sherpa-aar.sh` — proves the JitPack sherpa-onnx v2.0.1 AAR resolves (HTTP 200, 49 441 341 bytes, sha256) and lists its JNI libs. The Gradle build needs no manual fetch: the coordinate is declared in `app/build.gradle.kts`.
 - `verify-transcript-json.py` — exact brief schema (`transcript[]` + four fields).
 - `eval_harness.py` — WER+RTF skeleton for 3 fixed clips (empty table until a real run). `--suite demo-stress` scores the 20-talker mix; `--run-host` runs Linux sherpa-onnx (no KVM/ADB).
 - `fetch_cv17_ru.py` — download Common Voice 17 RU test clips (CC0) for 20 distinct talkers.

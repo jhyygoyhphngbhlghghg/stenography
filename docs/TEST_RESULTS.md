@@ -365,3 +365,52 @@ H1-ACK'd cocktail FAIL. Files: `artifacts/eval/demo-stress/espeak-baseline/`. Do
 | mix_20talker_main_dry | 0.0217 | 0.0933 | **1.0000** | 0.0591 | 1 / 1 |
 
 Dry WER=1.0 was eSpeak out-of-domain (hyp text `с`), not only overlap. REAL dry WER is 0.1739 on the same recipe.
+
+## Сборка и самопроверка на смерженном дереве (2026-11-07, эта машина)
+
+Все строки выше — хостовые замеры Eval-трека. Здесь — что проверено при
+сборке смерженного `main` (Windows, JDK 21.0.4, gradle 8.11.1, AGP 8.7.3,
+compileSdk 35, build-tools 35.0.0). Команды повторяемые.
+
+| проверка | команда | результат |
+|---|---|---|
+| компиляция приложения + тестов | `./gradlew :app:compileStenographerDebugKotlin` | успешно (Kotlin 2.0.21 / jvmTarget 17) |
+| JVM-юнит-тесты пайплайна | `./gradlew :app:testStenographerDebugUnitTest` | **110 тестов, 0 падений**, 20 классов |
+| python-тесты host-зеркал | `python3 -m unittest discover -s scripts -p 'test_*.py'` | **61 тест, OK** |
+| A-12 WER/RTF харнес | `python3 -m unittest eval.metrics.test_wer` | **18 тестов, OK** |
+| схема JSON брифа | `bash scripts/ci-check.sh` | **43** закоммиченных JSON → `OK`, `ci-check OK` |
+| check-APK с весами | `./gradlew :app:assembleStenographerDebug` | `app-stenographer-debug.apk` = 220 529 139 B, sha256 `c3592976…90da` |
+| тот же APK + локальная LLM | `… -PembedLlm=true` | 573 498 719 B, sha256 `f89bc45a…3678` (8 ассетов, 472 435 459 B) |
+| PresentConnect flavor | `:app:assemblePresentConnectDebug` | 220 401 103 B, sha256 `b9afd39f…0d83` |
+| slim (без весов) | `:app:assembleStenographerSlim` | 97 599 021 B, sha256 `6c52e259…8311` |
+| веса совпадают с PR #3 | `sha256sum` против `artifacts/test-results/models-checksums.sha256` | **8 из 8** записанных файлов идентичны (encoder `eb6c12fb…`, decoder `dcbe1ffa…`, joiner `93f2e1d1…`, tokens `93bbbc0b…`, silero `9e2449e1…`, pyannote tarball `24615ee8…`, `segmentation.onnx` `220ad67c…`, 3dspeaker `1a331345…`) — то есть две разные машины вытянули одни и те же байты |
+| AAR sherpa-onnx v2.0.1 доступен | `curl` + sha256 | 49 441 341 B, sha256 `a8d09d1d…f0ee7` — тот же, что записан Platform в `sherpa-aar-resolve.json` |
+| llama-android 0.1.1 существует | Maven Central | AAR 2 062 204 B, sha256 `fdccf04c…7501`; классы `Llama/LlamaConfig/LlamaResult` проверены `javap` |
+
+### Два бага сборки, найденных этой проверкой
+
+1. **Протухшие веса внутри APK.** `:app:prepareEmbeddedModels` не объявлял
+   входов, поэтому Gradle считал задачу up-to-date и перекладывал старые
+   ассеты: в «успешно собранном» APK лежал int8 `segmentation.onnx`
+   (1 540 506 B) вместо float-модели (5 992 913 B), на которой считаны все
+   строки STAGE6. Причина — `find … | head -n 1` в `download-models.sh`.
+   Исправлено: задача объявляет файлы весов и флаг `embedLlm` входами, скрипт
+   берёт `model.onnx` явно. Проверено листингом содержимого APK.
+2. **Потерянный экспорт в файл.** В UI из PR #3 остался только share sheet;
+   требование брифа «экспортирует результат в файл» закрывал SAF
+   `CreateDocument` из PR #2. Вернули кнопку **Сохранить JSON**,
+   «Поделиться» осталась рядом.
+
+Плюс: `scripts/ci-check.sh` падал на Windows с `UnicodeEncodeError` (cp1251
+не мог напечатать `−` в таблице demo-stress) — добавлен UTF-8 stdout в
+`eval_harness.py` / `eval_demo_stress.py`.
+
+### Чего эта проверка не доказывает
+
+- Приложение не устанавливалось и не запускалось на телефоне: adb есть,
+  устройств нет. Всё, что касается «на устройстве», — `pending`
+  (`artifacts/test-results/results.csv`, слоты `check_apk_*`).
+- Строка K≤6 измерена на Impl `3c3f9ce`; тип `ab20d83` не переоценён.
+- GGUF на хосте не исполнялся (arm64-only биндинг), поэтому в таблице
+  `DEMO_STAGE6_impl_hardcap6` пунктуация — эвристика `IntonationPunct`, и в
+  заголовке замера это помечено `gguf-missing`.
