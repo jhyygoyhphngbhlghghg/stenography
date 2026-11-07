@@ -25,6 +25,8 @@
 - `test_intonation_punct.py` — punctless Zipformer accepts added intonation punct; never strips.
 - `host_asr_diar.py` — Zipformer-ru + OfflineSpeakerDiarization on Linux Python. `impl_second_pass` runs the historical `3c3f9ce` reconcile + IntonationPunct, not the current Android reconciliation implementation.
 - `benchmark_asr_runtime.py` — host-only ASR lifecycle/decoder ablation on the six committed STAGE6 oracle time excerpts. Five alternating new-session/warm-session trials, exact text/token/timestamp parity, greedy vs beam-4, input/model SHA-256, no signal changes. Requires `sherpa-onnx==2.0.1` and `numpy`; `--repeats 5 --out artifacts/optimization/asr-runtime.json`. Not the full frozen gate, Android latency, or diarization quality.
+- `prepare_compact_encoder.py` — offline CPU-portable Zipformer graph preparation (ORT 1.28.0 EXTENDED, no requantization, no NCHWc); promotes the encoder only after exact native text/token/timestamp parity on 9 unchanged wavs; writes `artifacts/compact/encoder-validation.json` consumed by `-PcompactModels=true`.
+- `benchmark_llm_compaction.py` — host GGUF candidate screen (deterministic greedy, Android SYSTEM prompt, peak RSS sampling); screening only, not Android PSS or punctuation accuracy. Used to reject embedding-only Q4.
 - `eval_demo_stress.py` — DER/JER/purity + main-speaker WER + RTF; pending/blocked if inference cannot run.
 - `eval_metrics.py` — DER/JER/purity + WER. Hex.Team lock: keep `,` `.` `?` `!`; fold ё→е.
 - `test_eval_metrics.py` — unit checks of the metric code (not clip scores).

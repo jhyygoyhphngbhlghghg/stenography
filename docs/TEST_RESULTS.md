@@ -496,3 +496,34 @@ JER, purity, WER_main, WER aggregate, RTF. Фикстура и gold не тро�
 ```bash
 python scripts/benchmark_asr_runtime.py --repeats 5 --out artifacts/optimization/asr-runtime.json
 ```
+
+## Compact APK rollup (2026-11-07)
+
+`assembleStenographerCompact -PcompactModels=true`: **573 498 719 →
+449 907 795 B (−123.6 MB, −21.6%)**, все 8 моделей внутри, arm64-v8a only
+(LLM и так arm64-only), R8 + shrinkResources (DEX 58.0 → 2.6 MB), модели
+losslessly сжаты в APK (471.5 → 433.0 MB; распаковка через `assets.open`
+прозрачно декомпрессирует, инференс читает обычный файл). Подпись v2 проверена;
+SHA-256 `d52c7265…9c58c`; versionCode 2 / `0.2.0-compact`. Локальный кандидат
+`apk/app-stenographer-compact.apk`, не опубликован.
+
+Энкодер подготовлен офлайн (`scripts/prepare_compact_encoder.py`,
+onnxruntime 1.28.0 `ORT_ENABLE_EXTENDED`, CPU; target Android ORT 1.28.2):
+константы свёрнуты, узлы 9133 → 4288, **без реквонтизации весов и без
+hardware-specific NCHWc**. На 9 неизменённых wav (6 excerpts + 3 smoke),
+5 повторов: median init **1370.5 → 589.6 мс**, текст/tokens/timestamps
+идентичны во всех прогонах. Gradle не пакует compact-энкодер без passing
+отчёта и совпадения sha256 (`encoder-validation.json`). Decode-время не
+улучшилось (683 → 702 мс median, шум) — выигрыш именно в инициализации.
+
+**Отвергнуто:** embedding-only Q4 GGUF (353 → 285 MB, изменён только
+`token_embd.weight` Q8_0→Q4_0) — 9/11 raw completions изменились, host peak
+RSS вырос ~631.5 → ~640.0 MB (`llm-embedding-q4-screen.json`). Production
+GGUF побайтово исходный. `ORT_ENABLE_ALL` отвергнут (NCHWc-узлы под конкретное
+железо). Host LLM screen — llama.cpp b12182, не Android-биндинг; это скрининг,
+не замер качества пунктуации и не Android PSS.
+
+126 JVM-тестов на flavor — 0 падений. **Не сделано:** эксклюзивные фазы
+VAD/diar→ASR→LLM для пикового RAM, вынос распаковки из `Application.onCreate`;
+телефонных замеров RAM/latency нет. Полная frozen-комната не перемерялась.
+Сводка: [`compact/verification.json`](../artifacts/compact/verification.json).

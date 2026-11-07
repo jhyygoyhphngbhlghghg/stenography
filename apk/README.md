@@ -26,6 +26,20 @@ not an uploaded release replacement; see
 [verification.json](../artifacts/optimization/verification.json). It retains
 the existing package/version, so identify this build by the filename/hash.
 
+## Compact candidate (2026-11-07, rollup)
+
+`app-stenographer-compact.apk` — **449 907 795 B** (−123.6 MB vs the runtime
+candidate above), all 8 models inside, arm64-v8a only, R8/resource-shrunk,
+losslessly compressed model assets, offline-prepared Zipformer encoder
+(exact host output parity on 9 unchanged wavs; init 1370→590 ms median).
+SHA-256 `d52c72653f7fc1588711b4507b42b52fb8dcdf805f5a6c806a09563fa9e9c58c`,
+versionCode 2 / `0.2.0-compact`, debug-signed local candidate, v2 verified.
+GGUF byte-identical to the original. Build:
+`gradlew -p src/android :app:assembleStenographerCompact -PcompactModels=true`
+(requires `scripts/prepare_compact_encoder.py` output + passing report).
+Not phone-tested, not published; see
+[compact/verification.json](../artifacts/compact/verification.json).
+
 ## Which one to install
 
 For the experts' run (install APK → import three dialogues → export JSON, no

@@ -1,0 +1,64 @@
+{
+  "test_id": "COMPACT_APK_ROLLUP",
+  "date": "2026-11-07",
+  "baseline_commit": "bd7b5dd",
+  "status": "host-and-build-verified",
+  "android_device_execution": false,
+  "full_stage6_gate_remeasured": false,
+  "apk": {
+    "path": "apk/app-stenographer-compact.apk",
+    "bytes": 449907795,
+    "baseline_bytes": 573498719,
+    "saved_bytes": 123590924,
+    "sha256": "d52c72653f7fc1588711b4507b42b52fb8dcdf805f5a6c806a09563fa9e9c58c",
+    "signature_v2_verified": true,
+    "version_code": 2,
+    "version_name": "0.2.0-compact",
+    "abis": ["arm64-v8a"],
+    "model_assets": 8,
+    "model_asset_bytes_raw": 471484287,
+    "model_asset_bytes_compressed_in_apk": 432965449,
+    "dex_bytes": 2596324,
+    "baseline_dex_bytes": 58013656,
+    "native_lib_bytes_compressed": 13812226,
+    "baseline_native_lib_bytes_compressed_all_abis": 40875533,
+    "encoder_sha256_matches_validation_report": true,
+    "gguf_sha256_matches_original": true,
+    "build_command": "gradlew -p src/android :app:assembleStenographerCompact -PcompactModels=true"
+  },
+  "encoder_preparation": {
+    "report": "artifacts/compact/encoder-validation.json",
+    "method": "onnxruntime 1.28.0 ORT_ENABLE_EXTENDED, CPU; no requantization; no NCHWc layout",
+    "android_onnxruntime": "1.28.2",
+    "inputs": "6 committed STAGE6 excerpts + 3 committed smoke wavs, unchanged PCM",
+    "repeats": 5,
+    "median_init_ms_original": 1370.4667000001791,
+    "median_init_ms_prepared": 589.572800001406,
+    "all_text_tokens_timestamps_identical": true,
+    "source_bytes": 70876638,
+    "prepared_bytes": 69925632
+  },
+  "rejected": {
+    "embedding_only_q4_gguf": {
+      "screen": "artifacts/compact/llm-embedding-q4-screen.json",
+      "bytes_original": 352969408,
+      "bytes_candidate": 284902080,
+      "changed_tensor": "token_embd.weight Q8_0 -> Q4_0 (only tensor changed)",
+      "raw_completions_changed": "9 of 11",
+      "host_peak_rss_mb_original": 631.5,
+      "host_peak_rss_mb_candidate": 640.0,
+      "decision": "rejected: output drift and higher host RSS; production GGUF unchanged"
+    },
+    "ort_enable_all": "rejected: emits hardware-specific com.microsoft.nchwc nodes"
+  },
+  "tests": {
+    "stenographer_jvm": {"tests": 126, "failures": 0, "errors": 0, "skipped": 0},
+    "present_connect_jvm": {"tests": 126, "failures": 0, "errors": 0, "skipped": 0}
+  },
+  "not_done": [
+    "Exclusive VAD/diar -> ASR -> LLM memory phases (peak-RAM reduction) not implemented",
+    "Application.onCreate model extraction still on UI thread",
+    "Android PSS/RAM, first-launch unpack time, on-device latency unmeasured (no device)",
+    "Full frozen DEMO_STAGE6 gate not remeasured (full wav absent locally)"
+  ]
+}
