@@ -125,12 +125,24 @@ else
     "sherpa-onnx-pyannote-segmentation-3-0.tar.bz2"
   then
     tar -xjf "$SEG_TBZ" -C "$OUT/diar"
-    found="$(find "$OUT/diar" -type f -name '*.onnx' | head -n 1 || true)"
+    # Deterministic pick: the float model.onnx is what every measured STAGE6
+    # row was produced with (sha256 220ad67c…, 5 992 913 bytes). `find | head`
+    # used to hand back the int8 export instead, which silently changed the
+    # diarizer between machines.
+    found=""
+    for cand in \
+      "$OUT/diar/sherpa-onnx-pyannote-segmentation-3-0/model.onnx" \
+      "$OUT/diar/model.onnx"; do
+      if [[ -f "$cand" ]]; then found="$cand"; break; fi
+    done
+    if [[ -z "$found" ]]; then
+      found="$(find "$OUT/diar" -type f -name '*.onnx' ! -name '*int8*' | head -n 1 || true)"
+    fi
     if [[ -n "$found" ]]; then
       cp -f "$found" "$SEG_ONNX"
       echo "extracted segmentation -> $SEG_ONNX ($(wc -c < "$SEG_ONNX" | tr -d ' ') bytes)"
     else
-      echo "WARN: tarball had no .onnx"
+      echo "WARN: tarball had no float segmentation onnx"
       DIAR_OK=0
     fi
   else

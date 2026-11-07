@@ -53,6 +53,15 @@ fun StenoApp(vm: StenoViewModel = viewModel()) {
             }
         vm.onFilePicked(uri, name)
     }
+    val jsonSaver = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json"),
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        val json = vm.state.value.jsonPreview ?: return@rememberLauncherForActivityResult
+        context.contentResolver.openOutputStream(uri)?.use { os ->
+            os.write(json.toByteArray(Charsets.UTF_8))
+        }
+    }
     val recPerm = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
     ) { granted ->
@@ -195,6 +204,12 @@ fun StenoApp(vm: StenoViewModel = viewModel()) {
                 }
                 OutlinedButton(
                     enabled = state.jsonPreview != null,
+                    onClick = { jsonSaver.launch("transcript.json") },
+                ) {
+                    Text("Сохранить JSON")
+                }
+                OutlinedButton(
+                    enabled = state.jsonPreview != null,
                     onClick = {
                         val json = state.jsonPreview ?: return@OutlinedButton
                         val send = Intent(Intent.ACTION_SEND).apply {
@@ -202,10 +217,10 @@ fun StenoApp(vm: StenoViewModel = viewModel()) {
                             putExtra(Intent.EXTRA_TEXT, json)
                             putExtra(Intent.EXTRA_TITLE, "transcript.json")
                         }
-                        context.startActivity(Intent.createChooser(send, "Экспорт JSON"))
+                        context.startActivity(Intent.createChooser(send, "Поделиться JSON"))
                     },
                 ) {
-                    Text("Экспорт JSON")
+                    Text("Поделиться")
                 }
             }
             Spacer(Modifier.height(8.dp))

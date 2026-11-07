@@ -10,7 +10,16 @@ plugins {
 val repoRoot: File = rootProject.projectDir.resolve("../..").normalize()
 val modelsSrc: File = File(repoRoot, "models")
 val embeddedModelsAssets = layout.buildDirectory.dir("generated/embeddedModels/assets")
-val judgeModelRelPaths = listOf(
+
+/**
+ * `-PembedLlm=true` also packs the local-LLM GGUF (353 MB) so the check APK is
+ * complete on a fresh install — the TZ needs the local LLM on device at check
+ * time, not after a download. Default off keeps the handout's ~251 MiB APK;
+ * the LLM then arrives via scripts/download-models.sh + adb push.
+ */
+val embedLlm: Boolean = (findProperty("embedLlm")?.toString() ?: "false") == "true"
+
+val judgeModelRelPaths = mutableListOf(
     "asr/zipformer-ru-int8/encoder.int8.onnx",
     "asr/zipformer-ru-int8/decoder.onnx",
     "asr/zipformer-ru-int8/joiner.int8.onnx",
@@ -19,6 +28,7 @@ val judgeModelRelPaths = listOf(
     "diar/segmentation.onnx",
     "diar/embedding.onnx",
 )
+if (embedLlm) judgeModelRelPaths.add("llm/qwen2-0_5b-instruct-q4_0.gguf")
 
 fun resolveJudgeModel(rel: String): File {
     val direct = File(modelsSrc, rel)
@@ -38,8 +48,21 @@ fun resolveJudgeModel(rel: String): File {
 
 val prepareEmbeddedModels by tasks.registering {
     group = "build"
-    description = "Copy Zipformer-ru + Silero VAD + diar ONNX into judge APK assets/models"
+    description = "Copy Zipformer-ru + Silero VAD + diar ONNX (and, with -PembedLlm, the GGUF) into judge APK assets/models"
     outputs.dir(embeddedModelsAssets)
+    // Without declared inputs Gradle marks this up-to-date forever, and the
+    // APK silently ships whatever weights the first build found. Measured the
+    // hard way: a replaced pyannote segmentation stayed stale inside a
+    // "successful" assemble.
+    judgeModelRelPaths.forEach { rel ->
+        val src = resolveJudgeModel(rel)
+        if (src.isFile) {
+            inputs.file(src)
+        } else {
+            inputs.property("absent:$rel", true)
+        }
+    }
+    inputs.property("embedLlm", embedLlm)
     doLast {
         var missing = judgeModelRelPaths.filter { !resolveJudgeModel(it).isFile }
         if (missing.isNotEmpty()) {
@@ -132,7 +155,9 @@ android {
     }
 
     androidResources {
-        noCompress += listOf("onnx", "txt")
+        // ONNX/GGUF are already quantised weights; compressing them costs
+        // build time and makes the first-launch unpack rewrite garbage.
+        noCompress += listOf("onnx", "txt", "gguf")
     }
 
     compileOptions {
