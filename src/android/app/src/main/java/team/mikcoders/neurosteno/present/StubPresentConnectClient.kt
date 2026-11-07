@@ -2,8 +2,6 @@ package team.mikcoders.neurosteno.present
 
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
-import team.mikcoders.neurosteno.export.TranscriptFile
-import team.mikcoders.neurosteno.export.Utterance
 
 /** No-op worker until OkHttp WebSocket is wired. */
 class StubPresentConnectClient : PresentConnectClient {
@@ -23,8 +21,4 @@ class StubPresentConnectClient : PresentConnectClient {
     }
 
     override fun activeStreamCount(): Int = streams
-
-    override fun sendTranscriptFinal(streamId: String, file: TranscriptFile) = Unit
-
-    override fun sendTranscriptPartial(streamId: String, utterance: Utterance) = Unit
 }
