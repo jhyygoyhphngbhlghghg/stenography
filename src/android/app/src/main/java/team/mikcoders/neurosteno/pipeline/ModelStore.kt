@@ -1,7 +1,10 @@
 package team.mikcoders.neurosteno.pipeline
 
 import android.content.Context
+import android.util.Log
+import team.mikcoders.neurosteno.BuildConfig
 import java.io.File
+import java.io.IOException
 
 /**
  * Looks for gitignored ONNX/Vosk/GGUF trees in filesDir/models and
@@ -43,6 +46,37 @@ data class ModelPaths(
 class ModelStore(private val context: Context) {
     fun modelsDir(): File = File(context.filesDir, "models")
 
+    /**
+     * First-launch copy of the weights packed into the judge APK
+     * (Platform PR #3 @ af71d91). No-op on the slim build or when filesDir
+     * already holds the packs, so an adb-pushed models/ tree still wins.
+     */
+    fun ensureUnpacked(): AssetModelUnpack.Report? {
+        if (!BuildConfig.EMBEDDED_MODELS) return null
+        val dest = modelsDir()
+        if (!AssetModelUnpack.needed(dest)) {
+            return AssetModelUnpack.Report(
+                copied = 0,
+                skippedExisting = AssetModelUnpack.REQUIRED.size,
+                missing = emptyList(),
+                ready = true,
+            )
+        }
+        val report = AssetModelUnpack.unpack(dest) { assetPath ->
+            try {
+                context.assets.open(assetPath)
+            } catch (_: IOException) {
+                null
+            }
+        }
+        if (!report.ready) {
+            Log.e(TAG, "embedded models incomplete missing=${report.missing}")
+        } else {
+            Log.i(TAG, "embedded models ready copied=${report.copied} skipped=${report.skippedExisting}")
+        }
+        return report
+    }
+
     fun resolve(): ModelPaths {
         val root = modelsDir()
         return ModelPaths(
@@ -66,6 +100,8 @@ class ModelStore(private val context: Context) {
     }
 
     companion object {
+        private const val TAG = "ModelStore"
+
         fun dirIfExists(dir: File): File? = dir.takeIf { it.isDirectory && it.list()?.isNotEmpty() == true }
 
         fun firstExisting(vararg files: File): File? = files.firstOrNull { it.isFile }
