@@ -6,6 +6,9 @@ Synthetic only — does **not** touch Eval DEMO_STAGE6 wavs.
 Eval per-turn @ 54177a1e: STAGE6 energy islands already ≥0.08 FS so FarFieldGain
 is a no-op; this script does not retune RMS targets.
 
+Checked out from Platform HEAD af71d91fce841e02d841afb0b093d16f51e5bddb
+(feat 5deb55a intro, 040274d 250–4500 Hz). Host eval uses scripts/phone_distance_eq.py.
+
 Matches Kotlin PhoneDistanceEq / FarFieldSynth.phoneDistanceScene:
   harmonic speech stack; 1/r; extra distance muffling; phone 4-stage 2400 Hz LPF;
   then frozen per-turn gain; then per-turn high-shelf on far islands only
@@ -327,7 +330,15 @@ def main() -> int:
         "gain_frozen": True,
         "eval_fixtures_untouched": True,
         "demo_claim": "DEMO_STAGE6 single phone-mic 3-6m; Path B <=20 optional",
-        "eval_per_turn_cite": "54177a1e STAGE6 energy islands already >=0.08 FS; FarFieldGain no-op; agg WER 0.73 — not re-run here",
+        "platform_head": "af71d91fce841e02d841afb0b093d16f51e5bddb",
+        "platform_files": [
+            "src/android/app/src/main/java/team/mikcoders/neurosteno/audio/PhoneDistanceEq.kt",
+            "src/android/app/src/main/java/team/mikcoders/neurosteno/pipeline/DemoPcmPrep.kt",
+            "src/android/app/src/main/java/team/mikcoders/neurosteno/audio/FarFieldGain.kt",
+            "src/android/app/src/test/java/team/mikcoders/neurosteno/audio/PhoneDistanceEqTest.kt",
+            "scripts/measure-phone-distance-eq.py",
+        ],
+        "eval_per_turn_cite": "54177a1e STAGE6 energy islands already >=0.08 FS; FarFieldGain no-op; Hex keep-punct WER_agg 0.7794 @ 0824df64 — not re-run here",
         "shelf_fc_hz": SHELF_FC,
         "max_shelf_db": MAX_SHELF_DB,
         "near_identity_rms_fs": NEAR_IDENTITY_RMS,

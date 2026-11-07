@@ -1,0 +1,130 @@
+{
+  "channels": [
+    {
+      "stream_id": "s01",
+      "speaker_id": "speaker_1",
+      "offset_ms": 120,
+      "role": "main"
+    },
+    {
+      "stream_id": "s02",
+      "speaker_id": "speaker_2",
+      "offset_ms": 40,
+      "role": "babble_cluster_a"
+    },
+    {
+      "stream_id": "s03",
+      "speaker_id": "speaker_3",
+      "offset_ms": 210,
+      "role": "babble_cluster_a"
+    },
+    {
+      "stream_id": "s04",
+      "speaker_id": "speaker_4",
+      "offset_ms": 380,
+      "role": "babble_cluster_a"
+    },
+    {
+      "stream_id": "s05",
+      "speaker_id": "speaker_5",
+      "offset_ms": 550,
+      "role": "babble_cluster_a"
+    },
+    {
+      "stream_id": "s06",
+      "speaker_id": "speaker_6",
+      "offset_ms": 720,
+      "role": "babble_cluster_a"
+    },
+    {
+      "stream_id": "s07",
+      "speaker_id": "speaker_7",
+      "offset_ms": 890,
+      "role": "babble_cluster_a"
+    },
+    {
+      "stream_id": "s08",
+      "speaker_id": "speaker_8",
+      "offset_ms": 1060,
+      "role": "babble_cluster_a"
+    },
+    {
+      "stream_id": "s09",
+      "speaker_id": "speaker_9",
+      "offset_ms": 1230,
+      "role": "babble_cluster_a"
+    },
+    {
+      "stream_id": "s10",
+      "speaker_id": "speaker_10",
+      "offset_ms": 1400,
+      "role": "babble_cluster_a"
+    },
+    {
+      "stream_id": "s11",
+      "speaker_id": "speaker_11",
+      "offset_ms": 1570,
+      "role": "babble_cluster_a"
+    },
+    {
+      "stream_id": "s12",
+      "speaker_id": "speaker_12",
+      "offset_ms": 6748,
+      "role": "babble_cluster_b"
+    },
+    {
+      "stream_id": "s13",
+      "speaker_id": "speaker_13",
+      "offset_ms": 6938,
+      "role": "babble_cluster_b"
+    },
+    {
+      "stream_id": "s14",
+      "speaker_id": "speaker_14",
+      "offset_ms": 7128,
+      "role": "babble_cluster_b"
+    },
+    {
+      "stream_id": "s15",
+      "speaker_id": "speaker_15",
+      "offset_ms": 7318,
+      "role": "babble_cluster_b"
+    },
+    {
+      "stream_id": "s16",
+      "speaker_id": "speaker_16",
+      "offset_ms": 7508,
+      "role": "babble_cluster_b"
+    },
+    {
+      "stream_id": "s17",
+      "speaker_id": "speaker_17",
+      "offset_ms": 7698,
+      "role": "babble_cluster_b"
+    },
+    {
+      "stream_id": "s18",
+      "speaker_id": "speaker_18",
+      "offset_ms": 7888,
+      "role": "babble_cluster_b"
+    },
+    {
+      "stream_id": "s19",
+      "speaker_id": "speaker_19",
+      "offset_ms": 8078,
+      "role": "babble_cluster_b"
+    },
+    {
+      "stream_id": "s20",
+      "speaker_id": "speaker_20",
+      "offset_ms": 8268,
+      "role": "babble_cluster_b"
+    }
+  ],
+  "overlap": {
+    "max_active_speakers": 12,
+    "frac_speech_frames_2plus": 0.9099,
+    "frac_speech_frames_5plus": 0.842,
+    "mean_active_on_speech": 8.28
+  }
+}

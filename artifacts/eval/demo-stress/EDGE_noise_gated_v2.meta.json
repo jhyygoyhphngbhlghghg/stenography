@@ -1,0 +1,451 @@
+{
+  "dry_dir": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_noise",
+  "wall_ms": 8754,
+  "duration_ms": 18736,
+  "n_segments": 79,
+  "n_hyp_speakers": 19,
+  "n_streams": 20,
+  "path": "B_per_stream",
+  "vad": "rms",
+  "pad_ms": 250,
+  "min_duration_on": 0.2,
+  "min_duration_off": 0.45,
+  "rel_thresh": 0.04,
+  "pcm_gate": true,
+  "pcm_gate_no_hush": false,
+  "pcm_gate_v2": true,
+  "pcm_gate_source": "StreamPcmGate.kt v2 @ e3ad908 (sha256 == Platform b12a2bb; BAND_LIMITED + boundSeat SOFT_LOW)",
+  "streams_passed": 19,
+  "streams_dropped": 1,
+  "pcm_gate_codes": {
+    "BAND_LIMITED": 1
+  },
+  "stack": "linux-sherpa-onnx per-stream StreamPcmGate v2+RMS-VAD+ASR (oracle stream id), merge by time",
+  "streams": [
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_noise/spk_01.wav",
+      "n_segments": 0,
+      "wall_ms": 167,
+      "vad": "pcm_gate_reject",
+      "stream_id": "s01",
+      "speaker_id": "speaker_1",
+      "pcm_gate": {
+        "verdict": "Reject",
+        "code": "BAND_LIMITED",
+        "message": "hf_ratio=0.0166 occ_speech=7 occ_hf=0",
+        "rms_fs": 0.06418223557927583,
+        "peak_fs": 0.835479736328125,
+        "clip_ratio": 0.0,
+        "dc_fs": -0.0005047289761185748,
+        "hf_ratio": 0.016611674973952138,
+        "speech_occupancy": 7,
+        "hf_occupancy": 0,
+        "soft_flags": [],
+        "bound_seat": true,
+        "version": 2
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_noise/spk_02.wav",
+      "n_segments": 6,
+      "wall_ms": 1302,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [
+          "SOFT_LOW"
+        ],
+        "code": null,
+        "message": "Pass",
+        "rms_fs": 0.00904523477782348,
+        "hf_ratio": 0.0005323954208112656,
+        "speech_occupancy": 2,
+        "hf_occupancy": 0,
+        "bound_seat": true,
+        "version": 2,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_noise/spk_03.wav",
+      "n_segments": 1,
+      "wall_ms": 446,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [
+          "SOFT_LOW"
+        ],
+        "code": null,
+        "message": "Pass",
+        "rms_fs": 0.00811638167543168,
+        "hf_ratio": 0.0011374361160977255,
+        "speech_occupancy": 5,
+        "hf_occupancy": 0,
+        "bound_seat": true,
+        "version": 2,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_noise/spk_04.wav",
+      "n_segments": 10,
+      "wall_ms": 422,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [
+          "SOFT_LOW"
+        ],
+        "code": null,
+        "message": "Pass",
+        "rms_fs": 0.007948317924778842,
+        "hf_ratio": 0.01973980876878121,
+        "speech_occupancy": 5,
+        "hf_occupancy": 0,
+        "bound_seat": true,
+        "version": 2,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_noise/spk_05.wav",
+      "n_segments": 7,
+      "wall_ms": 318,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [
+          "SOFT_LOW"
+        ],
+        "code": null,
+        "message": "Pass",
+        "rms_fs": 0.006584021845709531,
+        "hf_ratio": 0.00034233313374868124,
+        "speech_occupancy": 2,
+        "hf_occupancy": 0,
+        "bound_seat": true,
+        "version": 2,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_noise/spk_06.wav",
+      "n_segments": 1,
+      "wall_ms": 431,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [
+          "SOFT_LOW"
+        ],
+        "code": null,
+        "message": "Pass",
+        "rms_fs": 0.007374933979667249,
+        "hf_ratio": 0.008490906585677117,
+        "speech_occupancy": 1,
+        "hf_occupancy": 0,
+        "bound_seat": true,
+        "version": 2,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_noise/spk_07.wav",
+      "n_segments": 6,
+      "wall_ms": 427,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [
+          "SOFT_LOW"
+        ],
+        "code": null,
+        "message": "Pass",
+        "rms_fs": 0.00802348593398792,
+        "hf_ratio": 0.006350208212555498,
+        "speech_occupancy": 2,
+        "hf_occupancy": 0,
+        "bound_seat": true,
+        "version": 2,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_noise/spk_08.wav",
+      "n_segments": 4,
+      "wall_ms": 413,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [
+          "SOFT_LOW"
+        ],
+        "code": null,
+        "message": "Pass",
+        "rms_fs": 0.007758411533320553,
+        "hf_ratio": 0.0020194086650639704,
+        "speech_occupancy": 1,
+        "hf_occupancy": 0,
+        "bound_seat": true,
+        "version": 2,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_noise/spk_09.wav",
+      "n_segments": 4,
+      "wall_ms": 234,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [
+          "SOFT_LOW"
+        ],
+        "code": null,
+        "message": "Pass",
+        "rms_fs": 0.005357292904753755,
+        "hf_ratio": 0.004306915645992014,
+        "speech_occupancy": 2,
+        "hf_occupancy": 0,
+        "bound_seat": true,
+        "version": 2,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_noise/spk_10.wav",
+      "n_segments": 3,
+      "wall_ms": 455,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [
+          "SOFT_LOW"
+        ],
+        "code": null,
+        "message": "Pass",
+        "rms_fs": 0.007315970393264314,
+        "hf_ratio": 0.04125683437411556,
+        "speech_occupancy": 6,
+        "hf_occupancy": 0,
+        "bound_seat": true,
+        "version": 2,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_noise/spk_11.wav",
+      "n_segments": 8,
+      "wall_ms": 427,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [
+          "SOFT_LOW"
+        ],
+        "code": null,
+        "message": "Pass",
+        "rms_fs": 0.008414112328198036,
+        "hf_ratio": 0.0215879107189522,
+        "speech_occupancy": 3,
+        "hf_occupancy": 0,
+        "bound_seat": true,
+        "version": 2,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_noise/spk_12.wav",
+      "n_segments": 1,
+      "wall_ms": 444,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [
+          "SOFT_LOW"
+        ],
+        "code": null,
+        "message": "Pass",
+        "rms_fs": 0.008271649945892603,
+        "hf_ratio": 0.007673796045868414,
+        "speech_occupancy": 3,
+        "hf_occupancy": 0,
+        "bound_seat": true,
+        "version": 2,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_noise/spk_13.wav",
+      "n_segments": 1,
+      "wall_ms": 402,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [
+          "SOFT_LOW"
+        ],
+        "code": null,
+        "message": "Pass",
+        "rms_fs": 0.009057815192198658,
+        "hf_ratio": 0.6963103015472603,
+        "speech_occupancy": 2,
+        "hf_occupancy": 2,
+        "bound_seat": true,
+        "version": 2,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_noise/spk_14.wav",
+      "n_segments": 3,
+      "wall_ms": 406,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [
+          "SOFT_LOW"
+        ],
+        "code": null,
+        "message": "Pass",
+        "rms_fs": 0.008535938255663721,
+        "hf_ratio": 0.000839584624064982,
+        "speech_occupancy": 5,
+        "hf_occupancy": 0,
+        "bound_seat": true,
+        "version": 2,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_noise/spk_15.wav",
+      "n_segments": 1,
+      "wall_ms": 398,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [
+          "SOFT_LOW"
+        ],
+        "code": null,
+        "message": "Pass",
+        "rms_fs": 0.008591471367988653,
+        "hf_ratio": 0.039515241624924244,
+        "speech_occupancy": 4,
+        "hf_occupancy": 0,
+        "bound_seat": true,
+        "version": 2,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_noise/spk_16.wav",
+      "n_segments": 2,
+      "wall_ms": 415,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [
+          "SOFT_LOW"
+        ],
+        "code": null,
+        "message": "Pass",
+        "rms_fs": 0.007256064830132653,
+        "hf_ratio": 0.010745912627541956,
+        "speech_occupancy": 5,
+        "hf_occupancy": 0,
+        "bound_seat": true,
+        "version": 2,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_noise/spk_17.wav",
+      "n_segments": 1,
+      "wall_ms": 393,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [
+          "SOFT_LOW"
+        ],
+        "code": null,
+        "message": "Pass",
+        "rms_fs": 0.007531154261618718,
+        "hf_ratio": 0.03190399308217202,
+        "speech_occupancy": 2,
+        "hf_occupancy": 0,
+        "bound_seat": true,
+        "version": 2,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_noise/spk_18.wav",
+      "n_segments": 9,
+      "wall_ms": 389,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [
+          "SOFT_LOW"
+        ],
+        "code": null,
+        "message": "Pass",
+        "rms_fs": 0.008364295411730584,
+        "hf_ratio": 0.03523846677852697,
+        "speech_occupancy": 5,
+        "hf_occupancy": 1,
+        "bound_seat": true,
+        "version": 2,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_noise/spk_19.wav",
+      "n_segments": 9,
+      "wall_ms": 407,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [
+          "SOFT_LOW"
+        ],
+        "code": null,
+        "message": "Pass",
+        "rms_fs": 0.008604734872181542,
+        "hf_ratio": 0.0011888027053897,
+        "speech_occupancy": 3,
+        "hf_occupancy": 0,
+        "bound_seat": true,
+        "version": 2,
+        "crops_skipped": 0
+      }
+    },
+    {
+      "file": "/agent/repos/neuro-stenographer/samples/demo-stress/adversarial/dry_EDGE_noise/spk_20.wav",
+      "n_segments": 2,
+      "wall_ms": 388,
+      "vad": "rms",
+      "pcm_gate": {
+        "verdict": "Pass",
+        "soft_flags": [
+          "SOFT_LOW"
+        ],
+        "code": null,
+        "message": "Pass",
+        "rms_fs": 0.0070306370887226605,
+        "hf_ratio": 0.02388860309380719,
+        "speech_occupancy": 4,
+        "hf_occupancy": 0,
+        "bound_seat": true,
+        "version": 2,
+        "crops_skipped": 0
+      }
+    }
+  ],
+  "no_kvm_adb": true,
+  "json_schema": "transcript[].{speaker_id,start_ms,end_ms,text}",
+  "rtf": 0.4672288642186166
+}

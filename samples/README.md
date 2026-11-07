@@ -15,3 +15,12 @@ python3 scripts/eval_harness.py
 ```
 
 Do not invent WER/RTF. The CSV stays pending while wav/ref/hyp are missing.
+
+## Demo-stress (20 talkers)
+
+Separate suite, does not replace the three clip slots: `samples/demo-stress/` (SYNTHETIC eSpeak mix, host Linux only). See that README for SNR / stagger / licenses.
+
+```bash
+python3 scripts/generate_demo_stress_mix.py
+python3 scripts/eval_harness.py --suite demo-stress --run-host
+```

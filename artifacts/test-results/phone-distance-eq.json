@@ -4,7 +4,15 @@
   "gain_frozen": true,
   "eval_fixtures_untouched": true,
   "demo_claim": "DEMO_STAGE6 single phone-mic 3-6m; Path B <=20 optional",
-  "eval_per_turn_cite": "54177a1e STAGE6 energy islands already >=0.08 FS; FarFieldGain no-op; agg WER 0.73 \u2014 not re-run here",
+  "platform_head": "af71d91fce841e02d841afb0b093d16f51e5bddb",
+  "platform_files": [
+    "src/android/app/src/main/java/team/mikcoders/neurosteno/audio/PhoneDistanceEq.kt",
+    "src/android/app/src/main/java/team/mikcoders/neurosteno/pipeline/DemoPcmPrep.kt",
+    "src/android/app/src/main/java/team/mikcoders/neurosteno/audio/FarFieldGain.kt",
+    "src/android/app/src/test/java/team/mikcoders/neurosteno/audio/PhoneDistanceEqTest.kt",
+    "scripts/measure-phone-distance-eq.py"
+  ],
+  "eval_per_turn_cite": "54177a1e STAGE6 energy islands already >=0.08 FS; FarFieldGain no-op; Hex keep-punct WER_agg 0.7794 @ 0824df64 \u2014 not re-run here",
   "shelf_fc_hz": 1600.0,
   "max_shelf_db": 9.0,
   "near_identity_rms_fs": 0.12,

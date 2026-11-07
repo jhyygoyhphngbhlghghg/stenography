@@ -1,0 +1,17 @@
+{
+  "der": 1.0,
+  "der_no_collar": 1.0,
+  "jer": 1.0,
+  "speaker_purity": null,
+  "der_miss_s": 75.4400000000006,
+  "der_fa_s": 0.0,
+  "der_speaker_error_s": 0.0,
+  "der_ref_speech_s": 75.4400000000006,
+  "collar_ms": 250,
+  "frame_ms": 10,
+  "n_ref_speakers": 20,
+  "n_hyp_speakers": 0,
+  "metric_impl": "scripts/eval_metrics.py (NIST-style DER, DIHARD-like JER, cluster purity); WER Hex.Team 2026-11-06: keep ,.?!, fold ё→е; not pyannote.metrics",
+  "mapping_hyp_to_ref": {},
+  "wer_main": 1.0
+}
