@@ -9,10 +9,10 @@
 </head>
 <body data-display="compact" class="console-body">
 
-<div class="console">
-  <header class="console-head">
+<main class="console" role="main" aria-label="Пульт ведущего">
+  <header class="console-head" role="banner">
     <div>
-      <div class="console-title">Пульт ведущего</div>
+      <h1 class="console-title">Пульт ведущего</h1>
       <div class="console-sub">чекпоинты, демо, резерв</div>
     </div>
     <div class="console-status">
@@ -21,18 +21,18 @@
     </div>
   </header>
 
-  <section id="login" class="panel">
+  <section id="login" class="panel" role="form" aria-label="Вход">
     <div class="panel-head"><span>доступ</span><span class="num">ADMIN_TOKEN</span></div>
     <div class="login-row">
-      <input id="token" type="password" placeholder="токен ведущего" autocomplete="current-password" />
-      <button id="login-btn" type="button">Войти</button>
+      <input id="token" type="password" placeholder="токен ведущего" autocomplete="current-password" aria-label="Токен ведущего" />
+      <button id="login-btn" type="button" aria-label="Войти в пульт">Войти</button>
     </div>
     <p class="login-hint" id="login-hint"></p>
   </section>
 
-  <section id="controls" class="stack" hidden>
+  <section id="controls" class="stack" hidden role="region" aria-label="Управление презентацией">
     <div class="panel">
-      <div class="panel-head"><span>чекпоинт</span><span class="num" id="c-slide">01 / 09</span></div>
+      <h2 class="panel-head"><span>чекпоинт</span><span class="num" id="c-slide">01 / 09</span></h2>
       <div class="slide-grid" id="slide-grid"></div>
       <div class="btn-row">
         <button data-cmd="prev" type="button">← Назад</button>
@@ -41,7 +41,7 @@
     </div>
 
     <div class="panel">
-      <div class="panel-head"><span>живое демо</span><span class="num">phone → screens</span></div>
+      <h2 class="panel-head"><span>живое демо</span><span class="num">phone → screens</span></h2>
       <div class="btn-row">
         <button data-cmd="begin" type="button" class="primary">Начать демо</button>
         <button data-cmd="end" type="button">Завершить</button>
@@ -61,9 +61,9 @@
     </div>
 
     <div class="panel">
-      <div class="panel-head"><span>ссылка для зала</span><span class="num">QR</span></div>
+      <h2 class="panel-head"><span>ссылка для зала</span><span class="num">QR</span></h2>
       <div class="qr-row">
-        <canvas id="qr" width="180" height="180"></canvas>
+        <canvas id="qr" width="180" height="180" role="img" aria-label="QR-код для зрителей"></canvas>
         <div class="qr-side">
           <div class="qr-url num" id="join-url">—</div>
           <p class="login-hint">
@@ -76,11 +76,11 @@
     </div>
 
     <div class="panel">
-      <div class="panel-head"><span>лента</span><span class="num" id="c-rows">0 строк</span></div>
-      <div class="console-feed" id="c-feed"></div>
+      <h2 class="panel-head"><span>лента</span><span class="num" id="c-rows">0 строк</span></h2>
+      <div class="console-feed" id="c-feed" role="log" aria-live="polite" aria-label="Лента транскрипта"></div>
     </div>
   </section>
-</div>
+</main>
 
 <script src="./vendor/qrcode.js"></script>
 <script type="module" src="./js/console.js"></script>

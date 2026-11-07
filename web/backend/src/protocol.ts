@@ -36,10 +36,10 @@ export const WorkerTranscriptFinalSchema = z.object({
 export const WorkerTranscriptPartialSchema = z.object({
   type: z.literal('transcript.partial'),
   stream_id: z.string().max(40).optional(),
-  speaker_id: z.string(),
-  start_ms: z.number().int(),
-  end_ms: z.number().int(),
-  text: z.string(),
+  speaker_id: z.string().min(1).max(40),
+  start_ms: z.number().int().min(0),
+  end_ms: z.number().int().min(0),
+  text: z.string().max(4000),
 });
 
 export const WorkerStatusSchema = z.object({
@@ -52,9 +52,9 @@ export const WorkerStatusSchema = z.object({
 
 export const WorkerErrorSchema = z.object({
   type: z.literal('error'),
-  stream_id: z.string().optional(),
-  code: z.string(),
-  message: z.string(),
+  stream_id: z.string().max(40).optional(),
+  code: z.string().max(64),
+  message: z.string().max(500),
 });
 
 export const WorkerPongSchema = z.object({
@@ -111,10 +111,6 @@ export const PresenterCommandSchema = z.discriminatedUnion('type', [
  * ------------------------------------------------------------------ */
 
 export type WorkerMessage = z.infer<typeof WorkerMessageSchema>;
-export type WorkerHello = z.infer<typeof WorkerHelloSchema>;
-export type PresenterCommand = z.infer<typeof PresenterCommandSchema>;
-export type IngestTranscript = z.infer<typeof IngestTranscriptSchema>;
-export type IngestStatus = z.infer<typeof IngestStatusSchema>;
 export type WireUtterance = z.infer<typeof WireUtteranceSchema>;
 
 /** A transcript row as the screens render it. `source` keeps provenance honest. */

@@ -37,6 +37,11 @@ const state = {
   connected: false,
   rows: new Map(),
   seats: new Map(),
+  /** Mirrors of the last server values, used for partial HUD updates. */
+  demoPhase: 'idle',
+  phoneSnapshot: {},
+  sessionId: '',
+  mic: null,
 };
 
 /* ------------------------------------------------------------------ *
@@ -110,7 +115,7 @@ function scrollToIndex(index, instant = false) {
   });
 }
 
-setInterval(() => {
+const snapBackTimer = setInterval(() => {
   if (programmatic || FREE_SCROLL) return;
   if (Math.abs(scroller.scrollTop - expectedTop) > 2) {
     programmatic = true;
@@ -228,21 +233,22 @@ function buildSeats() {
 }
 buildSeats();
 
+let activeSeatTimeout = null;
+
 function highlightSeat(seat) {
   for (const [n, node] of state.seats) {
     const active = n === seat;
     node.halo.setAttribute('opacity', active ? '1' : '0');
     node.dot.setAttribute('fill', active ? SEAT_COLORS[n - 1] : 'var(--paper-2)');
   }
-  if (active_seat_timeout) clearTimeout(active_seat_timeout);
-  active_seat_timeout = setTimeout(() => {
+  if (activeSeatTimeout) clearTimeout(activeSeatTimeout);
+  activeSeatTimeout = setTimeout(() => {
     for (const [, node] of state.seats) {
       node.halo.setAttribute('opacity', '0');
       node.dot.setAttribute('fill', 'var(--paper-2)');
     }
   }, 2600);
 }
-let active_seat_timeout = null;
 
 /* ------------------------------------------------------------------ *
  * Transcript feed
@@ -258,7 +264,12 @@ function renderRow(row) {
   if (!el) {
     el = document.createElement('article');
     el.className = 'row';
-    el.innerHTML = '<div class="who"><i></i><span></span></div><div class="what"></div>';
+    const who = document.createElement('div');
+    who.className = 'who';
+    who.append(document.createElement('i'), document.createElement('span'));
+    const what = document.createElement('div');
+    what.className = 'what';
+    el.append(who, what);
     feed.appendChild(el);
     state.rows.set(key, el);
     animate(el, { opacity: [0, 1], translateY: [10, 0], duration: 380, ease: 'out(3)' });
@@ -289,7 +300,7 @@ function onTranscriptRow(row) {
 }
 
 function clearFeed() {
-  feed.innerHTML = '';
+  feed.replaceChildren();
   state.rows.clear();
   if (feedState) feedState.textContent = 'ожидание';
 }
@@ -344,7 +355,7 @@ function buildTimelines() {
         target: section,
         enter: 'top bottom',
         leave: 'bottom top',
-        sync: true,
+        sync: 'play pause',
         repeat: true,
       }),
     });
@@ -397,25 +408,38 @@ function buildTimelines() {
           duration: 620,
           delay: stagger(90),
         }, 140);
-        // Count-up driven by the same scroll progress.
-        for (const card of cards) {
-          const valueEl = card.querySelector('.v');
-          if (!valueEl) continue;
-          const target = Number(valueEl.dataset.count ?? 0);
-          const dec = Number(valueEl.dataset.dec ?? 0);
-          const proxy = { p: 0 };
-          tl.add(proxy, {
-            p: 1,
-            duration: 900,
-            ease: 'out(2)',
-            onUpdate: () => {
-              valueEl.textContent = (target * proxy.p).toFixed(dec);
-            },
-          }, 200);
-        }
+        // Count-up is triggered from applyCheckpoint (see below) so it works
+        // with programmatic scroll, not just user scroll.
       }
     }
     section.__tl = tl;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Count-up for the numbers slide
+ * ------------------------------------------------------------------ */
+
+let countUpDone = false;
+
+function triggerCountUp(section) {
+  if (countUpDone) return;
+  countUpDone = true;
+  const cards = Array.from(section.querySelectorAll('.metric'));
+  for (const card of cards) {
+    const valueEl = card.querySelector('.v');
+    if (!valueEl) continue;
+    const target = Number(valueEl.dataset.count ?? 0);
+    const dec = Number(valueEl.dataset.dec ?? 0);
+    const proxy = { p: 0 };
+    animate(proxy, {
+      p: 1,
+      duration: 1100,
+      ease: 'out(2)',
+      onUpdate: () => {
+        valueEl.textContent = (target * proxy.p).toFixed(dec);
+      },
+    });
   }
 }
 
@@ -424,7 +448,14 @@ function buildTimelines() {
  * ------------------------------------------------------------------ */
 
 function applyCheckpoint(snapshot, opts = {}) {
+  // Dedupe: polling and WebSocket can deliver the same checkpoint twice.
+  const revision = snapshot.revision ?? 0;
+  if (!opts.first && revision !== 0 && revision === state.revision) return false;
+
   paintHud(snapshot);
+  state.demoPhase = snapshot.demo_phase ?? state.demoPhase;
+  state.phoneSnapshot = snapshot.phone ?? state.phoneSnapshot;
+  state.sessionId = snapshot.session_id ?? state.sessionId;
 
   if (snapshot.demo_phase === 'fallback') {
     setBanner(snapshot.banner ?? 'Резервный режим: показана запись, не результат модели');
@@ -436,9 +467,16 @@ function applyCheckpoint(snapshot, opts = {}) {
   const moved = nextIndex !== state.index;
   const first = opts.first === true;
   state.index = nextIndex;
-  state.revision = snapshot.revision ?? state.revision;
+  state.revision = revision || state.revision;
   paintRail();
   scrollToIndex(nextIndex, first);
+
+  // Trigger count-up on the numbers slide.
+  const numbersSection = sections[nextIndex];
+  if (numbersSection && numbersSection.dataset.slide === 'numbers') {
+    triggerCountUp(numbersSection);
+  }
+
   return moved;
 }
 
@@ -559,15 +597,12 @@ function connect() {
  * ------------------------------------------------------------------ */
 
 function boot() {
+  state.sessionId = SESSION;
   paintRail();
   buildTimelines();
   scrollToIndex(0, true);
   // Prime the HUD so nothing reads "undefined" before the first checkpoint.
   paintHud({ phone: {}, demo_phase: 'idle', session_id: SESSION });
-  // Seed state used by partial HUD updates.
-  state.demoPhase = 'idle';
-  state.phoneSnapshot = {};
-  state.sessionId = SESSION;
   connect();
 }
 
@@ -581,4 +616,11 @@ if (document.readyState === 'loading') {
 setTimeout(() => {
   if (!state.connected && !state.polling) startPolling();
 }, 2500);
+
+/* Clean up timers when the page is hidden or navigated away. */
+window.addEventListener('pagehide', () => {
+  clearInterval(snapBackTimer);
+  stopPolling();
+  if (state.ws) { try { state.ws.close(); } catch { /* already closed */ } }
+}, { once: true });
 
