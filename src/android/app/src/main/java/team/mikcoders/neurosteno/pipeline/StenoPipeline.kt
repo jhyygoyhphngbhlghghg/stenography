@@ -32,6 +32,10 @@ interface StenoPipeline {
     val llmDisplayName: String
     val llmIsOnDevice: Boolean
 
+    /** On-device LLM runner for Q&A; null when no GGUF is present. */
+    val llmRunner: team.mikcoders.neurosteno.llm.OnDeviceLlmRunner?
+        get() = null
+
     suspend fun transcribe(
         audio: PcmAudio,
         onProgress: (PipelineProgress) -> Unit,

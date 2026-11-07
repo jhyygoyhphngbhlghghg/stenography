@@ -45,6 +45,7 @@ class SherpaStenoPipeline(
         }
     override val llmDisplayName: String = llm.displayName
     override val llmIsOnDevice: Boolean = llm.isOnDeviceLlm
+    override val llmRunner: team.mikcoders.neurosteno.llm.OnDeviceLlmRunner? = llm.qaRunner
 
     override suspend fun transcribe(
         audio: PcmAudio,

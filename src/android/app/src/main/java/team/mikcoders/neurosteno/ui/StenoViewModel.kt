@@ -18,6 +18,9 @@ import team.mikcoders.neurosteno.audio.MicRecorder
 import team.mikcoders.neurosteno.audio.Pcm
 import team.mikcoders.neurosteno.export.TranscriptFile
 import team.mikcoders.neurosteno.export.TranscriptJson
+import team.mikcoders.neurosteno.export.TranscriptExport
+import team.mikcoders.neurosteno.llm.TranscriptQa
+import team.mikcoders.neurosteno.llm.OnDeviceLlmRunner
 import team.mikcoders.neurosteno.pipeline.DemoPcmPrep
 import team.mikcoders.neurosteno.pipeline.ModelPaths
 import team.mikcoders.neurosteno.pipeline.PipelineFactory
@@ -61,6 +64,19 @@ data class StenoUiState(
     val presentStreams: Int = 0,
     val wsUrl: String = "wss://present.example.local/v1/present-connect?session=demo&role=worker&device=phone",
     val micFlags: List<MicFlagChip> = emptyList(),
+    // Export
+    val exportFormat: String = "json",
+    // Q&A
+    val qaQuestion: String = "",
+    val qaAnswer: String? = null,
+    val qaRunning: Boolean = false,
+    val qaSummary: String? = null,
+    val qaKeyPoints: String? = null,
+    // Speaker names
+    val speakerNames: Map<String, String> = emptyMap(),
+    // Presentation mode
+    val presentMode: Boolean = false,
+    val presentApiKey: String = "",
 )
 
 data class ActiveStreamChip(
@@ -109,6 +125,10 @@ class StenoViewModel(app: Application) : AndroidViewModel(app) {
                     jniError = SherpaJni.last.error,
                 )
             }
+            // Load saved speaker names
+            SpeakerNames.load(getApplication())
+            _state.update { it.copy(speakerNames = SpeakerNames.names.toMap()) }
+
             if (BuildConfig.PRESENT_CONNECT && presentClient == null) {
                 val session = PathBSession.fromPipeline(created.first)
                 pathB = session
@@ -298,6 +318,177 @@ class StenoViewModel(app: Application) : AndroidViewModel(app) {
                 _state.update {
                     it.copy(running = false, error = t.message ?: t::class.java.simpleName)
                 }
+            }
+        }
+    }
+
+    /* ---------------------------------------------------------- Export */
+
+    fun setExportFormat(fmt: String) {
+        _state.update { it.copy(exportFormat = fmt) }
+    }
+
+    fun exportContent(): Pair<String, ByteArray?> {
+        val rows = _state.value.transcript?.transcript ?: emptyList()
+        return when (_state.value.exportFormat) {
+            "srt" -> TranscriptExport.toSrt(rows) to null
+            "txt" -> TranscriptExport.toTxt(rows) to null
+            "csv" -> TranscriptExport.toCsv(rows) to null
+            "docx" -> "" to TranscriptExport.toDocx(rows)
+            else -> (_state.value.jsonPreview ?: "[]") to null
+        }
+    }
+
+    fun exportMimeType(): String = when (_state.value.exportFormat) {
+        "srt" -> "text/plain"
+        "txt" -> "text/plain"
+        "csv" -> "text/csv"
+        "docx" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        else -> "application/json"
+    }
+
+    fun exportFileName(): String = "transcript.${_state.value.exportFormat}"
+
+    /* ------------------------------------------------------------- Q&A */
+
+    fun setQaQuestion(q: String) {
+        _state.update { it.copy(qaQuestion = q) }
+    }
+
+    fun askQa() {
+        val question = _state.value.qaQuestion.trim()
+        val rows = _state.value.transcript?.transcript ?: emptyList()
+        if (question.isEmpty() || rows.isEmpty() || _state.value.qaRunning) return
+        val runner = pipeline.llmRunner ?: return
+        val qa = TranscriptQa(runner)
+        _state.update { it.copy(qaRunning = true, qaAnswer = null) }
+        viewModelScope.launch {
+            try {
+                val answer = qa.ask(rows, question)
+                _state.update { it.copy(qaRunning = false, qaAnswer = answer) }
+            } catch (t: Throwable) {
+                _state.update { it.copy(qaRunning = false, qaAnswer = "Ошибка: ${t.message}") }
+            }
+        }
+    }
+
+    fun summarizeQa() {
+        val rows = _state.value.transcript?.transcript ?: emptyList()
+        if (rows.isEmpty() || _state.value.qaRunning) return
+        val runner = pipeline.llmRunner ?: return
+        val qa = TranscriptQa(runner)
+        _state.update { it.copy(qaRunning = true, qaSummary = null) }
+        viewModelScope.launch {
+            try {
+                val summary = qa.summarize(rows)
+                _state.update { it.copy(qaRunning = false, qaSummary = summary) }
+            } catch (t: Throwable) {
+                _state.update { it.copy(qaRunning = false, qaSummary = "Ошибка: ${t.message}") }
+            }
+        }
+    }
+
+    fun extractKeyPoints() {
+        val rows = _state.value.transcript?.transcript ?: emptyList()
+        if (rows.isEmpty() || _state.value.qaRunning) return
+        val runner = pipeline.llmRunner ?: return
+        val qa = TranscriptQa(runner)
+        _state.update { it.copy(qaRunning = true, qaKeyPoints = null) }
+        viewModelScope.launch {
+            try {
+                val points = qa.extractKeyPoints(rows)
+                _state.update { it.copy(qaRunning = false, qaKeyPoints = points) }
+            } catch (t: Throwable) {
+                _state.update { it.copy(qaRunning = false, qaKeyPoints = "Ошибка: ${t.message}") }
+            }
+        }
+    }
+
+    /* ----------------------------------------------------- Speaker names */
+
+    fun setSpeakerName(speakerId: String, name: String) {
+        SpeakerNames.setName(speakerId, name)
+        SpeakerNames.persist(getApplication())
+        _state.update { it.copy(speakerNames = SpeakerNames.names.toMap()) }
+    }
+
+    fun loadSpeakerNames() {
+        SpeakerNames.load(getApplication())
+        _state.update { it.copy(speakerNames = SpeakerNames.names.toMap()) }
+    }
+
+    /* ------------------------------------------------- Presentation mode */
+
+    companion object {
+        /** Hardcoded presentation server domain for the demo build. */
+        const val PRESENT_DOMAIN = "http://192.168.1.100:8080"
+        const val PRESENT_WS_PATH = "/v1/present-connect"
+        const val PRESENT_HTTP_PATH = "/v1/transcript"
+    }
+
+    fun setPresentApiKey(key: String) {
+        _state.update { it.copy(presentApiKey = key) }
+    }
+
+    fun togglePresentMode() {
+        _state.update { it.copy(presentMode = !it.presentMode) }
+    }
+
+    /**
+     * Connect to the presentation server in presentation mode.
+     * Uses the hardcoded domain + API key for auth.
+     */
+    fun connectPresentation() {
+        val key = _state.value.presentApiKey.trim()
+        if (key.isEmpty()) {
+            _state.update { it.copy(error = "Введите API-ключ") }
+            return
+        }
+        val wsUrl = "$PRESENT_DOMAIN$PRESENT_WS_PATH?session=present&role=phone&device=phone_1&key=$key"
+        val client = presentClient ?: return
+        viewModelScope.launch {
+            client.connect(
+                PresentConnectConfig(
+                    wsUrl = wsUrl,
+                    httpBaseUrl = PRESENT_DOMAIN,
+                    sessionId = "present",
+                    deviceId = "phone_1",
+                ),
+            )
+        }
+    }
+
+    /**
+     * Push the current transcript to the presentation server via HTTP.
+     */
+    fun pushToPresentation() {
+        val rows = _state.value.transcript?.transcript ?: emptyList()
+        if (rows.isEmpty()) return
+        val key = _state.value.presentApiKey.trim()
+        viewModelScope.launch {
+            try {
+                val json = TranscriptJson.encode(TranscriptFile(rows))
+                val engine = _state.value.engineName
+                val body = buildString {
+                    append("{\"transcript\": ")
+                    append(json)
+                    append(", \"engine\": \"")
+                    append(engine)
+                    append("\"}")
+                }
+                withContext(Dispatchers.IO) {
+                    val url = java.net.URL("$PRESENT_DOMAIN$PRESENT_HTTP_PATH")
+                    val conn = url.openConnection() as java.net.HttpURLConnection
+                    conn.requestMethod = "POST"
+                    conn.setRequestProperty("Content-Type", "application/json")
+                    if (key.isNotEmpty()) conn.setRequestProperty("Authorization", "Bearer $key")
+                    conn.doOutput = true
+                    conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+                    conn.responseCode
+                }
+                _state.update { it.copy(error = null) }
+            } catch (t: Throwable) {
+                _state.update { it.copy(error = "Push: ${t.message}") }
             }
         }
     }

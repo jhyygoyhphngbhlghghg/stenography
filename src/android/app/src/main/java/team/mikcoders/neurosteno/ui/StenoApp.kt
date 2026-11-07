@@ -27,6 +27,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -61,6 +62,36 @@ fun StenoApp(vm: StenoViewModel = viewModel()) {
         context.contentResolver.openOutputStream(uri)?.use { os ->
             os.write(json.toByteArray(Charsets.UTF_8))
         }
+    }
+    val docxSaver = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument(
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ),
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        val bytes = vm.exportContent().second ?: return@rememberLauncherForActivityResult
+        context.contentResolver.openOutputStream(uri)?.use { os -> os.write(bytes) }
+    }
+    val srtSaver = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("text/plain"),
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        val (text, _) = vm.exportContent()
+        context.contentResolver.openOutputStream(uri)?.use { os -> os.write(text.toByteArray(Charsets.UTF_8)) }
+    }
+    val txtSaver = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("text/plain"),
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        val (text, _) = vm.exportContent()
+        context.contentResolver.openOutputStream(uri)?.use { os -> os.write(text.toByteArray(Charsets.UTF_8)) }
+    }
+    val csvSaver = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("text/csv"),
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        val (text, _) = vm.exportContent()
+        context.contentResolver.openOutputStream(uri)?.use { os -> os.write(text.toByteArray(Charsets.UTF_8)) }
     }
     val recPerm = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
@@ -203,21 +234,29 @@ fun StenoApp(vm: StenoViewModel = viewModel()) {
                     Text("Расшифровать")
                 }
                 OutlinedButton(
-                    enabled = state.jsonPreview != null,
-                    onClick = { jsonSaver.launch("transcript.json") },
+                    enabled = state.transcript != null,
+                    onClick = {
+                        when (state.exportFormat) {
+                            "docx" -> docxSaver.launch("transcript.docx")
+                            "srt" -> srtSaver.launch("transcript.srt")
+                            "txt" -> txtSaver.launch("transcript.txt")
+                            "csv" -> csvSaver.launch("transcript.csv")
+                            else -> jsonSaver.launch("transcript.json")
+                        }
+                    },
                 ) {
-                    Text("Сохранить JSON")
+                    Text("Сохранить ${state.exportFormat.uppercase()}")
                 }
                 OutlinedButton(
-                    enabled = state.jsonPreview != null,
+                    enabled = state.transcript != null,
                     onClick = {
-                        val json = state.jsonPreview ?: return@OutlinedButton
+                        val (text, _) = vm.exportContent()
                         val send = Intent(Intent.ACTION_SEND).apply {
-                            type = "application/json"
-                            putExtra(Intent.EXTRA_TEXT, json)
-                            putExtra(Intent.EXTRA_TITLE, "transcript.json")
+                            type = vm.exportMimeType()
+                            putExtra(Intent.EXTRA_TEXT, text)
+                            putExtra(Intent.EXTRA_TITLE, vm.exportFileName())
                         }
-                        context.startActivity(Intent.createChooser(send, "Поделиться JSON"))
+                        context.startActivity(Intent.createChooser(send, "Поделиться"))
                     },
                 ) {
                     Text("Поделиться")
@@ -240,7 +279,159 @@ fun StenoApp(vm: StenoViewModel = viewModel()) {
                 Text(it, color = MaterialTheme.colorScheme.error)
             }
             Spacer(Modifier.height(12.dp))
+
+            /* ---- Export format ---- */
+            if (state.transcript != null) {
+                Text("Формат экспорта", style = MaterialTheme.typography.labelLarge)
+                Spacer(Modifier.height(4.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    for (fmt in listOf("json", "srt", "txt", "csv", "docx")) {
+                        FilterChip(
+                            selected = state.exportFormat == fmt,
+                            onClick = { vm.setExportFormat(fmt) },
+                            label = { Text(fmt.uppercase()) },
+                        )
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+            }
+
+            /* ---- Speaker names ---- */
             val rows = state.transcript?.transcript.orEmpty()
+            if (rows.isNotEmpty()) {
+                Text("Имена спикеров", style = MaterialTheme.typography.labelLarge)
+                Spacer(Modifier.height(4.dp))
+                val speakers = rows.map { it.speakerId }.distinct().sorted()
+                for (sp in speakers) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(
+                            sp,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(top = 12.dp),
+                        )
+                        OutlinedTextField(
+                            value = state.speakerNames[sp] ?: "",
+                            onValueChange = { vm.setSpeakerName(sp, it) },
+                            modifier = Modifier.weight(1f),
+                            label = { Text("имя") },
+                            singleLine = true,
+                        )
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+            }
+
+            /* ---- Q&A ---- */
+            if (rows.isNotEmpty() && state.llmOnDevice) {
+                Text("Вопросы по диалогу (локальная LLM)", style = MaterialTheme.typography.labelLarge)
+                Spacer(Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    OutlinedTextField(
+                        value = state.qaQuestion,
+                        onValueChange = { vm.setQaQuestion(it) },
+                        modifier = Modifier.weight(1f),
+                        label = { Text("Вопрос по транскрипту") },
+                        singleLine = true,
+                    )
+                    Button(
+                        onClick = { vm.askQa() },
+                        enabled = !state.qaRunning && state.qaQuestion.isNotBlank(),
+                    ) {
+                        Text("Спросить")
+                    }
+                }
+                Spacer(Modifier.height(4.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = { vm.summarizeQa() },
+                        enabled = !state.qaRunning,
+                    ) {
+                        Text("Саммари")
+                    }
+                    OutlinedButton(
+                        onClick = { vm.extractKeyPoints() },
+                        enabled = !state.qaRunning,
+                    ) {
+                        Text("Ключевые решения")
+                    }
+                }
+                if (state.qaRunning) {
+                    Spacer(Modifier.height(4.dp))
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                }
+                state.qaAnswer?.let {
+                    Spacer(Modifier.height(4.dp))
+                    Card(Modifier.fillMaxWidth()) {
+                        Text(it, Modifier.padding(12.dp), style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+                state.qaSummary?.let {
+                    Spacer(Modifier.height(4.dp))
+                    Card(Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(12.dp)) {
+                            Text("Саммари", style = MaterialTheme.typography.labelMedium)
+                            Text(it, style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                }
+                state.qaKeyPoints?.let {
+                    Spacer(Modifier.height(4.dp))
+                    Card(Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(12.dp)) {
+                            Text("Ключевые решения", style = MaterialTheme.typography.labelMedium)
+                            Text(it, style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+            }
+
+            /* ---- Presentation mode ---- */
+            Text("Режим презентации", style = MaterialTheme.typography.labelLarge)
+            Spacer(Modifier.height(4.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                OutlinedButton(onClick = { vm.togglePresentMode() }) {
+                    Text(if (state.presentMode) "Выйти из режима" else "Режим презентации")
+                }
+                if (state.presentMode) {
+                    OutlinedTextField(
+                        value = state.presentApiKey,
+                        onValueChange = { vm.setPresentApiKey(it) },
+                        modifier = Modifier.weight(1f),
+                        label = { Text("API-ключ") },
+                        singleLine = true,
+                    )
+                }
+            }
+            if (state.presentMode) {
+                Spacer(Modifier.height(4.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = { vm.connectPresentation() },
+                        enabled = state.presentApiKey.isNotBlank(),
+                    ) {
+                        Text("Подключить к сайту")
+                    }
+                    OutlinedButton(
+                        onClick = { vm.pushToPresentation() },
+                        enabled = state.transcript != null,
+                    ) {
+                        Text("Отправить на экраны")
+                    }
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+
+            val rows2 = state.transcript?.transcript.orEmpty()
             if (rows.isEmpty() && !state.running) {
                 Text(
                     if (state.presentConnect) {
@@ -266,14 +457,15 @@ fun StenoApp(vm: StenoViewModel = viewModel()) {
 }
 
 @Composable
-private fun UtteranceRow(u: Utterance) {
+private fun UtteranceRow(u: Utterance, names: Map<String, String> = emptyMap()) {
+    val display = names[u.speakerId]?.takeIf { it.isNotEmpty() } ?: u.speakerId
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(
                     selected = true,
                     onClick = {},
-                    label = { Text(u.speakerId) },
+                    label = { Text(display) },
                 )
                 Text(
                     formatMs(u.startMs) + " – " + formatMs(u.endMs),
