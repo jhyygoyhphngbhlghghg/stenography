@@ -1,120 +1,38 @@
-import { useDialogue } from "./useDialogue";
-import { useEffect, useRef } from "react";
-import { voiceSignal } from "./dialogue";
 import type { BackendTranscriptRow } from "./useBackendConnection";
 
+/**
+ * Слайд «Демо». Специально пустой: живое — в ленте слева и в телефоне справа,
+ * здесь показывать нечего. Таймлайн, дорожки и подписи убраны по замечанию
+ * Лёвы: они спорили с реальным результатом за внимание.
+ */
 export function LiveDemo({
   compact,
-  active,
   backendEntries = [],
 }: {
   compact: boolean;
-  active: boolean;
+  active?: boolean;
   backendEntries?: BackendTranscriptRow[];
 }) {
-  const root = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (compact || !active) return;
-    let frame = 0;
-    const tick = () => {
-      root.current?.style.setProperty(
-        "--voice-envelope",
-        String(voiceSignal.connected ? 0.15 + voiceSignal.level : 1),
-      );
-      frame = requestAnimationFrame(tick);
-    };
-    tick();
-    return () => cancelAnimationFrame(frame);
-  }, [compact, active]);
-  const { entries: localEntries, telemetry } = useDialogue();
-  // Merge backend transcript rows with local dialogue entries
-  const backendAsEntries = backendEntries.map((row, i) => ({
-    speaker_id: row.speaker_id,
-    text: row.text,
-    sequence: 10000 + i,
-  }));
-  const entries = [...localEntries, ...backendAsEntries];
-  const speakers = [...new Set(entries.map((entry) => String(entry.speaker_id)))];
-  const allRows = speakers.length ? speakers : ["01", "02"];
-  const rows = compact ? allRows.slice(-3) : allRows;
+  const speakers = new Set(backendEntries.map((row) => row.speaker_id)).size;
+  const rows = backendEntries.length;
+
   return (
-    <div ref={root} className="demo-workspace a" data-demo>
-      <header className="demo-header">
-        <span className="font-mono text-xs uppercase text-neon">
-          <span className="live-dot" />
-          Live demo
-        </span>
-        <div className="demo-telemetry font-mono text-xs text-muted-foreground">
-          <span>
-            RAM{" "}
-            <strong className="text-foreground">
-              {telemetry.ramMb === null ? "—" : `${Math.round(telemetry.ramMb)} MB`}
-            </strong>
-          </span>
-          <span>
-            CPU{" "}
-            <strong className="text-foreground">
-              {telemetry.cpuPercent === null ? "—" : `${telemetry.cpuPercent.toFixed(1)}%`}
-            </strong>
-          </span>
-        </div>
-      </header>
-      <div className="dialogue-editor">
-        <div className="timeline-ruler font-mono text-muted-foreground">
-          <span>VOICE / DIALOGUE</span>
-          {["00:00", "00:15", "00:30", "00:45"].map((t) => (
-            <span key={t}>{t}</span>
-          ))}
-        </div>
-        <div className="dialogue-lanes">
-          {rows.map((speaker, index) => (
-            <div className="dialogue-lane" key={speaker}>
-              <div className="speaker-label font-mono">
-                <span className="text-neon">{String(index + 1).padStart(2, "0")}</span>
-                <span className="text-muted-foreground">
-                  {speakers.length ? speaker : "SPEAKER"}
-                </span>
-              </div>
-              <div className="dialogue-clips">
-                {entries
-                  .filter((e) => String(e.speaker_id) === speaker)
-                  .slice(compact ? -1 : -4)
-                  .map((entry) => (
-                    <div
-                      key={entry.sequence}
-                      className={`dialogue-clip ${index % 2 ? "alternate" : ""}`}
-                    >
-                      <span className="font-mono text-muted-foreground">
-                        #{String(entry.sequence).padStart(3, "0")}
-                      </span>
-                      <p>{entry.text}</p>
-                      {!compact && (
-                        <div className="clip-wave" aria-hidden>
-                          {Array.from({ length: 28 }, (_, i) => (
-                            <i
-                              key={i}
-                              style={{ height: `${20 + Math.abs(Math.sin(i * 1.7)) * 75}%` }}
-                            />
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                {!entries.length && (
-                  <div className="empty-track font-mono text-muted-foreground">—</div>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="timeline-playhead" aria-hidden>
-          <span />
-        </div>
-        <footer className="timeline-footer font-mono text-muted-foreground">
-          <span>JSON · speaker_id / text</span>
-          <span>{entries.length ? `${entries.length} SEGMENTS` : "WAITING FOR INPUT"}</span>
-        </footer>
-      </div>
+    <div className="demo-stage" data-demo>
+      <p className="a kicker">// 04 — демо</p>
+      <h2 className="a mt-6 text-5xl font-medium tracking-tight md:text-7xl">
+        Живой показ<span className="text-neon caret">_</span>
+      </h2>
+      <p className="a mt-8 max-w-2xl text-xl leading-relaxed text-muted-foreground">
+        Шесть человек говорят по очереди в один микрофон телефона. Разделение голосов, распознавание
+        и пунктуация считаются на устройстве, в авиарежиме.
+      </p>
+      {!compact && (
+        <p className="a mt-10 font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground">
+          {rows
+            ? `${rows} строк · ${speakers} голосов`
+            : "для демонстрации потребуются люди из аудитории"}
+        </p>
+      )}
     </div>
   );
 }
