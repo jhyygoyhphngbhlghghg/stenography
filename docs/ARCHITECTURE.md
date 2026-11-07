@@ -48,7 +48,12 @@ Audio (SAF import / in-app 16 kHz mic)
   → brief JSON {transcript:[{speaker_id,start_ms,end_ms,text}]}
 ```
 
-Whole-file RMS AGC is **not** the demo fix. Eval **e0e64b85** (cite only): agg WER 0.73→0.70, **s5 still missing** — near seat already WER 0 @ 3.0 m (`a8b39d5a`). Per-turn gain lifts quiet 4–6 m seats without attenuating a hot 3 m peak.
+Whole-file RMS AGC is **not** the demo fix. Eval **e0e64b85** (historical,
+strip-punct series — the canonical cite is the Hex keep-punct 0.7794 → 0.6471
+in `docs/TEST_RESULTS.md`, so do not quote these two numbers as the room
+result): agg WER 0.73→0.70, **s5 still missing**. Per-turn gain lifts quiet
+4–6 m seats without attenuating a hot 3 m peak; gain and EQ are both frozen
+because neither recovered the room.
 
 PresentConnect (flavor `presentConnect`, network mode) — **codepath only**:
 
