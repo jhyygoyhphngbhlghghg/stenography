@@ -36,6 +36,7 @@ object Pcm {
         return out
     }
 
+    /** Stereo→mono for a **single** imported file. Not PresentConnect Path A mix of many mics. */
     fun downmixToMono(samples: FloatArray, channels: Int): FloatArray {
         if (channels <= 1) return samples
         val frames = samples.size / channels
