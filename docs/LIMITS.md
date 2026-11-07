@@ -2,7 +2,7 @@
 
 Canonical copy: [LIMITATIONS.md](./LIMITATIONS.md) (hacathon_template name).
 
-**Presentation claim = DEMO_STAGE6:** 6 on-stage RU speakers, one phone mic, scene 3–6 m, sequential turns with light end-of-replica overlap only, large room, medium babble/HVAC, phone-mic band-limit / compression / distance attenuation + reverb. First measure ([PR #4](https://cursor.com/codebase/johann-schilling/neuro-stenographer/pull/4)): aggregate **WER 0.73 / DER 0.52**. **Ideal recognition only at 3 m.** Gain agg WER **0.73 / 0.70 / 0.73** did not recover the room. Do not cite a lower aggregate. Not a studio. Not Path B ≤20. Local LLM is required for hand-in; assets-bundled weights are primary.
+**Presentation claim = DEMO_STAGE6:** 6 on-stage RU speakers, one phone mic, scene 3–6 m, sequential turns with light end-of-replica overlap only, large room, medium babble/HVAC, phone-mic band-limit / compression / distance attenuation + reverb. Canonical cite is the Hex keep-punct series (Mikhail scoring lock): baseline **WER 0.7794** → after the diar hard-cap K≤6 **WER 0.6471**, DER **0.2760**, JER **0.5454**, hyp **6/6**. The older strip-punct 0.73 / DER 0.52 first measure is history only — do not cite it, and never cite `WER_main 0` as the room result. Ideal recognition holds at 3 m only; 4.2–5.4 m are still missing/empty. Gain (FarFieldGain) and EQ (PhoneDistanceEq) are FROZEN: neither recovered the room. Not a studio. Not Path B ≤20. Local LLM is required for hand-in; `-PembedLlm=true` ships the GGUF inside the check APK.
 
 **Path A** one-room cocktail ≥20 is a measured hard fail (1/20, DER 0.95) — do not claim it.
 
