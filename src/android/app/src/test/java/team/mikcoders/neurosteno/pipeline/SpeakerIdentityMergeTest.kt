@@ -15,7 +15,15 @@ class SpeakerIdentityMergeTest {
     private val voiceA = unit(floatArrayOf(1f, 0.2f, 0.1f, 0.05f))
     private val voiceB = unit(floatArrayOf(0.1f, 1f, 0.2f, 0.4f))
     private val voiceA2 = unit(floatArrayOf(0.9f, 0.25f, 0.15f, 0.08f))
-    private val voiceB2 = unit(floatArrayOf(0.15f, 0.9f, 0.25f, 0.35f))
+    // Sweep v2 (scripts/mic_diar_sweep.py, 2026-11-08) moved
+    // SAME_VOICE_MAX_DISTANCE 0.55 -> 0.60: device verdict "3-person
+    // conversation produced 7 speakers"; sweep table casual_3spk same-voice
+    // segs 0.388-0.756, diff-voice floor 0.727 (2spk) / 0.844 (3spk) /
+    // distinct-seat turn min 0.718 (stage6, merge-OFF guard 5/6 seats).
+    // The old voiceB2 (0.15, 0.9, 0.25, 0.35) sat at d(voiceA2)=0.556 <= 0.60
+    // and would glue the alternating pair; this replica keeps same-voice
+    // d(voiceB)=0.015 while cross-distances stay >= 0.615 > 0.60.
+    private val voiceB2 = unit(floatArrayOf(0.05f, 1f, 0.35f, 0.55f))
 
     @Test
     fun sequentialReplicasOfSamePersonShareOneLabel() {

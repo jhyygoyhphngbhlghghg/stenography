@@ -83,7 +83,18 @@ data class FarFieldScene(
             vadMaxSpeechSec = 30f,
             diarMinDurationOnSec = 0.08f,
             diarMinDurationOffSec = 0.18f,
-            diarClusterThreshold = 0.5f,
+            // 0.65 (was 0.5): device verdict 2026-11-08 on a 3-person casual
+            // recording = 7 speakers (each person split into 2-3 embedding
+            // clusters; expectedSpeakers=-1 returns the clustering as-is, so
+            // the raw threshold IS the speaker count). Host sweep v2
+            // (scripts/mic_diar_sweep.py, 3spk/2spk casual fixtures + frozen
+            // DEMO_STAGE6): all ct in {0.5..0.7} leave both casual fixtures
+            // unchanged (no host-side regression), diff-voice segment distance
+            // min is 0.727 (2spk) / 0.844 (3spk) and distinct-seat turn min
+            // 0.718 (stage6) — 0.65 keeps >=0.068 margin to every measured
+            // distinct-voice distance while gluing the 0.5-0.65 per-person
+            // cluster fragments; 0.7 would leave only 0.027 to 0.727.
+            diarClusterThreshold = 0.65f,
             asrCropPadMs = 200L,
             orphanMinMs = 400L,
             expandIfCoverageBelow = 0.5f,
