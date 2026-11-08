@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
@@ -84,7 +85,7 @@ class OkHttpPresentConnectClient(
                 put("max_streams", config.maxStreams)
                 put("sample_rate", config.sampleRate)
                 put("encoding", "pcm_s16le")
-                put("models", JsonPrimitive("zipformer-ru-int8"))
+                put("models", JsonArray(listOf(JsonPrimitive("zipformer-ru-int8"))))
                 put("accepts_diarization", true)
             }
             webSocket.send(hello.toString())
@@ -282,7 +283,7 @@ class PhoneDemoClient(
                     put("max_streams", 20)
                     put("sample_rate", 16_000)
                     put("encoding", "pcm_s16le")
-                    put("models", JsonPrimitive("zipformer-ru-int8"))
+                    put("models", JsonArray(listOf(JsonPrimitive("zipformer-ru-int8"))))
                     put("accepts_diarization", true)
                 }
                 webSocket.send(hello.toString())
