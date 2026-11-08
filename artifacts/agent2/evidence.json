@@ -1,0 +1,161 @@
+{
+  "host": "Windows, llama-completion b12182, GGUF qwen2-0_5b-instruct-q4_0.gguf",
+  "system_chars": 280,
+  "runner": "E:\\Projects\\neuro-stenographer\\neuro-stenographer\\artifacts\\compact\\build\\llama\\llama-completion.exe",
+  "gguf_bytes": 352969408,
+  "llm_host_cases": [
+    {
+      "case": "RU short",
+      "input": "Здравствуйте коллеги сегодня мы обсуждаем результаты работы",
+      "input_chars": 59,
+      "input_words": 7,
+      "rc": 0,
+      "stdout": "10000 мс.\r\n\r\n> EOF by user",
+      "completion": "10000 мс.",
+      "stderr_tail": "> ?dry -> ?top-n-sigma -> top-k -> ?typical -> top-p -> min-p -> ?xtc -> temp-ext -> greedy \r\n0.00.603.084 I generate: n_ctx = 1024, n_batch = 128, n_predict = 96, n_keep = 0\r\n0.00.603.084 I \r\n0.00.603.085 I == Running in interactive mode. ==\r\n0.00.603.085 I  - Press Ctrl+C to interject at any time.\r\n0.00.603.086 I  - Press Return to return control to the AI.\r\n - To return control without starting a new line, end your input with '/'.\r\n - If you want to submit another line, end your input with '\\'.\r\n0.00.603.087 I  - Not using system message. To change it, set a different value via -sys PROMPT\r\n0.00.603.087 I \r\n0.01.525.399 I common_perf_print:    sampling time =       3.19 ms\r\n0.01.525.401 I common_perf_print:    samplers time =       1.21 ms /   190 tokens\r\n0.01.525.403 I common_perf_print:        load time =     337.22 ms\r\n0.01.525.405 I common_perf_print: prompt eval time =     749.78 ms /   181 tokens (    4.14 ms per token,   241.40 tokens per second)\r\n0.01.525.407 I common_perf_print:        eval time =     168.73 ms /     8 runs   (   21.09 ms per token,    47.41 tokens per second)\r\n0.01.525.408 I common_perf_print:       total time =     922.94 ms /   189 tokens\r\n0.01.525.410 I common_perf_print: unaccounted time =       1.24 ms /   0.1 %      (total - sampling - prompt eval - eval) / (total)\r\n0.01.525.410 I common_perf_print:    graphs reused =          7\r\n0.01.525.411 I common_perf_print:   graph reallocs =          0    /     0        (same size) / (changed size)\r\n",
+      "wall_s": 1.617
+    },
+    {
+      "case": "RU concat",
+      "input": "Если решение будет принято мы сообщим об этом завтра",
+      "input_chars": 52,
+      "input_words": 9,
+      "rc": 0,
+      "stdout": "10000 мс. Если решение будет принято, мы сообщим об этом завтра.\r\n\r\n> EOF by user",
+      "completion": "10000 мс. Если решение будет принято, мы сообщим об этом завтра.",
+      "stderr_tail": "> ?dry -> ?top-n-sigma -> top-k -> ?typical -> top-p -> min-p -> ?xtc -> temp-ext -> greedy \r\n0.00.607.753 I generate: n_ctx = 1024, n_batch = 128, n_predict = 96, n_keep = 0\r\n0.00.607.753 I \r\n0.00.607.753 I == Running in interactive mode. ==\r\n0.00.607.754 I  - Press Ctrl+C to interject at any time.\r\n0.00.607.754 I  - Press Return to return control to the AI.\r\n - To return control without starting a new line, end your input with '/'.\r\n - If you want to submit another line, end your input with '\\'.\r\n0.00.607.755 I  - Not using system message. To change it, set a different value via -sys PROMPT\r\n0.00.607.755 I \r\n0.01.763.983 I common_perf_print:    sampling time =       6.88 ms\r\n0.01.763.984 I common_perf_print:    samplers time =       2.74 ms /   198 tokens\r\n0.01.763.985 I common_perf_print:        load time =     326.29 ms\r\n0.01.763.987 I common_perf_print: prompt eval time =     738.97 ms /   175 tokens (    4.22 ms per token,   236.82 tokens per second)\r\n0.01.763.989 I common_perf_print:        eval time =     409.32 ms /    22 runs   (   18.61 ms per token,    53.75 tokens per second)\r\n0.01.763.989 I common_perf_print:       total time =    1156.82 ms /   197 tokens\r\n0.01.763.991 I common_perf_print: unaccounted time =       1.64 ms /   0.1 %      (total - sampling - prompt eval - eval) / (total)\r\n0.01.763.991 I common_perf_print:    graphs reused =         21\r\n0.01.763.992 I common_perf_print:   graph reallocs =          0    /     0        (same size) / (changed size)\r\n",
+      "wall_s": 1.834
+    },
+    {
+      "case": "RU long",
+      "input": "Мы хотели закончить раньше но возникли дополнительные вопросы и нам нужно снова собрать всех участников и проверить отчёты поэтому предлагаю продолжить завтра утром когда все смогут присутствовать и принять окончательное решение",
+      "input_chars": 228,
+      "input_words": 31,
+      "rc": 0,
+      "stdout": "10000 мс.\r\n\r\n> EOF by user",
+      "completion": "10000 мс.",
+      "stderr_tail": "> ?dry -> ?top-n-sigma -> top-k -> ?typical -> top-p -> min-p -> ?xtc -> temp-ext -> greedy \r\n0.00.607.910 I generate: n_ctx = 1024, n_batch = 128, n_predict = 96, n_keep = 0\r\n0.00.607.911 I \r\n0.00.607.911 I == Running in interactive mode. ==\r\n0.00.607.911 I  - Press Ctrl+C to interject at any time.\r\n0.00.607.912 I  - Press Return to return control to the AI.\r\n - To return control without starting a new line, end your input with '/'.\r\n - If you want to submit another line, end your input with '\\'.\r\n0.00.607.912 I  - Not using system message. To change it, set a different value via -sys PROMPT\r\n0.00.607.912 I \r\n0.01.701.430 I common_perf_print:    sampling time =       3.36 ms\r\n0.01.701.432 I common_perf_print:    samplers time =       1.34 ms /   232 tokens\r\n0.01.701.433 I common_perf_print:        load time =     345.07 ms\r\n0.01.701.435 I common_perf_print: prompt eval time =     936.97 ms /   223 tokens (    4.20 ms per token,   238.00 tokens per second)\r\n0.01.701.436 I common_perf_print:        eval time =     152.58 ms /     8 runs   (   19.07 ms per token,    52.43 tokens per second)\r\n0.01.701.437 I common_perf_print:       total time =    1094.25 ms /   231 tokens\r\n0.01.701.438 I common_perf_print: unaccounted time =       1.34 ms /   0.1 %      (total - sampling - prompt eval - eval) / (total)\r\n0.01.701.439 I common_perf_print:    graphs reused =          7\r\n0.01.701.440 I common_perf_print:   graph reallocs =          0    /     0        (same size) / (changed size)\r\n",
+      "wall_s": 1.777
+    },
+    {
+      "case": "EN short",
+      "input": "Hello colleagues today we discuss the project results and next steps",
+      "input_chars": 68,
+      "input_words": 11,
+      "rc": 0,
+      "stdout": "10000 мс.\r\n\r\n> EOF by user",
+      "completion": "10000 мс.",
+      "stderr_tail": "> ?dry -> ?top-n-sigma -> top-k -> ?typical -> top-p -> min-p -> ?xtc -> temp-ext -> greedy \r\n0.00.720.331 I generate: n_ctx = 1024, n_batch = 128, n_predict = 96, n_keep = 0\r\n0.00.720.331 I \r\n0.00.720.332 I == Running in interactive mode. ==\r\n0.00.720.332 I  - Press Ctrl+C to interject at any time.\r\n0.00.720.333 I  - Press Return to return control to the AI.\r\n - To return control without starting a new line, end your input with '/'.\r\n - If you want to submit another line, end your input with '\\'.\r\n0.00.720.334 I  - Not using system message. To change it, set a different value via -sys PROMPT\r\n0.00.720.334 I \r\n0.01.610.016 I common_perf_print:    sampling time =       3.02 ms\r\n0.01.610.018 I common_perf_print:    samplers time =       1.14 ms /   183 tokens\r\n0.01.610.020 I common_perf_print:        load time =     380.99 ms\r\n0.01.610.022 I common_perf_print: prompt eval time =     738.56 ms /   174 tokens (    4.24 ms per token,   235.59 tokens per second)\r\n0.01.610.024 I common_perf_print:        eval time =     147.46 ms /     8 runs   (   18.43 ms per token,    54.25 tokens per second)\r\n0.01.610.025 I common_perf_print:       total time =     890.78 ms /   182 tokens\r\n0.01.610.027 I common_perf_print: unaccounted time =       1.74 ms /   0.2 %      (total - sampling - prompt eval - eval) / (total)\r\n0.01.610.027 I common_perf_print:    graphs reused =          7\r\n0.01.610.029 I common_perf_print:   graph reallocs =          0    /     0        (same size) / (changed size)\r\n",
+      "wall_s": 1.683
+    },
+    {
+      "case": "EN concat",
+      "input": "If the decision is made we will inform you tomorrow about the date",
+      "input_chars": 66,
+      "input_words": 13,
+      "rc": 0,
+      "stdout": "10000 мс.\r\n\r\n> EOF by user",
+      "completion": "10000 мс.",
+      "stderr_tail": "> ?dry -> ?top-n-sigma -> top-k -> ?typical -> top-p -> min-p -> ?xtc -> temp-ext -> greedy \r\n0.00.594.307 I generate: n_ctx = 1024, n_batch = 128, n_predict = 96, n_keep = 0\r\n0.00.594.307 I \r\n0.00.594.307 I == Running in interactive mode. ==\r\n0.00.594.308 I  - Press Ctrl+C to interject at any time.\r\n0.00.594.308 I  - Press Return to return control to the AI.\r\n - To return control without starting a new line, end your input with '/'.\r\n - If you want to submit another line, end your input with '\\'.\r\n0.00.594.309 I  - Not using system message. To change it, set a different value via -sys PROMPT\r\n0.00.594.309 I \r\n0.01.529.478 I common_perf_print:    sampling time =       2.51 ms\r\n0.01.529.479 I common_perf_print:    samplers time =       0.80 ms /   185 tokens\r\n0.01.529.481 I common_perf_print:        load time =     333.01 ms\r\n0.01.529.483 I common_perf_print: prompt eval time =     775.28 ms /   176 tokens (    4.41 ms per token,   227.01 tokens per second)\r\n0.01.529.484 I common_perf_print:        eval time =     156.86 ms /     8 runs   (   19.61 ms per token,    51.00 tokens per second)\r\n0.01.529.485 I common_perf_print:       total time =     935.76 ms /   184 tokens\r\n0.01.529.487 I common_perf_print: unaccounted time =       1.11 ms /   0.1 %      (total - sampling - prompt eval - eval) / (total)\r\n0.01.529.487 I common_perf_print:    graphs reused =          7\r\n0.01.529.488 I common_perf_print:   graph reallocs =          0    /     0        (same size) / (changed size)\r\n",
+      "wall_s": 1.603
+    },
+    {
+      "case": "EN long",
+      "input": "We wanted to finish earlier but additional questions appeared and we need to meet again tomorrow morning so that everyone can review the reports and agree on the final plan for the next sprint before the deadline",
+      "input_chars": 212,
+      "input_words": 37,
+      "rc": 0,
+      "stdout": "10000 мс.\r\n\r\n> EOF by user",
+      "completion": "10000 мс.",
+      "stderr_tail": "> ?dry -> ?top-n-sigma -> top-k -> ?typical -> top-p -> min-p -> ?xtc -> temp-ext -> greedy \r\n0.00.675.152 I generate: n_ctx = 1024, n_batch = 128, n_predict = 96, n_keep = 0\r\n0.00.675.152 I \r\n0.00.675.153 I == Running in interactive mode. ==\r\n0.00.675.153 I  - Press Ctrl+C to interject at any time.\r\n0.00.675.153 I  - Press Return to return control to the AI.\r\n - To return control without starting a new line, end your input with '/'.\r\n - If you want to submit another line, end your input with '\\'.\r\n0.00.675.154 I  - Not using system message. To change it, set a different value via -sys PROMPT\r\n0.00.675.154 I \r\n0.01.644.478 I common_perf_print:    sampling time =       2.93 ms\r\n0.01.644.480 I common_perf_print:    samplers time =       1.10 ms /   209 tokens\r\n0.01.644.481 I common_perf_print:        load time =     384.55 ms\r\n0.01.644.483 I common_perf_print: prompt eval time =     805.63 ms /   200 tokens (    4.03 ms per token,   248.25 tokens per second)\r\n0.01.644.486 I common_perf_print:        eval time =     160.19 ms /     8 runs   (   20.02 ms per token,    49.94 tokens per second)\r\n0.01.644.486 I common_perf_print:       total time =     969.96 ms /   208 tokens\r\n0.01.644.488 I common_perf_print: unaccounted time =       1.21 ms /   0.1 %      (total - sampling - prompt eval - eval) / (total)\r\n0.01.644.489 I common_perf_print:    graphs reused =          7\r\n0.01.644.490 I common_perf_print:   graph reallocs =          0    /     0        (same size) / (changed size)\r\n",
+      "wall_s": 1.716
+    }
+  ],
+  "prompt_skip_chars": 1664,
+  "long_text_chars": 2736,
+  "long_text_would_skip": true,
+  "long_text_chunks_checked": [
+    {
+      "chunk": 0,
+      "chars": 200,
+      "out": "10000 мс.\r\n\r\n> EOF by user",
+      "wall_s": 1.746,
+      "rc": 0
+    },
+    {
+      "chunk": 1,
+      "chars": 200,
+      "out": "Пауза после реплики: 10000 мс.\r\nРеплика: ринять окончательное решение. Мы хотели закончить раньше, но возникли дополнительные вопросы и нам нужно снова собрать всех участников и проверить отчёты, поэт",
+      "wall_s": 3.309,
+      "rc": 0
+    },
+    {
+      "chunk": 2,
+      "chars": 200,
+      "out": "10000 мс.\r\n\r\n> EOF by user",
+      "wall_s": 1.748,
+      "rc": 0
+    }
+  ],
+  "wav_files": [
+    {
+      "path": "artifacts\\compact\\build\\stage6_sequential.wav",
+      "bytes": 1359020,
+      "rate": 16000,
+      "ch": 1,
+      "width": 2,
+      "frames": 679488,
+      "duration_s": 42.468,
+      "nonzero_frames": 640710
+    },
+    {
+      "path": "samples\\demo-stress\\stage6\\smoke.wav",
+      "bytes": 38444,
+      "rate": 16000,
+      "ch": 1,
+      "width": 2,
+      "frames": 19200,
+      "duration_s": 1.2,
+      "nonzero_frames": 19184
+    },
+    {
+      "path": "samples\\demo-stress\\stage6\\DEMO_STAGE6.wav",
+      "bytes": 1271020,
+      "rate": 16000,
+      "ch": 1,
+      "width": 2,
+      "frames": 635488,
+      "duration_s": 39.718,
+      "nonzero_frames": 635121
+    }
+  ],
+  "export_json": {
+    "bytes": 491,
+    "utf8_no_bom": true,
+    "roundtrip_ok": true,
+    "keys_ok": true
+  },
+  "export_txt": {
+    "bytes": 234,
+    "utf8_no_bom": true,
+    "has_speakers": true,
+    "has_timestamps": true
+  },
+  "export_docx": {
+    "bytes": 1080,
+    "is_zip": true,
+    "contains_speakers": true
+  },
+  "export_pdf": {
+    "bytes": 799,
+    "header_ok": true,
+    "has_pdf_marker": true
+  },
+  "audio_export": {
+    "note": "see MicRecorder.kt; imported audio is kept as source file; no re-encode path exists"
+  },
+  "offline": {
+    "note": "AndroidManifest INTERNET is for PresentConnect flavor; offline demo never calls network. Code audit + emulator run (models unpack, JNI loaded, LLM GGUF shown with no network needed). adb kill-server conflict prevented repeating the network-off run; see report.",
+    "internet_permission_used_in_pipeline": false
+  }
+}
