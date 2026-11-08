@@ -69,6 +69,17 @@ Browser mics (≤20) ──audio──► presentation BE ──WS/HTTP──►
                          presentation display ◄──transcript───┘
 ```
 
+Живой стенд (проверен agent3/agent4, 2026-11-08): протокол
+**`present-connect/1`** по WSS —
+`wss://present.144.31.215.37.sslip.io/v1/present-connect?session=<id>&role=worker&device=<id>`
+(nginx + Let's Encrypt поверх L4 SNI-роутера sslip.io; fallback
+`https://144.31.215.37:8080`, самоподписанный сертификат). Телефон
+аутентифицируется `Authorization: Bearer <PHONE_TOKEN>` (демо-токен
+`09879078` — слабый по замыслу, см. `docs/LIMITATIONS.md`); пушит
+`transcript.final` / `phone.status`, сервер ретранслирует строки на экраны и
+в HUD дека. Молчание телефона ~45 с → `fallback`-баннер «показана запись, не
+результат модели». Контракт — `docs/PRESENT_CONNECT.md`.
+
 Checkpoint polling (clients follow presenter) lives on the **web BE**, not in
 this app. See `docs/PRESENT_CONNECT.md`.
 
@@ -151,7 +162,56 @@ src/android/app/src/main/java/team/mikcoders/neurosteno/
 - Спикеров в гипотезе **6 / 6** (до капа было 12 / 6).
 - speaker_5 на 5.4 м по-прежнему WER 1.0; 4.2 м — 1.00 после капа (слияние
   съело островок). Дальние места — известная граница, а не «решённая».
-- Он-девайс прогон не выполнялся: телефона в этой машине нет.
+- Он-девайс прогон на **физическом** телефоне не выполнялся: телефона в этой
+  машине нет. Пайплайн исполнялся на эмуляторах (LDPlayer, ARM-трансляция):
+  установка, распаковка, JNI, полный ASR+LLM прогон — REPORT agent2/agent3,
+  `artifacts/compact/ldplayer-real-check.json`.
+
+## Фазы памяти и runtime-оптимизация (ветка agent1-mobile-e2e)
+
+Пик RAM диктуется тем, сколько моделей резидентно одновременно. Решение —
+**exclusive memory phases** (`ExclusivePhases.kt`, коммит `1906eaa`):
+ASR-сессия выгружается сразу после фазы ASR, **до** загрузки GGUF; LLM
+остаётся тёплой между прогонами. Замерено на хосте
+(`artifacts/compact/exclusive-phases-experiment.json`):
+
+- ASR-only peak RSS ≈ 273 МБ (включая базовый интерпретатор), LLM-only
+  (ctx 1024, ubatch 128, 2 потока) ≈ 630 МБ;
+- оценка для Android: до фаз — 0.9–1.3 ГБ пик (ASR+LLM резидентны), после —
+  max(diar, ASR, LLM) + UI ≈ 0.7–0.8 ГБ; на эмуляторе LDPlayer фактический
+  peak PSS: 244 МБ (ASR-прогон) и 400 МБ (полный прогон с GGUF, ARM-трансляция)
+  — `artifacts/compact/ldplayer-real-check.json`;
+- цена: ASR перегружается каждый прогон (~590 мс init подготовленного
+  encoder на хосте) вместо тёплого ожидания; латентность первого прогона не
+  меняется.
+
+Смежные оптимизации той же ветки: переиспользование нативных сессий
+инференса с сериализованным жизненным циклом (`bd7b5dd`), lane-merging и фикс
+краша на длинной записи (`1906eaa`), offline-подготовленный Zipformer-encoder
+(точная паритетность вывода на 9 неизменных wav; init 1370→590 мс медиана) и
+compact-сборка 449 907 795 B (`3af1e5a`, `artifacts/compact/verification.json`).
+
+## Ловушки сборки и моделей (найдены и закрыты, но знать обязательно)
+
+1. **Протухшие веса в APK.** `:app:prepareEmbeddedModels` не объявляла
+   входы, Gradle считал задачу up-to-date и перекладывал старые ассеты: в
+   «успешно собранном» APK оказывался int8 `segmentation.onnx` (1 540 506 B)
+   вместо float-модели (5 992 913 B, sha `220ad67c…`), на которой измерены
+   все строки STAGE6. Корень — `find … | head -n 1` в `download-models.sh`.
+   Исправлено: задача объявляет веса и флаг `embedLlm` входами; скрипт берёт
+   float `model.onnx` явно. После любых изменений `models/` сверяйте листинг
+   ассетов APK (`docs/TEST_RESULTS.md` §«Два бага сборки»).
+2. **Float vs int8 сегментация — разные модели.** Все заявленные метрики
+   (DER 0.2760 и др.) измерены на float-экспорте pyannote segmentation-3.0;
+   int8-экспорт из того же тарбола не эквивалентен и в check-APK не кладётся.
+3. **Оборванный GGUF считался присутствующим.** `AssetModelUnpack.needed`
+   проверяла только `!File.isFile`; убитая первым запуском копия оставляла
+   0-байтовый GGUF, который засчитывался как «на месте». Исправлено
+   (`3a04212`): ретрай при `length() <= 0`, копии через temp+rename, маркер
+   `.unpacked` пишется последним.
+4. **Windows/cp1251.** `scripts/ci-check.sh` падал с `UnicodeEncodeError`
+   (cp1251 не печатал `−` в таблице demo-stress) — добавлен UTF-8 stdout в
+   `eval_harness.py` / `eval_demo_stress.py`.
 
 ## Правила скоринга, зашитые в код
 

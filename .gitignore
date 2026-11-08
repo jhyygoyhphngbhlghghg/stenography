@@ -53,6 +53,7 @@ examples/output/*
 
 # Keep large demo media outside Git unless intentionally included
 artifacts/demo/*.mp4
+docs/demo/*.mp4
 artifacts/demo/*.mov
 artifacts/demo/*.mkv
 artifacts/demo/*.wav

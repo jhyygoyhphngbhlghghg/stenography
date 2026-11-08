@@ -2,6 +2,33 @@
 
 Таблица: `results.csv`. Не заполнять WER/RTF выдуманными числами.
 
+## `results.csv` и колонки шаблона
+
+Шаблон хакатона (`hacathon_template/artifacts/test-results/results.csv`)
+описывает таблицу acoustic-transfer теста: `file_size_bytes`,
+`distance_meters`, `noise_condition`, `noise_level_db`, `attempt`,
+`checksum_match`, `device_tx`, `device_rx`. Наш прогон — не передача файла
+динамиком в микрофон, а распознавание речи на устройстве, поэтому часть этих
+полей описывает другую физику, а `checksum_match` и `device_tx/rx` не
+определимы вовсе.
+
+Схема таблицы поэтому своя, но поля шаблона сохранены там, где они значимы:
+
+| Шаблон | У нас | Примечание |
+|---|---|---|
+| `test_id`, `timestamp_utc`, `commit`, `file_name`, `notes` | те же имена | наличие и порядок совпадают |
+| `duration_seconds` | `duration_ms` | миллисекунды, целое, без округления |
+| `file_size_bytes` | нет | размер входного микса не является результатом замера |
+| `distance_meters`, `noise_condition`, `noise_level_db` | нет | для `DEMO_STAGE6` это параметризовано в `samples/demo-stress/stage6/` (места 3–6 м, babble/HVAC) и в `docs/TEST_RESULTS.md`, а не свалено в одну колонку |
+| `attempt`, `success` | нет | колонка `status` говорит больше: `measured-host-synthetic` / `pending` / `check_apk_*` |
+| `checksum_match`, `device_tx`, `device_rx` | нет | приём и передача файла между устройствами не выполняется |
+
+Плюс колонки, которых в шаблоне нет, но без которых наш результат не
+читается: `clip_id`, `wall_ms`, `rtf`, `wer`, `speakers_hyp`, `speakers_ref`.
+
+Заполнять пустые шаблонные поля «чтобы совпало» нельзя — `docs/GATE.md`: *do
+not invent metrics*. Строку пишет `scripts/eval_harness.py`.
+
 Platform de-risk evidence (Track B):
 
 | File | What |
