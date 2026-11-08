@@ -27,4 +27,14 @@ class FarFieldSceneTest {
         assertEquals(6, FarFieldScene.stage6.expectedSpeakers)
         assertEquals(-1, FarFieldScene.presentConnect.expectedSpeakers)
     }
+
+    @Test
+    fun stage6ClustersAutomaticallyButKeepsSixSpeakerCap() {
+        // Live-mic churn hotfix: the diarizer must not force 6 clusters on a
+        // 2-person casual recording; expectedSpeakers stays the reconcile cap.
+        assertEquals(0, FarFieldScene.stage6.diarNumClusters)
+        assertEquals(6, FarFieldScene.stage6.expectedSpeakers)
+        // PresentConnect keeps the historical default (auto, == expectedSpeakers).
+        assertEquals(-1, FarFieldScene.presentConnect.diarNumClusters)
+    }
 }

@@ -21,13 +21,19 @@ package team.mikcoders.neurosteno.pipeline
  *    (repeated clip 3 s windows: 0.01-0.03).
  *  - different voices (the 6 DEMO_STAGE6 seats, in-mix): min 0.62 (s3 vs s5),
  *    median 0.82-0.84.
+ *  - live-mic repro sweep (scripts/mic_diar_sweep.py, 2026-11-08, casual
+ *    2-person fixture built from the demo-stage6-handoff 3 m/3.6 m slices):
+ *    same-voice reconciled-segment pairs min 0.539 / median 0.780, diff-voice
+ *    min 0.812 — at the old 0.45 threshold ZERO same-voice pairs merged
+ *    (every line kept its own label, the reported churn).
  * Merging happens at the anchored-embedding level (each segment -> one unit
- * embedding), not per-window, so intra-segment variation is averaged out and
- * the practical merge threshold is set at 0.45, well between the repeat-copy
- * distances and the nearest distinct-seat distance (0.62).
+ * embedding), not per-window, so intra-segment variation is averaged out.
+ * 0.55 sits above the noisy same-voice window median (0.51) so live-mic turns
+ * actually merge, and below the nearest distinct-seat distance (0.62, margin
+ * 0.07; 0.60 would leave only 0.02) so stage6 seats stay distinct.
  */
 internal object SpeakerIdentityMerge {
-    const val SAME_VOICE_MAX_DISTANCE = 0.45f
+    const val SAME_VOICE_MAX_DISTANCE = 0.55f
     private const val WINDOW_MS = 1_500L
     private const val MIN_EMBED_MS = 300L
 

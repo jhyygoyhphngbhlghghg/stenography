@@ -1,5 +1,6 @@
 package team.mikcoders.neurosteno.pipeline
 
+import android.util.Log
 import com.k2fsa.sherpa.onnx.FastClusteringConfig
 import com.k2fsa.sherpa.onnx.FeatureConfig
 import com.k2fsa.sherpa.onnx.OfflineModelConfig
@@ -38,6 +39,10 @@ class SherpaStenoPipeline(
     private val llm: LocalLlmPostPass = HeuristicPunctuationPostPass(),
     private val scene: FarFieldScene = FarFieldScene.stage6,
 ) : StenoPipeline {
+    private companion object {
+        const val TAG = "SherpaStenoPipeline"
+    }
+
     override val displayName: String =
         when {
             paths.hasPrimaryAsr && scene.expectedSpeakers > 0 ->
@@ -121,7 +126,7 @@ class SherpaStenoPipeline(
         val regions = FarFieldVad.union(energy, silero)
 
         return if (paths.hasDiar) {
-            onProgress(PipelineProgress(PipelineStage.Diarize, "OfflineSpeakerDiarization K=${scene.expectedSpeakers}", 0.25f))
+            onProgress(PipelineProgress(PipelineStage.Diarize, "OfflineSpeakerDiarization clusters=${if (scene.diarNumClusters > 0) scene.diarNumClusters else "auto"} cap=${scene.expectedSpeakers}", 0.25f))
             // Diarization sessions are released before the ASR model loads;
             // the ASR session is released after this phase, before the LLM.
             val segments = diarize(work, regions)
@@ -190,6 +195,12 @@ class SherpaStenoPipeline(
         return try {
             val embeddings = segs.map { seg ->
                 embedSegment(extractor, audio.samples, audio.sampleRate, seg)
+            }
+            val nulls = embeddings.count { it == null }
+            if (nulls * 10 > segs.size * 3) {
+                // Diagnosability: null embeddings skip voice merging silently,
+                // which shows up as speaker-label churn on the transcript.
+                Log.w(TAG, "consolidateLabelsByVoice: $nulls/${segs.size} segment embeddings null (>30%)")
             }
             SpeakerIdentityMerge.merge(segs, embeddings)
         } catch (t: Throwable) {
@@ -480,7 +491,7 @@ class SherpaStenoPipeline(
                 provider = "cpu",
             ),
             clustering = FastClusteringConfig(
-                numClusters = scene.expectedSpeakers,
+                numClusters = scene.diarNumClusters,
                 threshold = scene.diarClusterThreshold,
             ),
             minDurationOn = scene.diarMinDurationOnSec,
