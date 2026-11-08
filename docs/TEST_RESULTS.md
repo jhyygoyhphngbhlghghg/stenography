@@ -6,6 +6,99 @@
 
 Шаблон строк: `artifacts/test-results/results.csv`. Demo-stress: `artifacts/eval/demo-stress/metrics.csv`.
 
+## Сводка финальных прогонов (ночь 2026-11-07/08, по отчётам финишеров)
+
+Провенанс каждой строки: ветка/коммит + артефакт. «REPORT agentN» — отчёт
+соответствующего финишера; у agent1 отчёт на момент сведения не появился,
+строки agent1 взяты из его закоммиченных артефактов.
+
+### Юнит-тесты (JVM, gradle)
+
+| состояние дерева | коммит | тестов | падений | источник |
+|---|---|---|---|---|
+| baseline runtime-ветки (stenographer + presentConnect) | `8eb4bb5` | **126 / 126** (21 класс на flavor) | 0 | agent1 `artifacts/optimization/verification.json` |
+| ветка agent2 (LLM+экспорт) | `06da663` | **147** (gradle-прогон `testStenographerDebugUnitTest`, XML-результаты) | 0 | wt-a2 `src/android/app/build/test-results/` |
+| ветка продуктовых фич / сводное дерево ship | `7912c20` / ship | **166 @Test-методов, 27 классов**; последний полный gradle-прогон green | 0 | REPORT agent5 §1 |
+| веб-бэкенд (`npx tsx --test`) | `agent4-web-sync-qr` | **9/9** после фикса desync в `server.test.ts`; `typecheck`/`build` exit 0 | 0 | REPORT agent4 §1 |
+| host-зеркала (python) | — | 61 + 18 (A-12) | 0 | `ci-check`, agent1 verification |
+
+Расхождение: в задании на сведение фигурировало «178 тестов (agent2 state)»;
+по фактическим XML ветки agent2 их **147**, по сводному дереву — **166**
+@Test-методов. Цитируем измеренное.
+
+### Эмуляторные e2e-прогоны
+
+| прогон | окружение | результат | источник |
+|---|---|---|---|
+| Cold-boot, установка debug-APK, распаковка моделей офлайн | LDPlayer `agent2_llm` (android-34, Houdini ARM) | `models unpack ready=true copied=7`, GGUF 352 969 408 B на месте, JNI loaded, строка LLM корректна; GGUF-инференс 1.6–2.2 с/реплику, без пустых выводов/зависаний/галлюцинаций спикеров | REPORT agent2 |
+| Полный пайплайн с GGUF на устройстве (ARM-трансляция) | LDPlayer SOV44, commit `3af1e5a` | ASR-only: wall 23.7 с, RTF 0.557, peak PSS **244 МБ**; полный прогон с LLM: LLM-фаза ~330 с, peak PSS **400 МБ**, транскрипт изменился (плюс/кавычки) — доказательство реального llama.cpp-инференса; фикстура — чистый монтаж, 4/6 реплик, «not far-field proof» | agent1 `artifacts/compact/ldplayer-real-check.json` |
+| presentConnect: установка, запуск, JNI, распаковка | LDPlayer `emulator-5554`, build `-x prepareEmbeddedModels` | `SherpaJni loaded=true`, модели распакованы (70 МБ encoder + vad/diar), **не stub** | REPORT agent3 §3 |
+| Продуктовый UI: запись → расшифровка e2e | emulator-5554, commit `7912c20` | ~45 adb-взаимодействий, `alternating_two_voices.wav`, прогресс и результат по скриншотам; gradle test+assemble green | REPORT agent5 §1 |
+
+Физический телефон: **не подключался ни в одном прогоне**
+(`android_device_execution: false`; sideload-проба — human-действие).
+
+### Офлайн-экспорт (матрица agent2, host-генерация тех же кодов, что на устройстве)
+
+| формат | UTF-8 | спикеры | таймстемпы | открывается | оговорка |
+|---|---|---|---|---|---|
+| JSON | ✓ без BOM | ✓ | ✓ `start_ms`/`end_ms` | round-trip + `verify-transcript-json.py` ✓ | — |
+| TXT | ✓ | ✓ | ✓ `[mm:ss.d - mm:ss.d]` | 234 B | — |
+| DOCX | ✓ (UTF-8 XML) | ✓ | ✓ | валидный OOXML zip (1080 B) | — |
+| PDF | — | — | — | валидный PDF-1.4 (799 B) | **кириллица требует встроенного шрифта** (Helvetica её не кодирует) |
+| аудио-экспорт | — | — | — | — | **не существует** (in-memory PCM, ре-энкода нет) |
+
+Артефакты: `artifacts/agent2/export_canonical.{json,txt,docx,pdf}`,
+`evidence.json`. GGUF-качество: 6 кейсов, длинный/EN вход часто даёт мусор —
+нейтрализуется гейтом `mergeCandidate` (содержательные слова ≠ hyp → отказ);
+реплики >1664 знаков GGUF пропускает (эвристика), ctx 1024 не переполняется.
+
+### Present-connect: живой hosted-deck тест (6 спикеров, RU)
+
+Эмулятор → боевой сервер `https://present.144.31.215.37.sslip.io/` (REPORT agent3 §4):
+
+| проверка | результат |
+|---|---|
+| `POST /v1/transcript` (Bearer PHONE_TOKEN) | `accepted:1`, `demo_phase:live` |
+| вторая строка (`speaker_2`) | `rows_pushed:2` |
+| экспорт | 4-ключевая схема брифа ✓ |
+| 6-спикерный раунд (800–39 800 мс, последовательно, RU-реплики формы DEMO_STAGE6) | `accepted:6`, `phone_connected:true`, `rows:6`; экспорт содержит все 6 |
+| дек на слайде `demo` (index 4) | LIVE-бейдж, HUD-строки 03–06, `banner:null`, `scroll_locked:true`, `body.innerText` содержит все 6 реплик |
+| видео-подтверждение | **GIF `artifacts/agent3/gif/deck-live-6spk.gif`** (640×601, 2 fps, 3 с) + покадровые PNG |
+
+### Веб: синхронизация и QR-вход (agent4)
+
+| проверка | результат |
+|---|---|
+| app → site `POST /v1/transcript` | **78 мс**; HUD на `/join?session=…` обновился без reload (<5 с): «телефон: запись», «демо: в эфире», чип сессии |
+| site → app `POST /v1/status` | **77 мс**; `phone.recording=true` в деке <5 с |
+| чекпоинт-навигация | `checkpoint.set index=5` → `slide_index:5 slide_id:live revision:3`, счётчик `06 / 09`, кольцо мест speaker_1…6 |
+| cross-device | desktop + эмулятор на одной сессии одновременно, без конфликтов |
+| QR-вход с эмулятора | URL достижим **10/10** (curl 200); чистый UI-лендинг 6/10 (Chrome First-Run перехватывает тап — ограничение автоматизации, не сайта) |
+| QR-фикс первого слайда | payload = `origin+pathname+search` — live на сервере и в репозитории (`4c5dd6e`) |
+| live-состояние стенда (read-only, 2026-11-08) | `/` 200, `/v1/health` 200 (`screens:2`), `/api/invite` 200, `/join` 200, `/presenter` 200 |
+
+### Сервер: эндпоинты, WebSocket, нагрузка (agent3, первая половина)
+
+| группа | результат |
+|---|---|
+| HTTP-эндпоинты (`/v1/health`, `/v1/presentation`, `/v1/sessions/{id}/transcript`, `/v1/transcript`, `/v1/status`, `/v1/workers/*`, `/api/state`, `/api/invite`, `/api/login`, `/api/command`) | все отвечают корректно; `POST /api/login` 200/401 по токену; `checkpoint.step/goto` bumps revision; 429-троттлинг |
+| WebSocket | `hello → hello.ok`, `transcript.partial` (relay `partial:true`), `transcript.final` (broadcast), ping/pong 15 с, reconnect с тем же `session_id`, mid-stream drop recovery |
+| нагрузка | 5-минутный 2-клиентский стрим — сервер выжил; ручные 5× POST-бёрсты приняты без падения; RSS ~56→58 МБ, утечек нет; `npm run typecheck` ✓ |
+| найденное | чекпоинты **не переживают рестарт** (in-memory); LLM/SSE-эндпоинтов нет (404 — by design); BOM-баг PowerShell-клиента (не сервера) |
+
+### WER/RTF-замеры (host) и restamp-оговорка
+
+Все строки — ниже в этом файле и в `artifacts/eval/`. Ключевые: DEMO_STAGE6
+Hex keep-punct WER **0.7794** (baseline) → **0.6471** (hard-cap K≤6, Impl
+`3c3f9ce`), DER 0.2760, JER 0.5454, гипотеза 6/6, RTF 0.1173 (host Linux).
+**Restamp-оговорка ci-check:** `scripts/ci-check.sh` пересчитывает метрики из
+уже закоммиченных hyp-файлов и перезаписывает `metrics.csv/json/run.log` —
+сверка до/после на Windows/Python 3.13 дала `metric differences (excluding
+timestamp/commit): 0` (27 строк). Коммит, где в metrics.csv изменились только
+штамп времени и SHA коммита, — это воспроизведение, а не перенастройка
+(подробности — §«Пересчёт замеров на этой машине»).
+
 ## Методика (черновик)
 
 1. Собрать debug APK flavor `stenographer`.
