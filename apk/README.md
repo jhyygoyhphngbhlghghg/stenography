@@ -13,6 +13,7 @@ fix `f98bb03`). Models + Qwen2 GGUF embedded in both (embedLlm default true).
 
 | file | bytes | sha256 | what it is |
 |---|---|---|---|
+| `app-stenographer-DEMO-v3-noisegate.apk` | 508 842 552 | `c5b88e0b791c9d0acd4032b6e5eec0562d77165c92808e60427f9c3484277a61` | FROZEN DEMO APK (team device-verified): v2 + NoiseGate (900 ms / RMS 0.25, casual-only) — noise-burst phantom speakers eliminated; 3-person noisy room → 3 labels. 154 unit tests green at build. |
 | `app-stenographer-DEMO-v2-diar-fixed.apk` | 508 947 140 | `ecb0ef3cff985143385a0de7d96878a6327e0d7e47a9835b8978b33f98f0f001` | DEMO/check APK v2: fully offline RU stenography; live-mic diarization churn fix (casual-mic scene, auto speaker count, identity-merge threshold 0.55). Unit tests green at build (167 @Test). |
 | `app-presentConnect-DEMO-v2-protofix.apk` | 509 012 604 | `d327acbb1ad6bd9157aa53e69ea5be52b28452b41b3713d87b1daf267dd2b0a1` | Presentation-connectivity demo APK v2: token-wired `present-connect/1` client with the hello-models-array fix. Live smoke app→hosted deck: handshake **PASS** (`phone_connected:true`, no BAD_MESSAGE); app-originated transcript rows **TIMEOUT** on the emulator (0 rows in the 8-min box, process restart) — `artifacts/SMOKE_PRESENTCONNECT_V2.md`, `docs/TEST_RESULTS.md`. |
 

@@ -69,6 +69,7 @@ ASR/LLM: аудио не покидает телефон.
 
 | файл | байт | sha256 | что это |
 |---|---|---|---|
+| `app-stenographer-DEMO-v3-noisegate.apk` | 508 842 552 | `c5b88e0b791c9d0acd4032b6e5eec0562d77165c92808e60427f9c3484277a61` | **ЗАМОРОЖЕННЫЙ DEMO-APK (проверен на устройстве командой)**: v2 + NoiseGate (900 мс / RMS 0.25, только casual-сцена) — фантомные спикеры от фонового шума устранены, 3 человека → 3 метки |
 | `app-stenographer-DEMO-v2-diar-fixed.apk` | 508 947 140 | `ecb0ef3cff985143385a0de7d96878a6327e0d7e47a9835b8978b33f98f0f001` | **DEMO/check-APK v2**: все веса + GGUF внутри, полностью офлайн, RU; фикс churn-диаризации (casual-mic сцена с авто-числом спикеров + порог слияния голосов 0.55) |
 | `app-presentConnect-DEMO-v2-protofix.apk` | 509 012 604 | `d327acbb1ad6bd9157aa53e69ea5be52b28452b41b3713d87b1daf267dd2b0a1` | демо-стенд presentConnect: token-wired клиент + фикс `hello` models-array (`f98bb03`); дым-тест app→hosted deck: handshake **PASS**, пуш строк — **TIMEOUT** на эмуляторе (`docs/TEST_RESULTS.md`) |
 
