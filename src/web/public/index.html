@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#f2f4f7" />
+<title>Нейро-стенографист — расшифровка разговора на телефоне</title>
+<link rel="stylesheet" href="./css/style.css" />
+</head>
+<body data-display="full">
+
+<div class="frame" aria-hidden="true"></div>
+
+<header class="hud" aria-hidden="true">
+  <div class="hud-id">
+    <span class="hud-dot" id="hud-dot"></span>
+    <span>НЕЙРО-СТЕНОГРАФИСТ</span>
+  </div>
+  <div class="hud-meta">
+    <span class="hud-chip" id="hud-phone">телефон: —</span>
+    <span class="hud-chip" id="hud-demo">демо: ожидание</span>
+    <span class="hud-chip" id="hud-session">сессия: —</span>
+  </div>
+</header>
+
+<div class="rail" id="rail" aria-hidden="true"></div>
+<div class="counter" id="counter" aria-hidden="true">01 / 09</div>
+
+<main class="scroller" id="scroller">
+
+  <!-- 01 title -->
+  <section class="checkpoint" data-slide="title">
+    <div class="pin">
+      <div class="grid-bg"></div>
+      <div class="sweep" id="sweep"></div>
+      <div class="inner">
+        <p class="kicker" data-anim="fade">MIK Coders · Hex.Team · Нейро-стенографист</p>
+        <h1 data-anim="title">Разговор<br />становится<br />протоколом</h1>
+        <p class="lede" data-anim="fade">
+          Шесть человек говорят по очереди. Один телефон записывает, разделяет спикеров
+          и выдаёт структурированный диалог: кто, когда и что сказал. Всё считается на
+          устройстве — в авиарежиме.
+        </p>
+        <div class="tag-row" style="margin-top:26px" data-anim="fade">
+          <span class="tag">VAD · Silero</span>
+          <span class="tag">диаризация · pyannote 3.0</span>
+          <span class="tag">ASR · Zipformer-ru int8</span>
+          <span class="tag">LLM · Qwen2-0.5B Q4_0</span>
+          <span class="tag">без облака</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 02 problem -->
+  <section class="checkpoint" data-slide="problem">
+    <div class="pin">
+      <div class="grid-bg"></div>
+      <div class="inner split">
+        <div>
+          <p class="kicker" data-anim="fade">01 — проблема</p>
+          <h2 data-anim="title">Совещание проходит<br />и исчезает</h2>
+          <ul class="points" data-anim="list">
+            <li>Облачные сервисы требуют сеть и уносят голос наружу: коммерческая тайна, персональные данные, закрытые контуры.</li>
+            <li>Обычная стенограмма склеивает всех в один поток — непонятно, кто что сказал.</li>
+            <li>Ручной протокол стоит часов работы после встречи.</li>
+          </ul>
+        </div>
+        <div class="panel" data-anim="panel">
+          <div class="panel-head"><span>что нужно получить</span><span class="num">JSON</span></div>
+          <pre class="num" style="margin:0;font-size:12.5px;line-height:1.7;color:var(--ink-2);white-space:pre-wrap">{
+  "transcript": [
+    { "speaker_id": "speaker_1",
+      "start_ms": 1250,
+      "end_ms": 4380,
+      "text": "Добрый день!" }
+  ]
+}</pre>
+          <p style="margin:14px 0 0;font-size:13px;color:var(--ink-3)">
+            Четыре поля — и ничего лишнего. Схема зафиксирована в <span class="num">docs/JSON.md</span>,
+            проверяется <span class="num">verify-transcript-json.py</span>.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 03 approach -->
+  <section class="checkpoint" data-slide="approach">
+    <div class="pin">
+      <div class="grid-bg"></div>
+      <div class="inner split">
+        <div>
+          <p class="kicker" data-anim="fade">02 — подход</p>
+          <h2 data-anim="title">Весь конвейер<br />в одном телефоне</h2>
+          <p class="lede" data-anim="fade">
+            Авиарежим — это и есть демо-режим. Ни облачного ASR, ни облачной диаризации,
+            ни удалённых вычислений, ни заранее записанного текста вместо модели.
+          </p>
+          <ul class="points" data-anim="list">
+            <li>Импорт аудио из памяти устройства или запись прямо в приложении.</li>
+            <li>Декодирование в 16 кГц моно PCM, дальше — единый конвейер.</li>
+            <li>Экспорт в JSON и системный лист «Поделиться».</li>
+          </ul>
+        </div>
+        <div class="stack" data-anim="panel">
+          <div class="panel">
+            <div class="panel-head"><span>устройство</span><span class="num">android</span></div>
+            <div class="stack" style="gap:8px">
+              <div class="note"><b>minSdk 28</b>, compileSdk 35, Kotlin + Jetpack Compose.</div>
+              <div class="note"><b>llama.cpp через JNI</b> — локальный LLM на устройстве.</div>
+              <div class="note"><b>110 JVM-тестов</b> в 20 классах, без эмулятора.</div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><span>вес</span><span class="num">apk</span></div>
+            <div class="stack" style="gap:8px;font-family:var(--mono);font-size:12.5px;color:var(--ink-2)">
+              <div>check APK — 210,3 MiB (модели внутри)</div>
+              <div>slim — 93,1 MiB (без весов)</div>
+              <div>+ GGUF LLM — 546,9 MiB</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 04 pipeline -->
+  <section class="checkpoint" data-slide="pipeline">
+    <div class="pin">
+      <div class="grid-bg"></div>
+      <div class="inner">
+        <p class="kicker" data-anim="fade">03 — конвейер</p>
+        <h2 data-anim="title" style="max-width:22ch">Пять стадий, каждая на устройстве</h2>
+        <div class="pipe" data-anim="pipe" style="margin-top:34px">
+          <div class="pipe-step"><span class="idx">01</span><b>VAD</b><span class="tag">Silero</span>
+            <p>Находит речь и её границы в потоке, отрезает тишину и шум вентиляции.</p></div>
+          <div class="pipe-step"><span class="idx">02</span><b>Диаризация</b><span class="tag">pyannote seg-3.0 + ERes2Net</span>
+            <p>Разделяет голоса. Жёсткий потолок K≤6 под сцену — иначе модель дробила шесть человек на двенадцать.</p></div>
+          <div class="pipe-step"><span class="idx">03</span><b>Сверка VAD и диаризации</b><span class="tag">VadDiarReconcile</span>
+            <p>Закрывает дыры, которые диаризация оставила внутри подтверждённой речи.</p></div>
+          <div class="pipe-step"><span class="idx">04</span><b>ASR</b><span class="tag">Zipformer-ru int8</span>
+            <p>Основной движок. Резерв — Whisper tiny, аварийный — Vosk small-ru.</p></div>
+          <div class="pipe-step"><span class="idx">05</span><b>LLM постобработка</b><span class="tag">Qwen2-0.5B Q4_0</span>
+            <p>Только интонационная пунктуация. Слияние устроено так, что модель не может переписать текст или снять запятые.</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 05 on-device -->
+  <section class="checkpoint" data-slide="on-device">
+    <div class="pin">
+      <div class="grid-bg"></div>
+      <div class="inner split">
+        <div>
+          <p class="kicker" data-anim="fade">04 — приватность</p>
+          <h2 data-anim="title">Ничего<br />не уходит<br />с устройства</h2>
+          <ul class="points" data-anim="list">
+            <li>Нет облачного распознавания, облачной диаризации и облачного LLM.</li>
+            <li>Нет удалённых вычислений любого вида.</li>
+            <li>Нет заранее заготовленного транскрипта, выдаваемого за результат модели.</li>
+            <li>Веса не лежат в git: один скрипт качает ~470 МБ по Wi-Fi, дальше телефон автономен.</li>
+          </ul>
+        </div>
+        <div class="panel" data-anim="panel">
+          <div class="panel-head"><span>проверка</span><span class="num">airplane mode</span></div>
+          <div class="stack" style="gap:10px">
+            <div class="note"><b>Установить APK</b> — ассеты распаковуются в приватную папку приложения.</div>
+            <div class="note"><b>Включить авиарежим</b> — сеть физически отсутствует.</div>
+            <div class="note"><b>Импорт или запись</b> → «Расшифровать» → спикеры и таймкоды → «Сохранить JSON».</div>
+          </div>
+          <p style="margin:16px 0 0;font-family:var(--mono);font-size:11.5px;color:var(--ink-3)">
+            119 466 051 байт моделей внутри check-APK
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 06 live -->
+  <section class="checkpoint" data-slide="live">
+    <div class="pin">
+      <div class="grid-bg"></div>
+      <div class="inner">
+        <div class="banner" id="banner" data-on="false"></div>
+        <p class="kicker" data-anim="fade">05 — живой прогон</p>
+        <h2 data-anim="title" style="max-width:20ch">Шесть человек. Один микрофон.</h2>
+        <div class="split" style="margin-top:26px">
+          <div class="seats" id="seats" aria-hidden="true"></div>
+          <div>
+            <div class="panel-head"><span>транскрипт</span><span id="feed-state" class="num">ожидание</span></div>
+            <div class="feed" id="feed" aria-live="polite"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 07 resilience -->
+  <section class="checkpoint" data-slide="resilience">
+    <div class="pin">
+      <div class="grid-bg"></div>
+      <div class="inner split">
+        <div>
+          <p class="kicker" data-anim="fade">06 — отказоустойчивость</p>
+          <h2 data-anim="title">Если телефон<br />потеряет связь</h2>
+          <ul class="points" data-anim="list">
+            <li>Сервер пингует телефон каждые 15 секунд; 45 секунд молчания — связь считается потерянной.</li>
+            <li>Экраны переходят в резервный режим и показывают это явным баннером.</li>
+            <li>Резервный текст помечен как запись: он никогда не выдаётся за результат модели.</li>
+            <li>Телефон вернулся — экраны сами возвращаются в живой режим.</li>
+          </ul>
+        </div>
+        <div class="stack" data-anim="panel">
+          <div class="panel">
+            <div class="panel-head"><span>гейт качества микрофона</span><span class="num">до ASR</span></div>
+            <div class="stack" style="gap:8px;font-family:var(--mono);font-size:12px;color:var(--ink-2)">
+              <div><b>LOW_ENERGY</b> — RMS ниже −41,94 dBFS, ASR пропускается</div>
+              <div><b>CLIPPED</b> — ≥2% сэмплов на пределе, ASR пропускается</div>
+              <div><b>BAD_MIC</b> — залипший микрофон или постоянная составляющая</div>
+              <div><b>BAND_LIMITED</b> — задавленный телефонный эквалайзер</div>
+            </div>
+            <p style="margin:14px 0 0;font-size:13px;color:var(--ink-3)">
+              Привязанные места получают мягкие флаги: тихая речь всё равно распознаётся,
+              а экран честно показывает причину.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 08 numbers -->
+  <section class="checkpoint" data-slide="numbers">
+    <div class="pin">
+      <div class="grid-bg"></div>
+      <div class="inner">
+        <p class="kicker" data-anim="fade">07 — измерения</p>
+        <h2 data-anim="title" style="max-width:24ch">Цифры сцены DEMO_STAGE6</h2>
+        <p class="lede" data-anim="fade">
+          Шесть русскоязычных спикеров, один микрофон телефона, места на 3–6 метрах,
+          последовательные реплики с лёгким перекрытием, большой зал, средний гул и вентиляция.
+          Не студия.
+        </p>
+        <div class="metrics" data-anim="metrics" style="margin-top:30px">
+          <div class="metric"><div class="v num" data-count="0.6471" data-dec="4">0.0000</div><div class="k">WER с сохранением пунктуации после потолка K≤6<br />(44 ошибки из 68)</div></div>
+          <div class="metric" data-tone="warn"><div class="v num" data-count="0.7794" data-dec="4">0.0000</div><div class="k">WER на базовом инжесте<br />(53 из 68) — было до потолка</div></div>
+          <div class="metric"><div class="v num" data-count="6" data-dec="0">0</div><div class="k">спикеров в гипотезе из 6<br />(до этого дробило на 12)</div></div>
+          <div class="metric"><div class="v num" data-count="0.2760" data-dec="4">0.0000</div><div class="k">DER — ошибка разделения спикеров</div></div>
+          <div class="metric"><div class="v num" data-count="0.1173" data-dec="4">0.0000</div><div class="k">RTF: 4 659 мс обработки<br />на 39 718 мс аудио</div></div>
+        </div>
+        <div class="stack" style="margin-top:26px;gap:10px" data-anim="list">
+          <div class="note"><b>Честные пробелы.</b> Дальние места всё ещё слабы: WER по местам — 3,0 м <span class="num">0.21</span>, 3,6 м <span class="num">0.33</span>, 4,2 м <span class="num">1.00</span>, 4,8 м <span class="num">0.90</span>, 5,4 м <span class="num">1.00</span>, 6,0 м <span class="num">0.69</span>. speaker_5 не восстановлен. WER далёк от нуля.</div>
+          <div class="note"><b>Что мы не утверждаем.</b> Строка K≤6 измерена на коммите <span class="num">3c3f9ce</span>, более новый <span class="num">ab20d83</span> не переизмерен. Мы не говорим «WER основного спикера = 0» и не показываем Path B на 20 потоков как демо.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 09 team -->
+  <section class="checkpoint" data-slide="team">
+    <div class="pin">
+      <div class="grid-bg"></div>
+      <div class="inner split">
+        <div>
+          <p class="kicker" data-anim="fade">08 — команда</p>
+          <h2 data-anim="title">MIK Coders</h2>
+          <p class="lede" data-anim="fade">
+            Кейс «Нейро-стенографист» от Hex.Team. Android-конвейер, оценочный стенд
+            и веб-презентация — один репозиторий, все числа воспроизводимы.
+          </p>
+          <div class="tag-row" style="margin-top:24px" data-anim="fade">
+            <span class="tag">scripts/ci-check.sh</span>
+            <span class="tag">scripts/eval_metrics.py</span>
+            <span class="tag">docs/LIMITATIONS.md</span>
+            <span class="tag">artifacts/eval/demo-stress</span>
+          </div>
+        </div>
+        <div class="panel" data-anim="panel">
+          <div class="panel-head"><span>роли</span><span class="num">hand-in</span></div>
+          <div class="credits">
+            <div class="credit"><span>android</span><span>Конвейер VAD → диаризация → ASR → LLM, Compose UI, SAF-экспорт</span></div>
+            <div class="credit"><span>eval</span><span>Стенд WER/DER/RTF, фикстуры DEMO_STAGE6 и краевые случаи</span></div>
+            <div class="credit"><span>web</span><span>Бэкенд чекпоинтов и экраны: этот дек, синхронизация, резервный режим</span></div>
+            <div class="credit"><span>дизайн</span><span>Анимации на anime.js, привязка к скроллу по чекпоинтам</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script type="module" src="./js/deck.js"></script>
+</body>
+</html>

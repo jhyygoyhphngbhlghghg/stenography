@@ -15,7 +15,9 @@ so the app ships exactly one Path B wire, while its audio helpers
 (`SpeechEnergy`, `SpeechEndpointing`, `AudioQualityGate`) are kept and tested
 but not wired into the frozen STAGE6 chain.
 
-Команда: **MIK Coders**. Этот репозиторий — Android-«backend» (обработка на телефоне) + контракт API для web FE/BE.
+Команда: **MIK Coders**. Этот репозиторий — Android-«backend» (обработка на
+телефоне), показ (Node-бэкенд + React-экраны + пульт, `src/web/`) и контракт
+между ними (`docs/PRESENT_CONNECT.md`).
 
 ## Компоненты
 
@@ -67,7 +69,16 @@ Browser mics (≤20) ──audio──► presentation BE ──WS/HTTP──►
                          presentation display ◄──transcript───┘
 ```
 
-Checkpoint polling (clients follow presenter) lives on the **web BE**, not in this app. See `docs/PRESENT_CONNECT.md`.
+Checkpoint polling (clients follow presenter) lives on the **web BE**, not in
+this app. See `docs/PRESENT_CONNECT.md`.
+
+Показ — `src/web/`, и он в этом же дереве: `backend/` держит контракт и
+раздаёт статику, `present/` — React-дек (8 чекпоинтов, `role=screen`,
+только чтение), `public/` — пульт ведущего и встроенный дек как запасной
+вариант. Один процесс, один origin: `SLIDES`/`SLIDE_LABELS` в
+`backend/src/config.ts` и `CHECKPOINTS` в `present/src/components/deck/data.ts`
+должны совпадать, и это проверяется тестами. Телефон для показа не обязателен —
+есть `npm run sim:phone`.
 
 ## Основные технические решения
 
@@ -88,28 +99,6 @@ Checkpoint polling (clients follow presenter) lives on the **web BE**, not in th
 | Модели | Не в git; `:app:prepareEmbeddedModels` кладёт ASR/VAD/diar в `assets/models` check-APK (7 файлов, 119 466 051 B), `-PembedLlm=true` добавляет GGUF (8-й файл, +352 969 408 B) | Первый запуск распаковывает в `filesDir` (`AssetModelUnpack` + `ModelStore.ensureUnpacked`), поэтому авиарежим работает сразу после установки |
 
 Если модели не найдены, pipeline **явно** идёт в stub-режим (помечается в UI). Stub не выдаётся за ASR на защите.
-
-## Владение native-сессиями
-
-`InferenceSession` держит один ленивый ASR recognizer на pipeline; каждый
-crop создаёт новый stream. Mutex сериализует полную транзакцию, включая LLM,
-а `Dispatchers.Default` не допускает native-инференс на UI-потоке. Gain/EQ,
-VAD, speaker reconciliation, crop padding и greedy decoder не изменены.
-
-На холодном пути segmentation/embedding освобождаются до создания ASR.
-На повторном пути ASR остаётся тёплым; это обмен памяти на отсутствие повторной
-инициализации. `StenoViewModel` передаёт memory-pressure/UI-hidden события в
-`trimMemory()`; ASR/GGUF освобождаются между транзакциями. `onCleared()` запускает
-закрытие вне отменённого `viewModelScope`. JNI не прерывается посередине:
-отмена проверяется между вызовами, а close/eviction ждут владельца. Неуспешная
-транзакция сбрасывает потенциально повреждённую native-сессию. Кэша результатов
-распознавания нет.
-
-Хостовый ASR-only микробенчмарк на шести неизменённых excerpts:
-1852.666 → 603.816 мс при повторном использовании модели, **3.068×**, точное
-совпадение текста/tokens/timestamps. Это не скорость всего pipeline/телефона.
-Методика, отрицательный результат beam-search и ограничения:
-[TEST_RESULTS.md](TEST_RESULTS.md#runtime-повторное-использование-native-сессий-2026-11-07).
 
 ## Зависимости
 
@@ -145,7 +134,7 @@ src/android/app/src/main/java/team/mikcoders/neurosteno/
               FarFieldVad · SpeechEnergy / SpeechEndpointing / AudioQualityGate (PR #6, тесты, не wired)
   pipeline/   ModelStore (+ensureUnpacked) · AssetModelUnpack (REQUIRED + OPTIONAL gguf) ·
               DemoPcmPrep (gate→gain→EQ) · SherpaStenoPipeline · VadDiarReconcile (K≤6) ·
-              FarFieldScene (stage6 / presentConnect) · SherpaJni · PipelineFactory · InferenceSession
+              FarFieldScene (stage6 / presentConnect) · SherpaJni · PipelineFactory
   llm/        LocalLlmPostPass (Gguf / Heuristic / Identity) · OnDeviceLlmRunner (llama.cpp) ·
               IntonationPunct (ADD, никогда не strip; ё→е)
   present/    PresentConnectClient · OkHttpPresentConnectClient · PresentConnectStreamTable ·
@@ -154,7 +143,7 @@ src/android/app/src/main/java/team/mikcoders/neurosteno/
   ui/         StenoApp (Compose) · StenoViewModel (async model load, прогресс, флаги)
 ```
 
-## Исторический замер качества на Impl `3c3f9ce` (не runtime-бенчмарк)
+## Замеренный результат этого дерева (не обещание, а факт)
 
 - Hex keep-punct WER: baseline **0.7794** → после hard-cap K≤6 и
   intonation-punct **0.6471** (44/68 слов); DER **0.2760**, JER **0.5454**,

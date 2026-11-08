@@ -1,0 +1,534 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-neon: var(--neon);
+  --color-neon-dim: var(--neon-dim);
+  --font-sans: "Space Grotesk", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+:root {
+  --radius: 0.25rem;
+  --background: oklch(0.11 0 0);
+  --foreground: oklch(0.97 0 0);
+  --card: oklch(0.14 0 0);
+  --card-foreground: oklch(0.97 0 0);
+  --popover: oklch(0.14 0 0);
+  --popover-foreground: oklch(0.97 0 0);
+  --primary: oklch(0.9 0.24 135);
+  --primary-foreground: oklch(0.11 0 0);
+  --secondary: oklch(0.18 0 0);
+  --secondary-foreground: oklch(0.97 0 0);
+  --muted: oklch(0.18 0 0);
+  --muted-foreground: oklch(0.6 0 0);
+  --accent: oklch(0.9 0.24 135);
+  --accent-foreground: oklch(0.11 0 0);
+  --destructive: oklch(0.63 0.22 27);
+  --destructive-foreground: oklch(0.97 0 0);
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.9 0.24 135);
+  --neon: oklch(0.9 0.24 135);
+  --neon-dim: oklch(0.9 0.24 135 / 18%);
+  --glow: 0 0 24px oklch(0.9 0.24 135 / 45%);
+  --scene-signal: #9dff3a;
+  --scene-secondary: #83d9ed;
+  --scene-surface: #242a28;
+  --dialogue-secondary: oklch(0.8 0.1 210);
+  --track-grid: oklch(1 0 0 / 4%);
+  /* Акцент дальнего фона; Deck переписывает его на каждом чекпоинте. */
+  --slide-accent: var(--neon);
+}
+
+@layer base {
+  * { border-color: var(--color-border); }
+  html, body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    overflow: hidden;
+    height: 100%;
+    overscroll-behavior: none;
+  }
+}
+
+@utility glow { box-shadow: var(--glow); }
+@utility text-glow { text-shadow: 0 0 18px oklch(0.9 0.24 135 / 55%); }
+@utility grid-bg {
+  background-image:
+    linear-gradient(color-mix(in oklch, var(--slide-accent) 26%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in oklch, var(--slide-accent) 26%, transparent) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+  transition: background-image 700ms ease;
+}
+/* Дальний фон живёт своим цветом, текст остаётся читаемым неоном. */
+.ring { color: var(--slide-accent); transition: color 700ms ease; will-change: transform; }
+@utility kicker {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--neon);
+}
+@keyframes blink { 50% { opacity: 0; } }
+@utility caret { animation: blink 1s steps(1) infinite; }
+
+/* ------------------------------------------------------------------ top bar
+   Порядок слева направо: знак колледжа, подпись команды, живая лента, телефон.
+*/
+.deck-top {
+  /* Шапка — строка сетки, а не накладывающийся fixed-блок: только так её
+     высота физически отнимает место у сцены, и ничей текст больше не может
+     лечь на чей-то текст ни на одном размере экрана. */
+  grid-row: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: 28px;
+  padding: 20px 24px 0;
+  z-index: 45;
+  pointer-events: none;
+}
+/* Правка имени спикера живёт в шапке, поэтому у неё клибельность возвращена:
+   остальная шапка по-прежнему не перехватывает касания сцены. */
+.live-feed-name,
+.live-feed-input {
+  pointer-events: auto;
+}
+.presentation-scroll {
+  grid-row: 2;
+}
+.presentation-nav {
+  grid-row: 3;
+  padding: 0 24px max(20px, env(safe-area-inset-bottom));
+}
+/* ----------------------------------------------------------- решения
+   Шесть карточек живут в двух строках по три, и это единственный слайд,
+   который на проекторе 720p гарантированно не влезал в полосу между шапкой
+   и шкалой. Поэтому размеры карточек считаются от высоты экрана, а не заданы
+   на глаз: на 720p текст остаётся читаемым, а на 1080p — крупным. */
+.solutions-list {
+  margin-top: clamp(12px, 3vh, 56px);
+  gap: clamp(8px, 1.4vh, 24px);
+}
+.solutions-list > div {
+  padding: clamp(10px, 1.9vh, 28px);
+}
+.solutions-list > div > div:first-child {
+  font-size: clamp(10px, 1.4vh, 14px);
+}
+.solutions-list h3 {
+  margin-top: clamp(6px, 1.2vh, 28px);
+  font-size: clamp(13px, 2.2vh, 24px);
+  line-height: 1.25;
+}
+.solutions-list p {
+  margin-top: clamp(4px, 0.8vh, 12px);
+  font-size: clamp(10px, 1.5vh, 16px);
+  line-height: 1.5;
+}
+.solutions-list .a-line {
+  margin: clamp(6px, 1.2vh, 24px) 0;
+}
+.solutions-list > div > div:last-child {
+  font-size: clamp(14px, 2.6vh, 36px);
+}
+.presentation [data-inner] {
+  transform: scale(var(--fit, 1));
+  transform-origin: center;
+  transition: transform 320ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.deck-logo {
+  flex: none;
+  height: 30px;
+  width: auto;
+  color: var(--foreground);
+}
+.presentation-hud {
+  flex: none;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--muted-foreground);
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* ---------------------------------------------------------------- live feed */
+.live-feed {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 46ch;
+  /* Пока ленты нет, она не имеет права занимать место в шапке:
+     зарезервированная высота сдвигала бы вниз каждую сцену, включая QR и
+     финал, где ленты нет вовсе. Потолок высоты при этом остаётся: сколько бы
+     строк ни пришло, за блок лента не выйдет. */
+  max-height: 0;
+  overflow: hidden;
+  font-size: 13px;
+  opacity: 0;
+  transform: translateY(-10px);
+  /* Высоту лента набирает мгновенно, без перехода: строка шапки стоит в
+     сетке, и если её высота «едет» во время анимации, экран доезжает до уже
+     устаревшей границы панели и после этого расходится с чекпоинтом. */
+  transition:
+    opacity 600ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 600ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.live-feed[data-visible="true"] {
+  max-height: 186px;
+  opacity: 1;
+  transform: none;
+}
+.live-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  background: var(--slide-accent);
+  border-radius: 50%;
+  animation: blink 2s ease-in-out infinite;
+}
+.live-feed-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 10px;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+.live-feed-rows { display: grid; gap: 8px; margin-top: 14px; }
+.live-feed-row {
+  display: grid;
+  /* 8ch — чтобы «Пономарёв» не полезло на текст реплики; длинное имя
+     обрезается многоточием, а не сдвигает вёрстку строки. */
+  grid-template-columns: 3px minmax(0, 8ch) minmax(0, 1fr);
+  gap: 12px;
+  align-items: baseline;
+}
+.live-feed-bar {
+  width: 3px;
+  height: 100%;
+  min-height: 1.4em;
+  background: var(--speaker, var(--neon));
+  animation: feed-bar 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.live-feed-name,
+.live-feed-input {
+  color: var(--speaker, var(--neon));
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  /* Имя печатает человек, и оно может быть длинным: колонка обязана держать
+     его в себе, а не наезжать на текст реплики. */
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Имя спикера правится прямо в ленте: клик по номеру открывает поле. */
+.live-feed-name {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: text;
+  text-align: left;
+  border-bottom: 1px solid transparent;
+  transition: border-color 200ms ease, color 200ms ease;
+}
+.live-feed-name:hover { border-bottom-color: var(--speaker, var(--neon)); }
+.live-feed-input {
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--speaker, var(--neon));
+  outline: none;
+}
+.live-feed-text {
+  overflow-wrap: anywhere;
+  animation: feed-row 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.live-feed-empty { margin-top: 14px; color: var(--muted-foreground); }
+@keyframes feed-bar { from { transform: scaleY(0); opacity: 0; } to { transform: scaleY(1); opacity: 1; } }
+@keyframes feed-row { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* ------------------------------------------------------------- phone widget */
+.phone-info {
+  margin-left: auto;
+  flex: none;
+  display: grid;
+  gap: 8px;
+  justify-items: end;
+  width: 92px;
+  /* Как и лента: без схемы телефона шапка не держит её высоту, иначе на
+     каждом слайде справа вычитались бы 130 px из полосы сцены. */
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: opacity 600ms ease, transform 600ms ease;
+}
+.phone-info[data-visible="true"] { max-height: 170px; opacity: 1; transform: none; }
+.phone-frame { width: 60px; height: auto; }
+.phone-shell { fill: none; stroke: var(--border); stroke-width: 2; }
+.phone-screen { fill: color-mix(in oklch, var(--slide-accent) 8%, transparent); }
+.phone-speaker { stroke: var(--border); stroke-width: 3; stroke-linecap: round; }
+.phone-mic rect { fill: var(--slide-accent); opacity: 0.85; transform: scaleY(var(--voice-envelope, 0.08)); transition: transform 120ms linear; }
+.phone-telemetry {
+  display: flex;
+  gap: 12px;
+  font-size: 9px;
+  line-height: 1.3;
+  text-align: right;
+}
+.phone-telemetry dt { color: var(--muted-foreground); letter-spacing: 0.15em; }
+.phone-telemetry dd { color: var(--foreground); }
+
+
+/* ---------------------------------------------------------------- mic control */
+.mic-control {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 40px;
+}
+.mic-button {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--slide-accent);
+  background: color-mix(in oklch, var(--slide-accent) 10%, transparent);
+  border: 1px solid color-mix(in oklch, var(--slide-accent) 40%, transparent);
+  padding: 12px 18px;
+  cursor: pointer;
+  transition: background 240ms ease, border-color 240ms ease, transform 240ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.mic-button:hover { background: color-mix(in oklch, var(--slide-accent) 18%, transparent); transform: translateY(-1px); }
+.mic-button:focus-visible { outline: 2px solid var(--slide-accent); outline-offset: 3px; }
+.mic-note { font-size: 12px; line-height: 1.5; color: var(--muted-foreground); max-width: 46ch; }
+.mic-meter { display: flex; align-items: flex-end; gap: 3px; height: 26px; }
+.mic-meter i {
+  width: 3px;
+  height: 100%;
+  background: var(--slide-accent);
+  transform-origin: bottom;
+  transform: scaleY(calc(0.12 + var(--voice-envelope, 0.08)));
+  transition: transform 140ms linear;
+}
+[data-mic="on"] .mic-meter i { animation: mic-pulse 1.6s ease-in-out infinite alternate; }
+@keyframes mic-pulse { from { opacity: 0.55; } to { opacity: 1; } }
+/* ------------------------------------------------------------- demo scene */
+.demo-stage { width: 100%; max-width: 1100px; }
+.technology-workspace { width:100%; max-width:1200px; }
+.pipeline-stage { height:320px; position:relative; margin-top:24px; }
+.pipeline-canvas { position:absolute; inset:0; }
+.pipeline-source { position:absolute; left:2%; top:24%; width:24%; font-size:10px; z-index:1; }
+.pipeline-source p { margin-top:12px; line-height:1.5; font-size:13px; max-height:50px; overflow:hidden; }
+.is-active .pipeline-source p { animation:source-morph 2.8s ease-in-out forwards; }
+.pipeline-model { position:absolute; left:49%; font-size:10px; text-align:center; width:18%; pointer-events:none; }
+.pipeline-model small { display:block; margin-top:6px; color:var(--muted-foreground); font-size:9px; }
+.model-one { top:15%; }.model-two { bottom:15%; }
+.pipeline-output { position:absolute; right:0; top:33%; width:22%; font-size:10px; }
+.pipeline-output p { font-size:12px; margin-top:18px; line-height:1.5; overflow-wrap:anywhere; max-height:95px; overflow:hidden; }
+.is-active .pipeline-output { animation:output-reveal 5s ease-out both; }
+.pipeline-config { position:absolute; left:4%; bottom:0; font-size:9px; line-height:1.7; opacity:0.45; }
+.pipeline-config p { margin-top:6px; }
+.tech-bottom { display:grid; grid-template-columns:1.4fr 1fr; align-items:start; gap:48px; padding-top:28px; border-top:1px solid var(--border); }
+.technology-explanation { font-size:16px; line-height:1.7; }
+.terminal-preview { font-size:10px; line-height:1.8; opacity:0.55; }
+.terminal-preview>span { font-size:8px; }.terminal-preview p { margin-top:8px; }
+@keyframes source-morph { 0%,30% { opacity:1; transform:translateY(0); } 100% { opacity:0; transform:translateY(20px); filter:blur(6px); } }
+@keyframes output-reveal { 0%,65% { opacity:0; transform:translateX(-14px); } 100% { opacity:1; transform:translateX(0); } }
+@keyframes clip-enter { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+@media(max-width:640px), (max-height:480px) {
+  .deck-top { gap:14px; padding:16px 16px 0; }
+  .deck-logo { height:22px; }
+  .live-feed { font-size:11px; max-width:34ch; }
+  .live-feed-row { grid-template-columns:3px minmax(0,7ch) minmax(0,1fr); gap:8px; }
+  .phone-info { width:64px; gap:6px; }
+  .phone-frame { width:42px; }
+  .phone-telemetry { font-size:8px; gap:8px; }
+  .technology-workspace h2 { font-size:28px; }.pipeline-stage { height:280px; }
+  .pipeline-source { top:4%; font-size:8px; width:30%; }.pipeline-source p { font-size:10px; }
+  .pipeline-model { font-size:8px; left:47%; width:23%; }.pipeline-model small { font-size:7px; }
+  .pipeline-output { font-size:8px; top:35%; width:24%; }.pipeline-output p { font-size:9px; }
+  .pipeline-config { font-size:7px; }.tech-bottom { gap:12px; grid-template-columns:1fr; padding-top:16px; }
+  .technology-explanation { font-size:12px; }.terminal-preview { font-size:8px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .live-dot,.is-active .pipeline-source p,.is-active .pipeline-output,.live-feed-bar,.live-feed-text { animation:none; }
+}
+
+.compact-pipeline { margin:24px 0; display:grid; gap:22px; }
+.compact-pipeline>div { position:relative; min-width:0; font-size:10px; }
+.compact-pipeline>div+div::before { content:""; position:absolute; left:12px; top:-22px; height:22px; width:1px; background:var(--neon-dim); }
+.compact-pipeline p { margin-top:10px; font-size:13px; line-height:1.5; overflow-wrap:anywhere; }
+.compact-wave { display:flex; align-items:center; gap:5px; height:28px; margin-top:10px; }
+.compact-wave i { width:3px; height:35%; background:var(--neon); }
+.compact-wave i:nth-child(3n) { height:85%; }.compact-wave i:nth-child(4n) { height:60%; }
+.compact-model { padding:14px 12px; border:1px solid var(--border); }
+.compact-model small { display:block; margin-top:8px; font-size:10px; }
+.compact-transcript p { display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+
+@media(max-width:767px), (max-height:560px) {
+  /* Тот же триггер, что и в useCompactPresentation: низкий, но
+     широкий экран телефона обязан получить компактную вёрстку, а не
+     desktop-отступы с уменьшенным до 20% содержимым. */
+  .presentation { letter-spacing:0; }
+  /* На телефоне лента занимает вторую строку шапки, поэтому сцене нужен
+     отступ на две строки, иначе центральный текст уйдёт под неё. */
+  /* Шапка на телефоне не имеет права съедать треть экрана: одна строка
+     идентификации и одна строка живой ленты, всё остальное — сцене. */
+  .deck-top { flex-wrap:wrap; gap:8px 12px; padding:14px 16px 0; }
+  .deck-logo { height:20px; }
+  .live-feed { flex-basis:100%; max-width:100%; font-size:12px; }
+  .live-feed-head { letter-spacing:0.12em; }
+  .live-feed-rows { gap:4px; margin-top:8px; }
+  .live-feed-row { grid-template-columns:3px minmax(0,7ch) minmax(0,1fr); gap:8px; }
+  .live-feed-text {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .presentation-hud { font-size:9px; letter-spacing:0; }
+  .presentation-hud>div { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin:0; }
+  .presentation-nav { gap:8px; padding: 0 20px max(12px,env(safe-area-inset-bottom)); }
+  .presentation-nav>button { min-height:44px; }
+  .presentation-nav>button>div:last-child { letter-spacing:0; font-size:9px; }
+  /* Шапка и шкала теперь строки сетки, поэтому сцене нужны только
+     собственные поля — запас на «не наехать» считать больше не надо. */
+  .presentation [data-scene] { padding:8px 20px; }
+  .presentation [data-inner]>div { min-width:0; max-width:100%; }
+  .presentation h1 { font-size:28px; letter-spacing:0; overflow-wrap:anywhere; }
+  .presentation h2 { font-size:30px; line-height:1.18; letter-spacing:0; overflow-wrap:anywhere; text-wrap:balance; }
+  .presentation .text-glow { text-shadow:none; }
+  .presentation .glow { box-shadow:none; }
+  .presentation .kicker { font-size:9px; letter-spacing:0; }
+  .presentation h2.mt-6 { margin-top:18px; }
+  .presentation [data-scene]>div>div>p.text-2xl { font-size:15px; line-height:1.65; }
+  .presentation .a-line.my-10 { margin-top:24px; margin-bottom:24px; }
+  .presentation .team-list { margin-top:8px; }
+  .presentation .team-list li { display:grid; grid-template-columns:24px minmax(0,1fr); gap:6px 12px; padding:16px 0; align-items:start; }
+  .presentation .team-list li>span:first-child { grid-row:span 2; font-size:11px; padding-top:3px; }
+  .presentation .team-list li>span:nth-child(2) { padding:0; font-size:20px; overflow-wrap:anywhere; }
+  .presentation .team-list li>span:last-child { grid-column:2; font-size:10px; letter-spacing:0; }
+  .presentation .team-list+* { min-width:0; }
+  .presentation .a-line.mt-10 { margin-top:24px; }
+  .presentation .mt-14 { margin-top:28px; }
+  /* Шесть абзацев на узком экране не читаются и не влезают: на телефоне
+     остаются решение и цифра, пояснение — для проектора. */
+  .presentation .solutions-list { grid-template-columns:minmax(0,1fr); gap:0; margin-top:20px; }
+  .presentation .solutions-list>div { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:baseline; column-gap:12px; border:0; border-top:1px solid var(--border); background:none; padding:11px 0; }
+  .presentation .solutions-list>div>div:first-child,.presentation .solutions-list .a-line { display:none; }
+  .presentation .solutions-list h3 { margin:0; font-size:15px; line-height:1.3; overflow-wrap:anywhere; }
+  .presentation .solutions-list p { display:none; }
+  .presentation .solutions-list>div>div:last-child { font-size:15px; white-space:nowrap; }
+  .tech-bottom { grid-template-columns:minmax(0,1fr); padding-top:18px; gap:0; }
+  .technology-explanation { font-size:13px; line-height:1.65; }
+}
+@media (max-height:650px) {
+  .presentation h2 { font-size:26px; }
+  .presentation .team-list li { padding:10px 0; }
+  .compact-pipeline { gap:18px; margin:18px 0; }
+  .compact-wave { height:20px; }.compact-model { padding:10px 12px; }
+  .technology-explanation { font-size:12px; }
+}
+
+/* ------------------------------------------------------------------- 320px
+   Меньше 360px уже не «телефон побольше», а плотный минимум: там шапка,
+   лента и навигация должны уместиться так, чтобы слайду осталось живое
+   пространство, а не 40px под текст. */
+@media (max-width: 360px) {
+  .deck-top { padding: 12px 12px 0; gap: 6px 10px; }
+  .deck-logo { height: 18px; }
+  .presentation-hud { font-size: 8px; }
+  .live-feed { font-size: 10px; }
+  .live-feed[data-visible="true"] { max-height: 52px; }
+  .live-feed-rows { margin-top: 6px; }
+  .presentation [data-scene] { padding: 6px 14px; }
+  .presentation h1 { font-size: 24px; }
+  .presentation h2 { font-size: 24px; line-height: 1.2; }
+  .presentation .kicker { font-size: 8px; }
+  .presentation .team-list li { padding: 12px 0; }
+  .presentation .team-list li > span:nth-child(2) { font-size: 17px; }
+  .presentation .team-list li > span:last-child { font-size: 9px; }
+  .presentation .solutions-list > div { padding: 9px 0; }
+  .presentation .solutions-list h3 { font-size: 14px; }
+  .presentation .solutions-list > div > div:last-child { font-size: 14px; }
+  .mic-control { margin-top: 22px; gap: 10px; }
+  .mic-button { padding: 10px 14px; font-size: 10px; letter-spacing: 0.12em; }
+  .mic-note { font-size: 11px; }
+  .presentation-nav { gap: 6px; }
+  .presentation-nav > button > div:last-child { font-size: 8px; }
+}
+
+/* --------------------------------------------------------------- landscape
+   Альбомная ориентация телефона — это ~390px высоты всего. Здесь важнее
+   не ширина, а вертикаль, поэтому отступы и строки сжимаются по высоте. */
+@media (max-height: 460px) {
+  .deck-top { padding: 10px 14px 0; gap: 4px 10px; }
+  .deck-logo { height: 18px; }
+  .presentation-hud { font-size: 8px; }
+  .live-feed { font-size: 10px; }
+  .live-feed[data-visible="true"] { max-height: 44px; }
+  .presentation [data-scene] { padding: 6px 16px; }
+  .presentation h1 { font-size: 22px; }
+  .presentation h2 { font-size: 22px; line-height: 1.18; }
+  /* Шесть строк состава в 320 px высоты — это уже не список, а колонка:
+     строка в 8 px полей с 16 px именем не влезала и уезжала под шкалу. */
+  .presentation .team-list { margin-top: 10px; }
+  .presentation .team-list li { padding: 4px 0; font-size: 11px; }
+  .presentation .team-list li > span:nth-child(2) { font-size: 14px; padding-left: 12px; }
+  .compact-pipeline { margin: 10px 0; gap: 10px; }
+  .compact-pipeline p { margin-top: 6px; font-size: 11px; line-height: 1.4; }
+  .compact-wave { display: none; }
+  .compact-model { padding: 8px 10px; }
+  .technology-explanation { font-size: 11px; line-height: 1.45; }
+  .tech-bottom { padding-top: 10px; gap: 0; }
+  .presentation .solutions-list { margin-top: 14px; }
+  .presentation .solutions-list > div { padding: 7px 0; }
+  .presentation .solutions-list h3 { font-size: 13px; }
+  .presentation .solutions-list > div > div:last-child { font-size: 13px; }
+  .mic-control { margin-top: 16px; }
+  .presentation-nav { padding-bottom: 8px; }
+  .presentation-nav > button { min-height: 30px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Никаких принудительных сдвигов и блюра: человек сам выбрал спокойный режим. */
+  .live-feed, .mic-button, .mic-meter i { transition: none; }
+  .mic-meter i { animation: none; transform: none; }
+  .live-feed-bar, .live-feed-text { animation: none; }
+}
