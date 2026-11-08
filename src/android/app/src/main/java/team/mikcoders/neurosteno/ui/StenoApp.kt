@@ -29,9 +29,15 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.ui.graphics.Color
-import team.mikcoders.neurosteno.pipeline.TranscriptView
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.Color
+import team.mikcoders.neurosteno.export.ExportFormat
+import team.mikcoders.neurosteno.export.TranscriptExport
+import team.mikcoders.neurosteno.pipeline.TranscriptView
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -61,15 +67,18 @@ fun StenoApp(vm: StenoViewModel = viewModel()) {
             }
         vm.onFilePicked(uri, name, sizeLabel)
     }
-    val jsonSaver = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/json"),
-    ) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        val json = vm.state.value.jsonPreview ?: return@rememberLauncherForActivityResult
-        context.contentResolver.openOutputStream(uri)?.use { os ->
-            os.write(json.toByteArray(Charsets.UTF_8))
+    val savers = mutableMapOf<ExportFormat, androidx.activity.result.ActivityResultLauncher<String>>()
+    ExportFormat.entries.forEach { fmt ->
+        savers[fmt] = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.CreateDocument(fmt.mime),
+        ) { uri ->
+            if (uri == null) return@rememberLauncherForActivityResult
+            val rows = vm.state.value.transcript?.transcript.orEmpty()
+            val bytes = TranscriptExport.bytes(fmt, rows, state.fileLabel ?: "Транскрипт")
+            context.contentResolver.openOutputStream(uri)?.use { os -> os.write(bytes) }
         }
     }
+    val tabs = listOf("transcript" to "Транскрипт", "summary" to "Резюме", "ask" to "Вопросы", "diary" to "Дневник")
     val recPerm = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
     ) { granted ->
@@ -212,7 +221,7 @@ fun StenoApp(vm: StenoViewModel = viewModel()) {
                 }
                 OutlinedButton(
                     enabled = state.jsonPreview != null,
-                    onClick = { jsonSaver.launch("transcript.json") },
+                    onClick = { savers[ExportFormat.JSON]!!.launch("transcript.json") },
                 ) {
                     Text("Сохранить JSON")
                 }
@@ -229,6 +238,17 @@ fun StenoApp(vm: StenoViewModel = viewModel()) {
                     },
                 ) {
                     Text("Поделиться")
+                }
+            }
+            if (state.transcript?.transcript?.isNotEmpty() == true) {
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ExportFormat.entries.forEach { fmt ->
+                        if (fmt == ExportFormat.JSON) return@forEach
+                        OutlinedButton(
+                            onClick = { savers[fmt]!!.launch("transcript.${fmt.ext}") },
+                        ) { Text(fmt.label) }
+                    }
                 }
             }
             Spacer(Modifier.height(8.dp))
@@ -251,45 +271,145 @@ fun StenoApp(vm: StenoViewModel = viewModel()) {
                 }
             }
             Spacer(Modifier.height(12.dp))
-            val rows = state.transcript?.transcript.orEmpty()
-            if (rows.isNotEmpty()) {
-                val stats = TranscriptView.stats(rows)
-                Text(
-                    "Спикеров: ${stats.speakers} · слов: ${stats.words} · длительность: ${formatMs(stats.spanMs)}",
-                    style = MaterialTheme.typography.bodySmall,
-                )
-                Spacer(Modifier.height(4.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                tabs.forEach { (key, label) ->
                     FilterChip(
-                        selected = state.mergeAdjacentTurns,
-                        onClick = { vm.toggleMergeAdjacent() },
-                        label = { Text("Склеить реплики") },
-                    )
-                    FilterChip(
-                        selected = state.showAllText,
-                        onClick = { vm.toggleShowAllText() },
-                        label = { Text("Весь текст") },
+                        selected = state.tab == key,
+                        onClick = { vm.setTab(key) },
+                        label = { Text(label) },
                     )
                 }
-                Spacer(Modifier.height(8.dp))
             }
-            if (rows.isEmpty() && !state.running) {
-                Text(
-                    if (state.presentConnect) {
-                        "Path B: жду stream.start (s01→speaker_1 … s20→speaker_20). Brief без stream_id."
+            Spacer(Modifier.height(8.dp))
+            when (state.tab) {
+                "summary" -> {
+                    Spacer(Modifier.height(4.dp))
+                    Button(onClick = { vm.summarize() }, enabled = !state.summaryRunning) {
+                        Text(if (state.summaryRunning) "Резюмирую…" else "Сделать резюме (локальный LLM)")
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    if (state.summary.isNotBlank()) {
+                        Card(modifier = Modifier.fillMaxWidth()) {
+                            Text(state.summary, modifier = Modifier.padding(12.dp), style = MaterialTheme.typography.bodyMedium)
+                        }
                     } else {
-                        "Пусто. Импортируйте запись и нажмите «Расшифровать»."
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 24.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    items(rows, key = { it.startMs.toString() + it.speakerId + it.text }) { u ->
-                        UtteranceRow(u, state.showAllText)
+                        Text("Резюме появится здесь. Работает офлайн (Qwen2 0.5B) или экстрактивно без веса.", style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+                "ask" -> {
+                    OutlinedTextField(
+                        value = state.askInput,
+                        onValueChange = { vm.setAskInput(it) },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Вопрос по стенограмме…") },
+                        singleLine = true,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Button(onClick = { vm.ask() }, enabled = !state.askRunning) {
+                        Text(if (state.askRunning) "Думаю…" else "Спросить (локальный LLM)")
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    if (state.askAnswer.isNotBlank()) {
+                        Card(modifier = Modifier.fillMaxWidth()) {
+                            Text(state.askAnswer, modifier = Modifier.padding(12.dp), style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                }
+                "diary" -> {
+                    OutlinedButton(onClick = { vm.saveToDiary() }, enabled = state.transcript?.transcript?.isNotEmpty() == true) {
+                        Text("Сохранить в дневник")
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(bottom = 24.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        items(state.diary, key = { it.createdMs }) { d ->
+                            Card(modifier = Modifier.fillMaxWidth()) {
+                                Column(Modifier.padding(12.dp)) {
+                                    Text(d.title, style = MaterialTheme.typography.titleMedium)
+                                    Text("${d.transcript.size} реплик · ${d.createdMs}", style = MaterialTheme.typography.bodySmall)
+                                    if (d.summary.isNotBlank()) Text(d.summary.take(200), style = MaterialTheme.typography.bodySmall)
+                                    Spacer(Modifier.height(4.dp))
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        TextButton(onClick = { vm.loadFromDiary(d.createdMs) }) { Text("Открыть") }
+                                        TextButton(onClick = { vm.deleteDiary(d.createdMs) }) { Text("Удалить") }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                else -> {
+                    val rows = state.transcript?.transcript.orEmpty()
+                    if (state.liveInterim.isNotEmpty() && state.running) {
+                        Text("Live (окна по 5 с):", style = MaterialTheme.typography.labelLarge)
+                        Spacer(Modifier.height(4.dp))
+                        state.liveInterim.forEach { u ->
+                            Text("[${formatMs(u.startMs)}] ${u.speakerId}: ${u.text}", style = MaterialTheme.typography.bodySmall)
+                        }
+                        Spacer(Modifier.height(8.dp))
+                    }
+                    if (rows.isNotEmpty()) {
+                        val stats = TranscriptView.stats(rows)
+                        Text(
+                            "Спикеров: ${stats.speakers} · слов: ${stats.words} · длительность: ${formatMs(stats.spanMs)}",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FilterChip(
+                                selected = state.mergeAdjacentTurns,
+                                onClick = { vm.toggleMergeAdjacent() },
+                                label = { Text("Склеить реплики") },
+                            )
+                            FilterChip(
+                                selected = state.showAllText,
+                                onClick = { vm.toggleShowAllText() },
+                                label = { Text("Весь текст") },
+                            )
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        val speakers = rows.map { it.speakerId }.distinct()
+                        if (speakers.size > 1) {
+                            speakers.forEach { sid ->
+                                var name by remember(state.speakerNames[sid]) { mutableStateOf(state.speakerNames[sid] ?: "") }
+                                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                                    Text("$sid →", style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(0.5f))
+                                    OutlinedTextField(
+                                        value = name,
+                                        onValueChange = { name = it },
+                                        label = { Text("Имя спикера") },
+                                        singleLine = true,
+                                        modifier = Modifier.weight(1.4f),
+                                    )
+                                    TextButton(onClick = { vm.renameSpeaker(sid, name) }) { Text("OK") }
+                                }
+                                Spacer(Modifier.height(2.dp))
+                            }
+                            Spacer(Modifier.height(8.dp))
+                        }
+                    }
+                    if (rows.isEmpty() && !state.running) {
+                        Text(
+                            if (state.presentConnect) {
+                                "Path B: жду stream.start (s01→speaker_1 … s20→speaker_20). Brief без stream_id."
+                            } else {
+                                "Пусто. Импортируйте запись и нажмите «Расшифровать»."
+                            },
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(bottom = 24.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            items(rows, key = { it.startMs.toString() + it.speakerId + it.text }) { u ->
+                                UtteranceRow(u, state.showAllText)
+                            }
+                        }
                     }
                 }
             }

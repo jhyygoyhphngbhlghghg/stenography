@@ -23,6 +23,10 @@ import team.mikcoders.neurosteno.audio.MicRecorder
 import team.mikcoders.neurosteno.audio.Pcm
 import team.mikcoders.neurosteno.export.TranscriptFile
 import team.mikcoders.neurosteno.export.TranscriptJson
+import team.mikcoders.neurosteno.export.Utterance
+import team.mikcoders.neurosteno.llm.LlamaCppGgufRunner
+import team.mikcoders.neurosteno.llm.OnDeviceLlmRunner
+import team.mikcoders.neurosteno.llm.TranscriptLlm
 import team.mikcoders.neurosteno.pipeline.DemoPcmPrep
 import team.mikcoders.neurosteno.pipeline.ModelPaths
 import team.mikcoders.neurosteno.pipeline.PipelineFactory
@@ -70,6 +74,15 @@ data class StenoUiState(
     val mergeAdjacentTurns: Boolean = true,
     val showAllText: Boolean = false,
     val fileSize: String? = null,
+    val tab: String = "transcript",
+    val speakerNames: Map<String, String> = emptyMap(),
+    val summary: String = "",
+    val summaryRunning: Boolean = false,
+    val askInput: String = "",
+    val askAnswer: String = "",
+    val askRunning: Boolean = false,
+    val diary: List<team.mikcoders.neurosteno.export.DiaryEntry> = emptyList(),
+    val liveInterim: List<team.mikcoders.neurosteno.export.Utterance> = emptyList(),
 )
 
 data class ActiveStreamChip(
@@ -91,6 +104,7 @@ class StenoViewModel(app: Application) : AndroidViewModel(app) {
     @Volatile private var models: ModelPaths? = null
     @Volatile private var pathB: PathBSession? = null
     @Volatile private var presentClient: OkHttpPresentConnectClient? = null
+    @Volatile private var summaryRunner: OnDeviceLlmRunner? = null
 
     private val _state = MutableStateFlow(
         StenoUiState(
@@ -157,6 +171,10 @@ class StenoViewModel(app: Application) : AndroidViewModel(app) {
                     jniLoaded = SherpaJni.last.loaded,
                     jniError = SherpaJni.last.error,
                 )
+            }
+            val gguf = created.second.llmGguf
+            if (gguf != null && gguf.isFile && gguf.length() > 0L) {
+                summaryRunner = LlamaCppGgufRunner(gguf)
             }
             if (BuildConfig.PRESENT_CONNECT && presentClient == null) {
                 val session = PathBSession.fromPipeline(created.first)
@@ -332,6 +350,18 @@ class StenoViewModel(app: Application) : AndroidViewModel(app) {
                     )
                 }
                 val result = pipeline.transcribe(prep.audio) { p ->
+                    if (p.stage == PipelineStage.Asr) {
+                        val dur = prep.audio.durationMs
+                        val windows = team.mikcoders.neurosteno.pipeline.LiveFeed.windowsFor(dur)
+                        val upto = (p.fraction / 0.6f).coerceIn(0f, 1f)
+                        val n = (windows.size * upto).toInt()
+                        if (n > 0) {
+                            _state.update { s ->
+                                s.copy(liveInterim = team.mikcoders.neurosteno.pipeline.LiveFeed.interim(
+                                    emptyList(), windows.take(n)))
+                            }
+                        }
+                    }
                     _state.update { it.copy(progress = p) }
                 }
                 _state.update {
@@ -385,11 +415,89 @@ class StenoViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun refreshTranscriptPreview(s: StenoUiState): StenoUiState {
         val raw = s.transcript?.transcript.orEmpty()
-        val shown = if (s.mergeAdjacentTurns) TranscriptView.mergeAdjacent(raw) else raw.filter { it.text.isNotBlank() }
+        val renamed = applySpeakerNames(raw, s.speakerNames)
+        val shown = if (s.mergeAdjacentTurns) TranscriptView.mergeAdjacent(renamed) else renamed.filter { it.text.isNotBlank() }
         val file = TranscriptFile(shown)
         return s.copy(
             transcript = file,
             jsonPreview = TranscriptJson.encode(file),
         )
     }
+
+    fun applySpeakerNames(rows: List<Utterance>, names: Map<String, String>): List<Utterance> =
+        rows.map { u ->
+            val n = names[u.speakerId].takeUnless { it.isNullOrBlank() }
+            if (n != null) u.copy(speakerId = n) else u
+        }
+
+    fun setTab(tab: String) {
+        if (tab == "diary") refreshDiary()
+        _state.update { it.copy(tab = tab) }
+    }
+
+    fun renameSpeaker(autoId: String, name: String) {
+        _state.update { s ->
+            val names = s.speakerNames + (autoId to name.trim())
+            refreshTranscriptPreview(s.copy(speakerNames = names))
+        }
+    }
+
+    fun summarize() {
+        val rows = _state.value.transcript?.transcript.orEmpty()
+        if (rows.isEmpty() || _state.value.summaryRunning) return
+        _state.update { it.copy(summaryRunning = true) }
+        viewModelScope.launch {
+            val out = withContext(Dispatchers.Default) { TranscriptLlm.summarize(summaryRunner, rows) }
+            _state.update { it.copy(summary = out, summaryRunning = false) }
+        }
+    }
+
+    fun setAskInput(q: String) { _state.update { it.copy(askInput = q) } }
+
+    fun ask() {
+        val rows = _state.value.transcript?.transcript.orEmpty()
+        val q = _state.value.askInput
+        if (rows.isEmpty() || _state.value.askRunning) return
+        _state.update { it.copy(askRunning = true) }
+        viewModelScope.launch {
+            val out = withContext(Dispatchers.Default) { TranscriptLlm.ask(summaryRunner, rows, q) }
+            _state.update { it.copy(askAnswer = out, askRunning = false) }
+        }
+    }
+
+    fun saveToDiary(title: String = _state.value.fileLabel ?: "Транскрипт") {
+        val rows = _state.value.transcript?.transcript.orEmpty()
+        if (rows.isEmpty()) return
+        val entry = team.mikcoders.neurosteno.export.DiaryEntry(
+            createdMs = System.currentTimeMillis(),
+            title = title,
+            summary = _state.value.summary,
+            transcript = rows,
+        )
+        viewModelScope.launch(Dispatchers.IO) {
+            team.mikcoders.neurosteno.export.Diary.save(getApplication(), entry)
+            refreshDiary()
+        }
+    }
+
+    fun loadFromDiary(createdMs: Long) {
+        val entry = _state.value.diary.firstOrNull { it.createdMs == createdMs } ?: return
+        _state.update { s ->
+            refreshTranscriptPreview(s.copy(transcript = TranscriptFile(entry.transcript), summary = entry.summary, tab = "transcript"))
+        }
+    }
+
+    fun deleteDiary(createdMs: Long) {
+        viewModelScope.launch(Dispatchers.IO) {
+            team.mikcoders.neurosteno.export.Diary.delete(getApplication(), createdMs)
+            refreshDiary()
+        }
+    }
+
+    fun refreshDiary() {
+        val list = team.mikcoders.neurosteno.export.Diary.list(getApplication())
+        _state.update { it.copy(diary = list) }
+    }
+
+    fun displayRows(rows: List<Utterance>, names: Map<String, String>): List<Utterance> = applySpeakerNames(rows, names)
 }
