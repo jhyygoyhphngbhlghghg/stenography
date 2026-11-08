@@ -1,10 +1,32 @@
 # APK drop
 
-Built 2026-11-07 on this machine (gradle 8.11.1, AGP 8.7.3, compileSdk 35,
-JDK 21). `.apk` files are gitignored — binaries do not go into the git tree;
-the hand-in publishes them as Release assets:
+`.apk` files are gitignored — binaries do not go into the git tree; the
+hand-in publishes them as Release assets.
+
+## Release v0.2.0-demo (2026-11-08) — DEMO ARTIFACTS
+
+**[v0.2.0-demo](https://github.com/jhyygoyhphngbhlghghg/stenography/releases/tag/v0.2.0-demo)**,
+built from branch `ship` (all tested themes merged 2026-11-08 morning:
+product features, token-wired present-connect client, web sync/QR,
+live-mic diarization hotfix `f1b6abe`/`6ae5c39`, hello-models-array protocol
+fix `f98bb03`). Models + Qwen2 GGUF embedded in both (embedLlm default true).
+
+| file | bytes | sha256 | what it is |
+|---|---|---|---|
+| `app-stenographer-debug-v2-diar-fixed.apk` | 508 947 140 | `ecb0ef3cff985143385a0de7d96878a6327e0d7e47a9835b8978b33f98f0f001` | DEMO/check APK v2: fully offline RU stenography; live-mic diarization churn fix (casual-mic scene, auto speaker count, identity-merge threshold 0.55). Unit tests green at build (167 @Test). |
+| `app-presentConnect-debug-v2-protofix.apk` | 509 012 604 | `d327acbb1ad6bd9157aa53e69ea5be52b28452b41b3713d87b1daf267dd2b0a1` | Presentation-connectivity demo APK v2: token-wired `present-connect/1` client with the hello-models-array fix. Live smoke app→hosted deck: handshake **PASS** (`phone_connected:true`, no BAD_MESSAGE); app-originated transcript rows **TIMEOUT** on the emulator (0 rows in the 8-min box, process restart) — `artifacts/SMOKE_PRESENTCONNECT_V2.md`, `docs/TEST_RESULTS.md`. |
+
+## Release v0.1.0-stage6 (2026-11-07) — measured stage-6 snapshot
+
 **[v0.1.0-stage6](https://github.com/jhyygoyhphngbhlghghg/stenography/releases/tag/v0.1.0-stage6)**
-(the pre-runtime-optimization hand-in snapshot; the tag is not moved by later commits).
+(the pre-runtime-optimization hand-in snapshot; the tag is not moved by later
+commits). **Provenance caveat:** these assets were built 2026-11-07 09:26,
+i.e. **before `1906eaa`** — they contain the live-mic diarization-churn bug
+(fixed in v0.2.0-demo), and the presentConnect asset below has **no
+phone-token client** (cannot authenticate against the token-protected demo
+stand). Frozen STAGE6 eval numbers were produced by the host harness with the
+same weights, not by these APKs. Kept as the measured snapshot; use
+v0.2.0-demo for the demo.
 
 
 | file | bytes | MiB | sha256 | what it is |
@@ -43,10 +65,14 @@ Not phone-tested, not published; see
 ## Which one to install
 
 For the experts' run (install APK → import three dialogues → export JSON, no
-network): `app-stenographer-debug-embedLlm.apk` if the download is
-affordable; otherwise `app-stenographer-debug.apk` **plus**
+network): **`app-stenographer-debug-v2-diar-fixed.apk`** from v0.2.0-demo
+(everything embedded, diarization fix included). From the v0.1.0-stage6 set:
+`app-stenographer-debug-embedLlm.apk` if the download is affordable; otherwise
+`app-stenographer-debug.apk` **plus**
 `adb push models/llm …` once, or the LLM line in the UI will honestly read
-`llm-weights-missing (intonation punct only)`.
+`llm-weights-missing (intonation punct only)`. For the presentation stand:
+only `app-presentConnect-debug-v2-protofix.apk` (the stage6 presentConnect
+asset predates the token client and the protocol fix).
 
 ## How these were produced
 

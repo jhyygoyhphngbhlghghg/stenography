@@ -23,16 +23,14 @@ object PipelineFactory {
             Log.e(TAG, "models present but JNI failed — stub. ${jni.error}")
             return StubStenoPipeline() to paths
         }
-        // PresentConnect stays on overnight clustering. The offline/demo flavor
-        // runs the casual near-field scene: host sweep 2026-11-08 showed the
-        // stage6 seat reconcile fragments casual 2-speaker recordings into
-        // per-line churn labels; frozen DEMO_STAGE6 eval rows come from the
-        // host harness and are unaffected by this app-side choice.
-        val scene = if (BuildConfig.PRESENT_CONNECT) {
-            FarFieldScene.presentConnect
-        } else {
-            FarFieldScene.casual
-        }
+        // Both flavors run the casual near-field scene (auto speaker count,
+        // high-recall VAD, identity merge 0.55): host sweep 2026-11-08 showed
+        // the stage6 seat reconcile fragments casual 2-speaker recordings into
+        // per-line churn labels, and at expectedSpeakers=-1 the reconcile
+        // returns clustering as-is, so the live path gets the same tested
+        // diarization lineage as the offline demo. Frozen DEMO_STAGE6 eval
+        // rows come from the host harness and are unaffected by this choice.
+        val scene = FarFieldScene.casual
         return try {
             SherpaStenoPipeline(paths, llm, scene) to paths
         } catch (t: Throwable) {

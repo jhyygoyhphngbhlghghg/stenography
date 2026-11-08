@@ -19,19 +19,21 @@ ASR/LLM: аудио не покидает телефон.
 
 | # | Материал | Где |
 |---|---|---|
-| 1 | **APK-файл приложения** | GitHub Releases: [v0.1.0-stage6](https://github.com/jhyygoyhphngbhlghghg/stenography/releases/tag/v0.1.0-stage6) + финальный демо-релиз на [странице релизов](https://github.com/jhyygoyhphngbhlghghg/stenography/releases); таблица sha256 — ниже и в `apk/README.md` |
+| 1 | **APK-файл приложения** | GitHub Releases: **[v0.2.0-demo](https://github.com/jhyygoyhphngbhlghghg/stenography/releases/tag/v0.2.0-demo)** (демо-артефакты: офлайн-APK v2 с фиксом диаризации + presentConnect v2 с фиксом протокола) и **[v0.1.0-stage6](https://github.com/jhyygoyhphngbhlghghg/stenography/releases/tag/v0.1.0-stage6)** (замороженный замеренный снимок stage-6); таблица sha256 — ниже и в [`apk/README.md`](apk/README.md) |
 | 2 | **Исходный код** | этот репозиторий: `src/android/` (Kotlin+Compose), `src/web/` (Node-бэкенд + React-дек) |
 | 3 | **Инструкция по установке и использованию** | `docs/INSTALL.md` (+ быстрый старт ниже) |
 | 4 | **Архитектура и применяемые модели** | `docs/ARCHITECTURE.md`, `docs/MODELS.md` |
 | 5 | **Ограничения** | `docs/LIMITATIONS.md` |
 | 6 | **Результаты собственных тестов** | `docs/TEST_RESULTS.md` (+ `artifacts/test-results/`, `artifacts/eval/`) |
-| 7 | **Видеодемонстрация** | `docs/DEMO.md` и `docs/demo/` — сценарий, чеклист стенда и слот под запись (команда выкладывает `docs/demo/demo.mp4` / release-ассет до сдачи) |
+| 7 | **Видеодемонстрация** | [`artifacts/demo/`](artifacts/demo/README.md) — слот под запись (`demo.mp4`, **PENDING**: команда пишет на живом телефоне и публикует ассетом демо-релиза); чеклист демо-материалов (видео, исходный/полученный файлы, логи, контрольные суммы, фото стенда) — там же; сценарий съёмки — `docs/DEMO.md` |
 
 ## Быстрый старт (что делает эксперт)
 
-1. **Установить APK.** Рекомендуемый артефакт — `app-stenographer-debug-embedLlm.apk`
-   (547 МиБ, все веса + локальная LLM внутри). Альтернатива — `app-stenographer-debug.apk`
-   (210 МиБ) и один `adb push models/llm …` (см. `docs/INSTALL.md`).
+1. **Установить APK.** Рекомендуемый артефакт — `app-stenographer-debug-v2-diar-fixed.apk`
+   из релиза **v0.2.0-demo** (509 МБ, все веса + локальная LLM внутри, фикс
+   диаризации живого микрофона). Альтернатива — `app-stenographer-debug.apk`
+   из v0.1.0-stage6 (210 МиБ) и один `adb push models/llm …` (см. `docs/INSTALL.md`);
+   ассеты v0.1.0-stage6 собраны до фикса диаризации — для демо брать v0.2.0-demo.
 2. **Разрешения.** При первом запуске разрешить микрофон и доступ к файлам;
    сеть приложению не нужна (INTERNET-разрешение использует только flavor
    presentConnect).
@@ -49,8 +51,8 @@ ASR/LLM: аудио не покидает телефон.
    брифа (`docs/JSON.md`), проверка `python3 scripts/verify-transcript-json.py export.json`.
 
 **presentConnect-сборка для живой демонстрации (отдельный режим, не основная
-заявка).** `app-presentConnect-debug.apk` подключается к презентационному
-бэкенду по WSS (`present-connect/1`): телефон-воркер распознаёт до 20
+заявка).** `app-presentConnect-debug-v2-protofix.apk` (релиз v0.2.0-demo)
+подключается к презентационному бэкенду по WSS (`present-connect/1`): телефон-воркер распознаёт до 20
 отдельных аудиопотоков и пушит реплики на экраны. Демо-стенд:
 `https://present.144.31.215.37.sslip.io/` (fallback `https://144.31.215.37:8080`,
 самоподписанный сертификат), токен телефона по умолчанию `09879078`. Сценарий
@@ -58,12 +60,23 @@ ASR/LLM: аудио не покидает телефон.
 
 ## APK и контрольные суммы
 
-Бинарники в git не лежат — публикуются как ассеты релизов. Релиз
+Бинарники в git не лежат — публикуются как ассеты релизов. Проверка:
+`sha256sum *.apk`.
+
+**[v0.2.0-demo](https://github.com/jhyygoyhphngbhlghghg/stenography/releases/tag/v0.2.0-demo)**
+— демо-релиз (ветка `ship`, все tested-фиксы утра 2026-11-08):
+
+| файл | байт | sha256 | что это |
+|---|---|---|---|
+| `app-stenographer-debug-v2-diar-fixed.apk` | 508 947 140 | `ecb0ef3cff985143385a0de7d96878a6327e0d7e47a9835b8978b33f98f0f001` | **DEMO/check-APK v2**: все веса + GGUF внутри, полностью офлайн, RU; фикс churn-диаризации (casual-mic сцена с авто-числом спикеров + порог слияния голосов 0.55) |
+| `app-presentConnect-debug-v2-protofix.apk` | 509 012 604 | `d327acbb1ad6bd9157aa53e69ea5be52b28452b41b3713d87b1daf267dd2b0a1` | демо-стенд presentConnect: token-wired клиент + фикс `hello` models-array (`f98bb03`); дым-тест app→hosted deck: handshake **PASS**, пуш строк — **TIMEOUT** на эмуляторе (`docs/TEST_RESULTS.md`) |
+
 **[v0.1.0-stage6](https://github.com/jhyygoyhphngbhlghghg/stenography/releases/tag/v0.1.0-stage6)**
-(снимок до runtime-оптимизации; тег не двигается поздними коммитами) содержит
-все четыре APK; финальный демо-релиз (runtime/compact-кандидаты) выкладывается
-командой на [странице релизов](https://github.com/jhyygoyhphngbhlghghg/stenography/releases)
-до сдачи. Проверка: `sha256sum *.apk`.
+— замеренный stage-6 снимок (собран 2026-11-07 09:26, тег не двигается
+поздними коммитами). **Оговорка:** ассеты собраны до `1906eaa`, то есть
+содержат баг churn-диаризации живого микрофона (исправлен в v0.2.0-demo);
+все замеренные строки STAGE6 в `docs/TEST_RESULTS.md` получены на хостовом
+харнесе с теми же весами, а не из этих APK.
 
 | файл | байт | sha256 | что это |
 |---|---|---|---|
