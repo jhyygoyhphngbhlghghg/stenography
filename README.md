@@ -20,16 +20,16 @@ ASR/LLM: аудио не покидает телефон.
 | # | Материал | Где |
 |---|---|---|
 | 1 | **APK-файл приложения** | GitHub Releases: **[v0.2.0-demo](https://github.com/jhyygoyhphngbhlghghg/stenography/releases/tag/v0.2.0-demo)** (демо-артефакты: офлайн-APK v2 с фиксом диаризации + presentConnect v2 с фиксом протокола) и **[v0.1.0-stage6](https://github.com/jhyygoyhphngbhlghghg/stenography/releases/tag/v0.1.0-stage6)** (замороженный замеренный снимок stage-6); таблица sha256 — ниже и в [`apk/README.md`](apk/README.md) |
-| 2 | **Исходный код** | этот репозиторий: `src/android/` (Kotlin+Compose), `src/web/` (Node-бэкенд + React-дек) |
-| 3 | **Инструкция по установке и использованию** | `docs/INSTALL.md` (+ быстрый старт ниже) |
-| 4 | **Архитектура и применяемые модели** | `docs/ARCHITECTURE.md`, `docs/MODELS.md` |
-| 5 | **Ограничения** | `docs/LIMITATIONS.md` |
-| 6 | **Результаты собственных тестов** | `docs/TEST_RESULTS.md` (+ `artifacts/test-results/`, `artifacts/eval/`) |
-| 7 | **Видеодемонстрация** | [`artifacts/demo/`](artifacts/demo/README.md) — слот под запись (`demo.mp4`, **PENDING**: команда пишет на живом телефоне и публикует ассетом демо-релиза); чеклист демо-материалов (видео, исходный/полученный файлы, логи, контрольные суммы, фото стенда) — там же; сценарий съёмки — `docs/DEMO.md` |
+| 2 | **Исходный код** | этот репозиторий: [`src/android/`](src/android/) (Kotlin+Compose), [`src/web/`](src/web/) (Node-бэкенд + React-дек), указатель — [`src/README.md`](src/README.md) |
+| 3 | **Инструкция по установке и использованию** | [`docs/INSTALL.md`](docs/INSTALL.md) (+ быстрый старт ниже, RU) |
+| 4 | **Архитектура и применяемые модели** | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/MODELS.md`](docs/MODELS.md) |
+| 5 | **Ограничения** | [`docs/LIMITATIONS.md`](docs/LIMITATIONS.md) |
+| 6 | **Результаты собственных тестов** | [`docs/TEST_RESULTS.md`](docs/TEST_RESULTS.md) (+ [`artifacts/test-results/`](artifacts/test-results/README.md), [`artifacts/eval/`](artifacts/eval/demo-stress/metrics.csv)) |
+| 7 | **Видеодемонстрация** | [`artifacts/demo/`](artifacts/demo/README.md) — **записано командой 2026-11-08 08:52–08:56** на живом устройстве и опубликовано ассетом релиза v0.2.0-demo: [`WIN_20261108_08_52_46_Pro.mp4`](https://github.com/jhyygoyhphngbhlghghg/stenography/releases/download/v0.2.0-demo/WIN_20261108_08_52_46_Pro.mp4) (482 498 935 B, sha256 `ff3c55d9…324d`; непрерывная передача динамик→микрофон, живая RU-транскрипция на устройстве) — указатель [`artifacts/demo/VIDEO.md`](artifacts/demo/VIDEO.md); чеклист остальных демо-материалов (исходный/полученный файлы, логи, контрольные суммы, фото стенда — слоты PENDING) — [`artifacts/demo/README.md`](artifacts/demo/README.md); сценарий — `docs/DEMO.md` |
 
 ## Быстрый старт (что делает эксперт)
 
-1. **Установить APK.** Рекомендуемый артефакт — `app-stenographer-debug-v2-diar-fixed.apk`
+1. **Установить APK.** Рекомендуемый артефакт — `app-stenographer-DEMO-v2-diar-fixed.apk`
    из релиза **v0.2.0-demo** (509 МБ, все веса + локальная LLM внутри, фикс
    диаризации живого микрофона). Альтернатива — `app-stenographer-debug.apk`
    из v0.1.0-stage6 (210 МиБ) и один `adb push models/llm …` (см. `docs/INSTALL.md`);
@@ -37,8 +37,9 @@ ASR/LLM: аудио не покидает телефон.
 2. **Разрешения.** При первом запуске разрешить микрофон и доступ к файлам;
    сеть приложению не нужна (INTERNET-разрешение использует только flavor
    presentConnect).
-3. **Первый запуск.** Приложение распакует ≈114 МиБ моделей из APK в свою
-   приватную папку (секунды, шкала в UI). В шапке должно быть
+3. **Первый запуск.** Приложение распакует модели из APK в свою приватную
+   папку (≈472 МиБ для v0.2.0-demo/embedLlm-вариантов, ≈114 МиБ для
+   check-APK без GGUF; секунды-минуты, шкала в UI). В шапке должно быть
    `Офлайн: Zipformer-ru + Silero VAD + diar (models в APK)` и
    `LLM: llama.cpp GGUF qwen2-0_5b-instruct-q4_0.gguf`. Строка
    `pipeline = stub` означает, что весов нет — такой кадр показывать нельзя.
@@ -51,7 +52,7 @@ ASR/LLM: аудио не покидает телефон.
    брифа (`docs/JSON.md`), проверка `python3 scripts/verify-transcript-json.py export.json`.
 
 **presentConnect-сборка для живой демонстрации (отдельный режим, не основная
-заявка).** `app-presentConnect-debug-v2-protofix.apk` (релиз v0.2.0-demo)
+заявка).** `app-presentConnect-DEMO-v2-protofix.apk` (релиз v0.2.0-demo)
 подключается к презентационному бэкенду по WSS (`present-connect/1`): телефон-воркер распознаёт до 20
 отдельных аудиопотоков и пушит реплики на экраны. Демо-стенд:
 `https://present.144.31.215.37.sslip.io/` (fallback `https://144.31.215.37:8080`,
@@ -68,8 +69,8 @@ ASR/LLM: аудио не покидает телефон.
 
 | файл | байт | sha256 | что это |
 |---|---|---|---|
-| `app-stenographer-debug-v2-diar-fixed.apk` | 508 947 140 | `ecb0ef3cff985143385a0de7d96878a6327e0d7e47a9835b8978b33f98f0f001` | **DEMO/check-APK v2**: все веса + GGUF внутри, полностью офлайн, RU; фикс churn-диаризации (casual-mic сцена с авто-числом спикеров + порог слияния голосов 0.55) |
-| `app-presentConnect-debug-v2-protofix.apk` | 509 012 604 | `d327acbb1ad6bd9157aa53e69ea5be52b28452b41b3713d87b1daf267dd2b0a1` | демо-стенд presentConnect: token-wired клиент + фикс `hello` models-array (`f98bb03`); дым-тест app→hosted deck: handshake **PASS**, пуш строк — **TIMEOUT** на эмуляторе (`docs/TEST_RESULTS.md`) |
+| `app-stenographer-DEMO-v2-diar-fixed.apk` | 508 947 140 | `ecb0ef3cff985143385a0de7d96878a6327e0d7e47a9835b8978b33f98f0f001` | **DEMO/check-APK v2**: все веса + GGUF внутри, полностью офлайн, RU; фикс churn-диаризации (casual-mic сцена с авто-числом спикеров + порог слияния голосов 0.55) |
+| `app-presentConnect-DEMO-v2-protofix.apk` | 509 012 604 | `d327acbb1ad6bd9157aa53e69ea5be52b28452b41b3713d87b1daf267dd2b0a1` | демо-стенд presentConnect: token-wired клиент + фикс `hello` models-array (`f98bb03`); дым-тест app→hosted deck: handshake **PASS**, пуш строк — **TIMEOUT** на эмуляторе (`docs/TEST_RESULTS.md`) |
 
 **[v0.1.0-stage6](https://github.com/jhyygoyhphngbhlghghg/stenography/releases/tag/v0.1.0-stage6)**
 — замеренный stage-6 снимок (собран 2026-11-07 09:26, тег не двигается
