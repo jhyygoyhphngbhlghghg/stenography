@@ -32,6 +32,18 @@ data class FarFieldScene(
      * forces. Default: keep the historical behaviour (K = expectedSpeakers).
      */
     val diarNumClusters: Int = expectedSpeakers,
+    /**
+     * NoiseGate (casual/presentConnect only, expectedSpeakers <= 0): drop raw
+     * diarization segments shorter than this. <=0 disables. Stage6 keeps 0:
+     * its quiet far seats are exactly the short/low-RMS segments the reconcile
+     * recovers (s5 @ 5.4 m), and the stage6 path must never gate.
+     */
+    val noiseGateMinMs: Long = 0L,
+    /**
+     * NoiseGate RMS floor as a fraction of the median segment RMS. <=0
+     * disables. See [noiseGateMinMs].
+     */
+    val noiseGateRmsRatio: Float = 0f,
 ) {
     companion object {
         val stage6: FarFieldScene = FarFieldScene(
@@ -101,6 +113,26 @@ data class FarFieldScene(
             expandMaxRegionMs = 1_500L,
             mergeGapMs = 280L,
             diarNumClusters = 0,
+            // Noise gate (host sweep 2026-11-08, scripts/noise_gate_sweep.py
+            // on the deterministic noise fixtures of
+            // scripts/make_noise_fixtures.py — casual 3spk + 0.3-1.5 s
+            // modulated pink/white bursts at -20/-15/-10 dBFS, +/-35 dBFS
+            // continuous room noise): with room noise the raw clustering at
+            // ct=0.65 yields 4 labels and merge@0.60 yields 6 labels vs
+            // truth 3, one of them a 455 ms fragment with 0.38 speech
+            // overlap (the phantom-speaker mechanism). min_ms=900 drops it
+            // (and the 489 ms fragment churn) -> 4 labels, agree 0.83->1.00,
+            // purity 0.94->1.00, while clean guards IMPROVE: clean_2spk
+            // 5->2 labels (=truth, purity 0.91->1.00), clean_3spk agree
+            // 0.57->1.00, purity 0.94->1.00. 500/700 leave clean_2spk at 3
+            // labels with purity 0.90 < 0.91 pre-gate. rms_ratio never fired
+            // on these fixtures (burst RMS is median-comparable to speech);
+            // 0.25 stays as the quiet-continuous-noise floor. Worst-case
+            // simulation shows the same gate on the frozen stage6 rig would
+            // cost seats (5/6 -> 1/6) — hence casual-only by construction
+            // (expectedSpeakers <= 0), guarded by NoiseGateTest.
+            noiseGateMinMs = 900L,
+            noiseGateRmsRatio = 0.25f,
         )
 
         /** Overnight diar/VAD; do not retune Path B. */
@@ -119,6 +151,10 @@ data class FarFieldScene(
             expandIfCoverageBelow = 0f,
             expandMaxRegionMs = 0L,
             mergeGapMs = 0L,
+            // Same noise gate as casual (expectedSpeakers=-1 path); defaults
+            // come from scripts/noise_gate_sweep.py.
+            noiseGateMinMs = 900L,
+            noiseGateRmsRatio = 0.25f,
         )
     }
 }
