@@ -28,6 +28,8 @@ data class PresentConnectConfig(
     val deviceId: String,
     val maxStreams: Int = 20,
     val sampleRate: Int = 16_000,
+    /** Bearer token for `present-connect/1` phone auth. Blank → no header (loopback/test). */
+    val phoneToken: String = "",
 )
 
 sealed class PresentConnectEvent {

@@ -123,12 +123,19 @@ fun StenoApp(vm: StenoViewModel = viewModel()) {
                     label = { Text("PresentConnect wss") },
                     singleLine = true,
                 )
+                OutlinedTextField(
+                    value = state.phoneToken,
+                    onValueChange = { vm.updatePhoneToken(it) },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("PHONE_TOKEN (Bearer)") },
+                    singleLine = true,
+                )
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = { vm.connectPresent() }, enabled = !state.presentConnected) {
-                        Text("WS connect")
+                        Text("Connect + Live")
                     }
-                    OutlinedButton(onClick = { vm.disconnectPresent() }, enabled = state.presentConnected) {
+                    OutlinedButton(onClick = { vm.disconnectPresent() }, enabled = true) {
                         Text("Disconnect")
                     }
                     Text(
@@ -136,6 +143,14 @@ fun StenoApp(vm: StenoViewModel = viewModel()) {
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(top = 12.dp),
                     )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
+                    Button(onClick = { vm.startLiveTranscribe() }, enabled = state.presentConnected && !state.liveTranscribing) {
+                        Text(if (state.liveTranscribing) "Live… ASR" else "⏺ Live ASR → web")
+                    }
+                    OutlinedButton(onClick = { vm.stopLiveTranscribe() }, enabled = state.liveTranscribing) {
+                        Text("Stop live")
+                    }
                 }
                 if (state.activeStreams.isNotEmpty()) {
                     Spacer(Modifier.height(8.dp))
