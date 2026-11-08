@@ -112,4 +112,55 @@ class AssetModelUnpackTest {
         }
         assertFalse(AssetModelUnpack.needed(dest, assetsWithLlm))
     }
+
+    @Test
+    fun truncatedGgufIsRecopiedNotTrusted() {
+        val dest = File.createTempFile("models-trunc", "dir").apply {
+            delete()
+            mkdirs()
+        }
+        dest.deleteOnExit()
+        val gguf = AssetModelUnpack.OPTIONAL.single()
+        // Simulate a killed process: marker + 7 REQUIRED present, plus a
+        // zero-length GGUF (partial copy).
+        AssetModelUnpack.unpack(dest) { path ->
+            val rel = path.removePrefix("${AssetModelUnpack.ASSET_ROOT}/")
+            if (rel in AssetModelUnpack.REQUIRED) ByteArrayInputStream("x".toByteArray()) else null
+        }
+        val ggufFile = File(dest, gguf)
+        ggufFile.parentFile?.mkdirs()
+        ggufFile.createNewFile()
+        assertEquals(0L, ggufFile.length())
+
+        // Old behaviour: needed() returned false here.
+        val assetsWithLlm = { path: String -> path.endsWith(".gguf") }
+        assertTrue(AssetModelUnpack.needed(dest, assetsWithLlm))
+
+        val report = AssetModelUnpack.unpack(dest) { path ->
+            if (path.endsWith(gguf)) ByteArrayInputStream("GGUFv3-complete".toByteArray()) else null
+        }
+        assertEquals(1, report.optionalCopied)
+        assertEquals("GGUFv3-complete", ggufFile.readText())
+        assertFalse(AssetModelUnpack.needed(dest, assetsWithLlm))
+    }
+
+    @Test
+    fun noTmpFilesLeftBehind() {
+        val dest = File.createTempFile("models-tmp", "dir").apply {
+            delete()
+            mkdirs()
+        }
+        dest.deleteOnExit()
+        val gguf = AssetModelUnpack.OPTIONAL.single()
+        AssetModelUnpack.unpack(dest) { path ->
+            val rel = path.removePrefix("${AssetModelUnpack.ASSET_ROOT}/")
+            when (rel) {
+                in AssetModelUnpack.REQUIRED -> ByteArrayInputStream("x".toByteArray())
+                gguf -> ByteArrayInputStream("GGUFv3".toByteArray())
+                else -> null
+            }
+        }
+        val leftovers = dest.walkTopDown().filter { it.name.endsWith(".tmp") }.toList()
+        assertTrue("tmp files left behind: $leftovers", leftovers.isEmpty())
+    }
 }
