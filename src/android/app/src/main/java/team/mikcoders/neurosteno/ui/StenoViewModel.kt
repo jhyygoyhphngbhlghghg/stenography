@@ -32,6 +32,7 @@ import team.mikcoders.neurosteno.pipeline.PcmAudio
 import team.mikcoders.neurosteno.pipeline.SherpaJni
 import team.mikcoders.neurosteno.pipeline.StenoPipeline
 import team.mikcoders.neurosteno.pipeline.StubStenoPipeline
+import team.mikcoders.neurosteno.pipeline.TranscriptView
 import team.mikcoders.neurosteno.present.OkHttpPresentConnectClient
 import team.mikcoders.neurosteno.present.PathBSession
 import team.mikcoders.neurosteno.present.PresentConnectConfig
@@ -66,6 +67,9 @@ data class StenoUiState(
     val presentStreams: Int = 0,
     val wsUrl: String = "wss://present.example.local/v1/present-connect?session=demo&role=worker&device=phone",
     val micFlags: List<MicFlagChip> = emptyList(),
+    val mergeAdjacentTurns: Boolean = true,
+    val showAllText: Boolean = false,
+    val fileSize: String? = null,
 )
 
 data class ActiveStreamChip(
@@ -247,7 +251,7 @@ class StenoViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { presentClient?.disconnect() }
     }
 
-    fun onFilePicked(uri: Uri, displayName: String?) {
+    fun onFilePicked(uri: Uri, displayName: String?, sizeLabel: String? = null) {
         try {
             getApplication<Application>().contentResolver.takePersistableUriPermission(
                 uri,
@@ -259,6 +263,7 @@ class StenoViewModel(app: Application) : AndroidViewModel(app) {
         _state.update {
             it.copy(
                 fileLabel = displayName ?: uri.lastPathSegment ?: uri.toString(),
+                fileSize = sizeLabel,
                 importedUri = uri.toString(),
                 error = null,
                 transcript = null,
@@ -340,6 +345,7 @@ class StenoViewModel(app: Application) : AndroidViewModel(app) {
                         llmOnDevice = pipeline.llmIsOnDevice,
                     )
                 }
+                _state.update { s -> if (s.mergeAdjacentTurns) refreshTranscriptPreview(s) else s }
             } catch (cancelled: CancellationException) {
                 _state.update { it.copy(running = false) }
                 throw cancelled
@@ -353,5 +359,37 @@ class StenoViewModel(app: Application) : AndroidViewModel(app) {
 
     fun clearError() {
         _state.update { it.copy(error = null) }
+    }
+
+    fun toggleMergeAdjacent() {
+        _state.update { s ->
+            val next = s.copy(mergeAdjacentTurns = !s.mergeAdjacentTurns)
+            refreshTranscriptPreview(next)
+        }
+    }
+
+    fun toggleShowAllText() {
+        _state.update { s -> s.copy(showAllText = !s.showAllText) }
+    }
+
+    fun retimeUtterance(index: Int, newStartMs: Long, newEndMs: Long) {
+        _state.update { s ->
+            val rows = s.transcript?.transcript.orEmpty()
+            if (index !in rows.indices) return@update s
+            val fixed = rows.mapIndexed { i, u ->
+                if (i == index) u.copy(startMs = newStartMs, endMs = newEndMs) else u
+            }.sortedBy { it.startMs }
+            refreshTranscriptPreview(s.copy(transcript = TranscriptFile(fixed)))
+        }
+    }
+
+    private fun refreshTranscriptPreview(s: StenoUiState): StenoUiState {
+        val raw = s.transcript?.transcript.orEmpty()
+        val shown = if (s.mergeAdjacentTurns) TranscriptView.mergeAdjacent(raw) else raw.filter { it.text.isNotBlank() }
+        val file = TranscriptFile(shown)
+        return s.copy(
+            transcript = file,
+            jsonPreview = TranscriptJson.encode(file),
+        )
     }
 }
