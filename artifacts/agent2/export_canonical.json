@@ -1,0 +1,22 @@
+{
+  "transcript": [
+    {
+      "speaker_id": "speaker_1",
+      "start_ms": 1250,
+      "end_ms": 4380,
+      "text": "Добрый день!"
+    },
+    {
+      "speaker_id": "speaker_2",
+      "start_ms": 4500,
+      "end_ms": 7200,
+      "text": "Здравствуйте, коллеги."
+    },
+    {
+      "speaker_id": "speaker_1",
+      "start_ms": 8000,
+      "end_ms": 11200,
+      "text": "Завтра продолжим работу, если все готовы."
+    }
+  ]
+}
