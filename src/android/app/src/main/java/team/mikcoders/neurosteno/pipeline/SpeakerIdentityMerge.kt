@@ -26,14 +26,23 @@ package team.mikcoders.neurosteno.pipeline
  *    same-voice reconciled-segment pairs min 0.539 / median 0.780, diff-voice
  *    min 0.812 — at the old 0.45 threshold ZERO same-voice pairs merged
  *    (every line kept its own label, the reported churn).
+ *  - sweep v2 (2026-11-08, 3-person casual fixture + device verdict "3 people
+ *    -> 7 speakers" at 0.55): same-voice segment pairs sit at 0.388-0.756, so
+ *    0.55 left per-person fragments unglued and the union-find relabel split
+ *    them into fresh labels. Distinct-voice floor measured in the same sweep:
+ *    0.718 (stage6 distinct-seat turn pairs, closest s3|s5), 0.727 (casual
+ *    2spk diff-voice segments), 0.844 (casual 3spk) — and stage6 merge rows
+ *    fired ZERO distance unions at 0.55/0.60/0.65 (guard: merge OFF 5/6 seats).
  * Merging happens at the anchored-embedding level (each segment -> one unit
  * embedding), not per-window, so intra-segment variation is averaged out.
- * 0.55 sits above the noisy same-voice window median (0.51) so live-mic turns
- * actually merge, and below the nearest distinct-seat distance (0.62, margin
- * 0.07; 0.60 would leave only 0.02) so stage6 seats stay distinct.
+ * 0.60 glues the noisy same-voice pairs in (0.55, 0.60] that produced the
+ * 7-speaker over-segmentation, and stays below the anchored distinct-seat
+ * distance 0.62 (margin 0.02) and far below the sweep v2 turn-level floor
+ * 0.718 (margin 0.118). 0.65 was rejected: it exceeds the anchored 0.62
+ * distinct-seat measurement (s3 vs s5), which the sweep could not clear.
  */
 internal object SpeakerIdentityMerge {
-    const val SAME_VOICE_MAX_DISTANCE = 0.55f
+    const val SAME_VOICE_MAX_DISTANCE = 0.60f
     private const val WINDOW_MS = 1_500L
     private const val MIN_EMBED_MS = 300L
 
