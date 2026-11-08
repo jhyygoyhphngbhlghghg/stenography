@@ -13,8 +13,8 @@ fix `f98bb03`). Models + Qwen2 GGUF embedded in both (embedLlm default true).
 
 | file | bytes | sha256 | what it is |
 |---|---|---|---|
-| `app-stenographer-debug-v2-diar-fixed.apk` | 508 947 140 | `ecb0ef3cff985143385a0de7d96878a6327e0d7e47a9835b8978b33f98f0f001` | DEMO/check APK v2: fully offline RU stenography; live-mic diarization churn fix (casual-mic scene, auto speaker count, identity-merge threshold 0.55). Unit tests green at build (167 @Test). |
-| `app-presentConnect-debug-v2-protofix.apk` | 509 012 604 | `d327acbb1ad6bd9157aa53e69ea5be52b28452b41b3713d87b1daf267dd2b0a1` | Presentation-connectivity demo APK v2: token-wired `present-connect/1` client with the hello-models-array fix. Live smoke app→hosted deck: handshake **PASS** (`phone_connected:true`, no BAD_MESSAGE); app-originated transcript rows **TIMEOUT** on the emulator (0 rows in the 8-min box, process restart) — `artifacts/SMOKE_PRESENTCONNECT_V2.md`, `docs/TEST_RESULTS.md`. |
+| `app-stenographer-DEMO-v2-diar-fixed.apk` | 508 947 140 | `ecb0ef3cff985143385a0de7d96878a6327e0d7e47a9835b8978b33f98f0f001` | DEMO/check APK v2: fully offline RU stenography; live-mic diarization churn fix (casual-mic scene, auto speaker count, identity-merge threshold 0.55). Unit tests green at build (167 @Test). |
+| `app-presentConnect-DEMO-v2-protofix.apk` | 509 012 604 | `d327acbb1ad6bd9157aa53e69ea5be52b28452b41b3713d87b1daf267dd2b0a1` | Presentation-connectivity demo APK v2: token-wired `present-connect/1` client with the hello-models-array fix. Live smoke app→hosted deck: handshake **PASS** (`phone_connected:true`, no BAD_MESSAGE); app-originated transcript rows **TIMEOUT** on the emulator (0 rows in the 8-min box, process restart) — `artifacts/SMOKE_PRESENTCONNECT_V2.md`, `docs/TEST_RESULTS.md`. |
 
 ## Release v0.1.0-stage6 (2026-11-07) — measured stage-6 snapshot
 
@@ -65,13 +65,13 @@ Not phone-tested, not published; see
 ## Which one to install
 
 For the experts' run (install APK → import three dialogues → export JSON, no
-network): **`app-stenographer-debug-v2-diar-fixed.apk`** from v0.2.0-demo
+network): **`app-stenographer-DEMO-v2-diar-fixed.apk`** from v0.2.0-demo
 (everything embedded, diarization fix included). From the v0.1.0-stage6 set:
 `app-stenographer-debug-embedLlm.apk` if the download is affordable; otherwise
 `app-stenographer-debug.apk` **plus**
 `adb push models/llm …` once, or the LLM line in the UI will honestly read
 `llm-weights-missing (intonation punct only)`. For the presentation stand:
-only `app-presentConnect-debug-v2-protofix.apk` (the stage6 presentConnect
+only `app-presentConnect-DEMO-v2-protofix.apk` (the stage6 presentConnect
 asset predates the token client and the protocol fix).
 
 ## How these were produced

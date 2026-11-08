@@ -20,7 +20,7 @@ REPORT agent1 — реконструкция погибшей сессии по 
 | agent1-mobile-e2e (свежая чистая сборка) | `1906eaa` | **145** (24 suites), прогнаны дважды | 0 | REPORT agent1 §1.2 |
 | ветка agent2 (LLM+экспорт) | `06da663` | **147** (gradle-прогон `testStenographerDebugUnitTest`, XML-результаты) | 0 | wt-a2 `src/android/app/build/test-results/` |
 | ветка продуктовых фич / сводное дерево ship | `7912c20` / ship | **166 @Test-методов, 27 классов**; последний полный gradle-прогон green | 0 | REPORT agent5 §1 |
-| итоговое дерево `ship` == `main` (hotfix-diar-mic + protocol-fix + merge github/main) | `312253a` | **167 @Test** (166 до hotfix `6ae5c39`, +1 `PerTurnGainTest`); единый `src/test` — одинаковый набор на оба flavor'а (166/167 по состоянию дерева на flavor) | 0 | commit-log `6ae5c39` («Unit tests green (167)»), строки `unit_tests_*_ship` в `artifacts/test-results/results.csv` |
+| итоговое дерево `ship` == `main` (hotfix-diar-mic + protocol-fix + merge github/main) | `312253a` | **167 @Test** (166 до hotfix `6ae5c39`, +1 `PerTurnGainTest`); единый test-source-set `src/android/app/src/test` — одинаковый набор на оба flavor'а (166/167 по состоянию дерева на flavor) | 0 | commit-log `6ae5c39` («Unit tests green (167)»), строки `unit_tests_*_ship` в `artifacts/test-results/results.csv` |
 | веб-бэкенд (`npx tsx --test`) | `agent4-web-sync-qr` | **9/9** после фикса desync в `server.test.ts`; `typecheck`/`build` exit 0 | 0 | REPORT agent4 §1 |
 | host-зеркала (python) | — | 61 + 18 (A-12) | 0 | `ci-check`, agent1 verification |
 
@@ -95,7 +95,7 @@ host-кросс-чек тех же WAV). Открытые баги agent1 (churn
 | прогон | APK | результат |
 |---|---|---|
 | v1, 07:56–08:25 | `app-presentConnect-debug.apk` @ship `0bb8fab` (sha `b6afa283…`, 508 839 870 B) | **FAIL**: WS-`hello` отправлял `models` JSON-**строкой**, серверная zod-схема ждёт массив → `BAD_MESSAGE`, телефон не зарегистрирован (`phone_connected:false`), кнопка публикации не активировалась, `rows_pushed:0`. Установка/JNI/встроенные модели/микрофон/WS+token транспорт — OK; офлайн-проба «Расшифровать» на 43-с записи не завершилась за ~19 мин (ARM-трансляция, GGUF-пунктуация) — INCONCLUSIVE |
-| фикс | `f98bb03` | `models` отправляется массивом (две точки в `OkHttpPresentConnectClient.kt`); пересборка `app-presentConnect-debug-v2-protofix.apk` (sha `d327acbb…`, 509 012 604 B) |
+| фикс | `f98bb03` | `models` отправляется массивом (две точки в `OkHttpPresentConnectClient.kt`); пересборка `app-presentConnect-DEMO-v2-protofix.apk` (sha `d327acbb…`, 509 012 604 B) |
 | v2 re-smoke, 08:43–08:55 | v2-protofix APK | **Criterion 1 (handshake): PASS** — `hello` принят за ~4 с, `phone_connected:true`, `phone_stub:false`, `BAD_MESSAGE` исчез, связь держалась до конца теста. **Criterion 2 (пуш строк из приложения): TIMEOUT** — 23-с live-запись реально взята (appops `+23s218ms`), но `rows_pushed:0` за 8-минутный бокс: процесс приложения тихо перезапущен на memory-tight эмуляторе, состояние записи потеряно; WS авто-переподключился, протокольных отказов не наблюдалось. Строки дека **из приложения** не доказаны |
 
 Честный итог: транспорт и регистрация телефона из приложения доказаны (v2

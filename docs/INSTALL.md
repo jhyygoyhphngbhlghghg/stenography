@@ -33,7 +33,7 @@
 (LDPlayer/AVD, ARM-трансляция) — установка, распаковка моделей, JNI, живой
 пайплайн, экспорт. Подробности и провенанс — `docs/TEST_RESULTS.md`.
 
-## Вариант 0 (рекомендуемый для демо): app-stenographer-debug-v2-diar-fixed.apk — релиз v0.2.0-demo
+## Вариант 0 (рекомендуемый для демо): app-stenographer-DEMO-v2-diar-fixed.apk — релиз v0.2.0-demo
 
 508 947 140 B, sha256 `ecb0ef3c…f001`. Ветка `ship`: все протестированные
 фичи + фикс churn-диаризации живого микрофона (casual-mic сцена с
@@ -41,7 +41,7 @@
 локальной LLM внутри — установка и запуск такие же, как в варианте 1:
 
 ```bash
-adb install -r app-stenographer-debug-v2-diar-fixed.apk
+adb install -r app-stenographer-DEMO-v2-diar-fixed.apk
 ```
 
 Разрешения, распаковка моделей при первом офлайн-запуске и проверка шапки —
@@ -84,7 +84,7 @@ adb push models/llm /sdcard/Android/data/team.mikcoders.neurosteno/files/models/
 После push перезапустить приложение — строка `LLM:` должна смениться на
 `llama.cpp GGUF qwen2-0_5b-instruct-q4_0.gguf`.
 
-## Вариант 3: app-presentConnect-debug-v2-protofix.apk — демо-стенд живой трансляции
+## Вариант 3: app-presentConnect-DEMO-v2-protofix.apk — демо-стенд живой трансляции
 
 **509 012 604 B, sha256 `d327acbb…b0a1`, релиз [v0.2.0-demo](https://github.com/jhyygoyhphngbhlghghg/stenography/releases/tag/v0.2.0-demo)** —
 единственный APK, которым можно работать против демо-стенда: token-wired
