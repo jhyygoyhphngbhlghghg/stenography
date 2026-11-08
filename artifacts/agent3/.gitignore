@@ -1,0 +1,4 @@
+# Binary demo artifacts stay out of git (root .gitignore already covers *.apk).
+gif/*.gif
+gif/*.png
+gif/frames/
