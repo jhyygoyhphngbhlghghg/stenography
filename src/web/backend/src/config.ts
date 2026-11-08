@@ -47,9 +47,9 @@ export const config = {
   displayStallMs: int('DISPLAY_STALL_MS', 60_000),
 
   /** Presenter console secret. Empty disables the console. */
-  adminToken: str('ADMIN_TOKEN', ''),
+  adminToken: str('ADMIN_TOKEN', '09879078'),
   /** Optional shared secret for the phone link (header/cookie). Not required by the app. */
-  phoneToken: str('PHONE_TOKEN', ''),
+  phoneToken: str('PHONE_TOKEN', '09879078'),
 
   maxTranscriptRows: int('MAX_TRANSCRIPT_ROWS', 600),
   maxBodyBytes: int('MAX_BODY_BYTES', 2 * 1024 * 1024),
