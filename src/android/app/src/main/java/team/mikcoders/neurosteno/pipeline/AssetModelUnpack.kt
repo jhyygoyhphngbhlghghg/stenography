@@ -49,9 +49,11 @@ object AssetModelUnpack {
         }
         if (requiredMissing) return true
         // A newer APK that starts shipping the GGUF must still land on a phone
-        // that already unpacked the ASR/VAD/diar set.
+        // that already unpacked the ASR/VAD/diar set. A zero-length GGUF
+        // (killed mid-copy) must also be re-copied.
         return OPTIONAL.any { rel ->
-            assetExists("$ASSET_ROOT/$rel") && !File(destRoot, rel).isFile
+            val f = File(destRoot, rel)
+            assetExists("$ASSET_ROOT/$rel") && (!f.isFile || f.length() <= 0L)
         }
     }
 
@@ -72,7 +74,11 @@ object AssetModelUnpack {
                 continue
             }
             dest.parentFile?.mkdirs()
-            input.use { ins -> dest.outputStream().use { outs -> ins.copyTo(outs) } }
+            // Write to a temp file first, then rename, so a killed process
+            // never leaves a truncated "complete" output.
+            val tmp = File(dest.parentFile!!, dest.name + ".tmp")
+            input.use { ins -> tmp.outputStream().use { outs -> ins.copyTo(outs) } }
+            tmp.renameTo(dest).also { if (!it) { tmp.copyTo(dest, overwrite = true); tmp.delete() } }
             copied++
         }
         var optionalCopied = 0
@@ -81,7 +87,9 @@ object AssetModelUnpack {
             if (dest.isFile && dest.length() > 0L) continue
             val input = openAsset("$ASSET_ROOT/$rel") ?: continue
             dest.parentFile?.mkdirs()
-            input.use { ins -> dest.outputStream().use { outs -> ins.copyTo(outs) } }
+            val tmp = File(dest.parentFile!!, dest.name + ".tmp")
+            input.use { ins -> tmp.outputStream().use { outs -> ins.copyTo(outs) } }
+            tmp.renameTo(dest).also { if (!it) { tmp.copyTo(dest, overwrite = true); tmp.delete() } }
             optionalCopied++
         }
         val ready = REQUIRED.all { rel ->
@@ -89,7 +97,12 @@ object AssetModelUnpack {
             f.isFile && f.length() > 0L
         }
         if (ready) {
-            File(destRoot, MARKER).writeText("neurosteno-embedded-models\n")
+            // Marker last, so a crash before this point re-runs the unpack.
+            // Written via temp+rename for the same crash-safety reason.
+            val marker = File(destRoot, MARKER)
+            val tmp = File(destRoot, MARKER + ".tmp")
+            tmp.writeText("neurosteno-embedded-models\n")
+            tmp.renameTo(marker).also { if (!it) marker.writeText("neurosteno-embedded-models\n") }
         }
         return Report(
             copied = copied,
