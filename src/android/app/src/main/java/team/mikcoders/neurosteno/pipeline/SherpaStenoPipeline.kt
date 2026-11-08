@@ -162,9 +162,24 @@ class SherpaStenoPipeline(
                     endMs = (s.end * 1000).toLong(),
                 )
             }
+            // Noise gate: casual/presentConnect only (expectedSpeakers <= 0).
+            // Drops noise-burst segments BEFORE reconcile/merge so they never
+            // become phantom speakers; the stage6 rig path never gates (its
+            // quiet far seats are short/low-RMS by design). See NoiseGate.
+            val gated = if (scene.expectedSpeakers <= 0) {
+                NoiseGate.apply(
+                    mapped,
+                    audio.samples,
+                    audio.sampleRate,
+                    scene.noiseGateMinMs,
+                    scene.noiseGateRmsRatio,
+                )
+            } else {
+                mapped
+            }
             return VadDiarReconcile.run(
                 vadRegions,
-                mapped,
+                gated,
                 audio.sampleRate,
                 scene,
                 samples = audio.samples,
