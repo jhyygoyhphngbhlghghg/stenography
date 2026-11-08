@@ -24,6 +24,14 @@ data class FarFieldScene(
     val expandIfCoverageBelow: Float,
     val expandMaxRegionMs: Long,
     val mergeGapMs: Long,
+    /**
+     * FastClustering numClusters for OfflineSpeakerDiarization. <=0 selects the
+     * threshold path (auto speaker count at [diarClusterThreshold]).
+     * [expectedSpeakers] stays the reconcile HARD CAP (never speaker_7..12);
+     * this field only decides how many clusters the embedding clustering
+     * forces. Default: keep the historical behaviour (K = expectedSpeakers).
+     */
+    val diarNumClusters: Int = expectedSpeakers,
 ) {
     companion object {
         val stage6: FarFieldScene = FarFieldScene(
@@ -35,8 +43,14 @@ data class FarFieldScene(
             vadMinSpeechSec = 0.20f,
             vadMaxSpeechSec = 30f,
             // Keep short far fragments (s5 was 4.7 s at 5.4 m, missing @ a8b39d5a).
-            // Clustering: K=6 (threshold unused when numClusters>0). Soft min-on
-            // so embedding path does not drop a quiet 5.4 m island.
+            // Clustering: AUTO (numClusters=0 -> threshold 0.5). Host sweep
+            // (scripts/mic_diar_sweep.py, 2026-11-08): on the casual 2-person
+            // mic fixture forced K=6 and auto both yielded raw labels=2, and on
+            // frozen DEMO_STAGE6 both found 5 — auto matches K=6 on the frozen
+            // fixture while never forcing split/empty clusters when a live
+            // recording has fewer speakers than K. expectedSpeakers stays 6 as
+            // the reconcile HARD CAP. Soft min-on so embedding path does not
+            // drop a quiet 5.4 m island.
             diarMinDurationOnSec = 0.08f,
             diarMinDurationOffSec = 0.18f,
             diarClusterThreshold = 0.5f,
@@ -46,6 +60,7 @@ data class FarFieldScene(
             // Endpoint snap only. A 12 s expand would swallow the 3 m seat.
             expandMaxRegionMs = 1_500L,
             mergeGapMs = 280L,
+            diarNumClusters = 0,
         )
 
         /** Overnight diar/VAD; do not retune Path B. */
