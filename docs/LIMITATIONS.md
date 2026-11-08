@@ -71,19 +71,45 @@ DER 0.2760, JER 0.5454, RTF 0.1173 (host Linux), спикеров в гипот�
 
 **Устройства и верификация**
 
-- Проверка — **только эмуляторы** (LDPlayer с ARM-трансляцией / AVD). Прогон
-  на физическом телефоне не выполнен: `android_device_execution: false` в
+- Проверка — **только эмуляторы** (LDPlayer с ARM-трансляцией / официальный
+  AVD x86_64). Прогон на физическом телефоне не выполнен:
+  `android_device_execution: false` в
   `artifacts/optimization/verification.json` и
   `artifacts/compact/verification.json` (agent1); `scripts/device-sideload-probe.sh`
   остаётся human-действием на демо-устройстве (`apk/README.md` §Not yet done).
+- **On-device мульти-спикерный транскрипт на эмуляторе не доказан до конца**
+  (REPORT agent1, open issue №1): импорт → ASR → диаризация → LLM-пост-проход
+  исполняются без краша/ANR, но LLM-фаза на эмуляторном x86_64 шла многие
+  минуты и финальный JSON не был сохранён ни в одном прогоне (возможно,
+  CPU-bound эмулятора, возможно, реальный hang — не диагностировано).
+  Содержимое RU-распознавания подтверждено host-кросс-чеком тех же WAV.
 - Эмуляторный e2e-фикстур (`stage6_sequential.wav`) — реконструированный
   чистый монтаж, а не замороженный room-микс: 4/6 реплик, фрагментация кропов;
   «not far-field proof» (agent1, `artifacts/compact/ldplayer-real-check.json`).
-- LDPlayer не имеет настоящего микрофона: live-ASR проверен через
-  файл/record-поток; живому микрофону нужен реальный телефон (REPORT agent3,
-  риск №7). У agent2 изолированный AVD не запустился (WHPX-драйвер
-  отсутствует), офлайн-sweep не перезапущен из-за adb-конфликта — офлайн-заявка
-  опирается на аудит кода + успешный эмуляторный прогон (REPORT agent2).
+- Микрофон эмулятора пишет тишину: LIVE-поток доходит до `ГОТОВО`, но окна
+  «речь не распознана» — живой микрофон возможен только на телефоне (REPORT
+  agent1 §1.5; REPORT agent3, риск №7 — live-ASR проверен через файл/record).
+  У agent2 изолированный AVD не запустился (WHPX-драйвер отсутствует),
+  офлайн-sweep не перезапущен из-за adb-конфликта — офлайн-заявка опирается на
+  аудит кода + успешный эмуляторный прогон (REPORT agent2).
+
+**Диаризация и длинные записи (открытые баги agent1, не исправлены)**
+
+- Churn меток: DEMO_STAGE6 (3 ref-спикера) → 5 speaker ID, включая 202-мс
+  сегмент с пустым текстом; `alternating_two_voices` (2 спикера) → первый
+  блок `speaker_3`, остальное `speaker_9`; `E2E-2SPK_RU` (2 спикера) →
+  сливается в один `speaker_1` (REPORT agent1, issue №2).
+- Длинное аудио: 200-с `bench_long.wav` → pyannote «No speakers found in the
+  audio samples», 0 сегментов (host) (REPORT agent1, issue №3).
+- EN / code-switching непроверяемы: в checkout agent1 слот backup-ASR
+  `models/asr/whisper-tiny/` пуст — фактически доступен только RU Zipformer
+  (REPORT agent1, issue №4).
+
+**Сборка**
+
+- Инкрементальная упаковка APK недетерминирована (другой хеш/размер);
+  clean-сборка воспроизводима побайтово (два независимых прогона, SHA256
+  `5C9E9D76…7789`) — сдавать только clean-артефакты (REPORT agent1, issue №5).
 
 **Локальная LLM**
 

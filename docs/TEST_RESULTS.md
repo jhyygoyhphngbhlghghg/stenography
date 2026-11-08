@@ -9,14 +9,15 @@
 ## Сводка финальных прогонов (ночь 2026-11-07/08, по отчётам финишеров)
 
 Провенанс каждой строки: ветка/коммит + артефакт. «REPORT agentN» — отчёт
-соответствующего финишера; у agent1 отчёт на момент сведения не появился,
-строки agent1 взяты из его закоммиченных артефактов.
+соответствующего финишера (отчёты вложены в `artifacts/agent1..5/REPORT.md`;
+REPORT agent1 — реконструкция погибшей сессии по её экспорту).
 
 ### Юнит-тесты (JVM, gradle)
 
 | состояние дерева | коммит | тестов | падений | источник |
 |---|---|---|---|---|
 | baseline runtime-ветки (stenographer + presentConnect) | `8eb4bb5` | **126 / 126** (21 класс на flavor) | 0 | agent1 `artifacts/optimization/verification.json` |
+| agent1-mobile-e2e (свежая чистая сборка) | `1906eaa` | **145** (24 suites), прогнаны дважды | 0 | REPORT agent1 §1.2 |
 | ветка agent2 (LLM+экспорт) | `06da663` | **147** (gradle-прогон `testStenographerDebugUnitTest`, XML-результаты) | 0 | wt-a2 `src/android/app/build/test-results/` |
 | ветка продуктовых фич / сводное дерево ship | `7912c20` / ship | **166 @Test-методов, 27 классов**; последний полный gradle-прогон green | 0 | REPORT agent5 §1 |
 | веб-бэкенд (`npx tsx --test`) | `agent4-web-sync-qr` | **9/9** после фикса desync в `server.test.ts`; `typecheck`/`build` exit 0 | 0 | REPORT agent4 §1 |
@@ -26,10 +27,20 @@
 по фактическим XML ветки agent2 их **147**, по сводному дереву — **166**
 @Test-методов. Цитируем измеренное.
 
+Репрезентативность сборки (REPORT agent1 §1.1): чистая сборка
+`assembleStenographerDebug` @ `1906eaa` воспроизводима побайтово — два
+независимых clean-прогона дали идентичный SHA256 (`5C9E9D76…7789`,
+508 675 346 B, versionName 0.2.0); **инкрементальная** сборка даёт другой
+хеш — для сдачи собирать только clean.
+
 ### Эмуляторные e2e-прогоны
 
 | прогон | окружение | результат | источник |
 |---|---|---|---|
+| Fresh build → install → SAF-импорт (RU) → ASR+диаризация на устройстве | изолированный официальный AVD `emulator-5554` (x86_64), commit `1906eaa` | установка/cold-launch без краша, все табы рендерятся, SAF-импорт работает, on-device пайплайн дошёл до LLM-поста (`llama.cpp GGUF qwen2…`); **финальный on-device транскрипт не заснят** — каждый прогон на момент гибели сессии ещё был в LLM-фазе после 90–100 с | REPORT agent1 §1.4 |
+| LIVE-запись 3+ мин | тот же AVD | дошла до стабильного `ГОТОВО` без краша; все 5-с окна «речь не распознана» — микрофон эмулятора пишет тишину | REPORT agent1 §1.5 |
+| Стабильность / soak | тот же AVD | force-stop/relaunch, background/foreground, soak 240–390 с, `dumpsys meminfo` ≈64 МБ PSS | REPORT agent1 §1.6 |
+| Host-кросс-чек того же аудио | `scripts/host_asr_diar.py` | `E2E-2SPK_RU_host.json` (2 RU-сегмента, текст верный), `alt_host.json` (4 сегмента) — содержимое RU-распознавания корректно | REPORT agent1 §1.7 |
 | Cold-boot, установка debug-APK, распаковка моделей офлайн | LDPlayer `agent2_llm` (android-34, Houdini ARM) | `models unpack ready=true copied=7`, GGUF 352 969 408 B на месте, JNI loaded, строка LLM корректна; GGUF-инференс 1.6–2.2 с/реплику, без пустых выводов/зависаний/галлюцинаций спикеров | REPORT agent2 |
 | Полный пайплайн с GGUF на устройстве (ARM-трансляция) | LDPlayer SOV44, commit `3af1e5a` | ASR-only: wall 23.7 с, RTF 0.557, peak PSS **244 МБ**; полный прогон с LLM: LLM-фаза ~330 с, peak PSS **400 МБ**, транскрипт изменился (плюс/кавычки) — доказательство реального llama.cpp-инференса; фикстура — чистый монтаж, 4/6 реплик, «not far-field proof» | agent1 `artifacts/compact/ldplayer-real-check.json` |
 | presentConnect: установка, запуск, JNI, распаковка | LDPlayer `emulator-5554`, build `-x prepareEmbeddedModels` | `SherpaJni loaded=true`, модели распакованы (70 МБ encoder + vad/diar), **не stub** | REPORT agent3 §3 |
@@ -37,6 +48,12 @@
 
 Физический телефон: **не подключался ни в одном прогоне**
 (`android_device_execution: false`; sideload-проба — human-действие).
+Важная оговорка agent1: on-device **мульти-спикерный** транскрипт на эмуляторе
+**не доказан** — LLM-фаза на эмуляторном CPU шла много минут и сессия
+закончилась до сохранения финального JSON (доказательство содержимого — только
+host-кросс-чек тех же WAV). Открытые баги agent1 (churn меток диаризации,
+200-с аудио → «No speakers found», EN недоступен) перенесены в
+`docs/LIMITATIONS.md`.
 
 ### Офлайн-экспорт (матрица agent2, host-генерация тех же кодов, что на устройстве)
 
