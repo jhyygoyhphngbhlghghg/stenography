@@ -97,9 +97,10 @@ export function Deck() {
   }, []);
 
   useEffect(() => {
-    const m = QRCode.create(window.location.origin + window.location.pathname, {
-      errorCorrectionLevel: "M",
-    }).modules;
+    const m = QRCode.create(
+      window.location.origin + window.location.pathname + window.location.search,
+      { errorCorrectionLevel: "M" },
+    ).modules;
     const cells: [number, number][] = [];
     for (let y = 0; y < m.size; y++)
       for (let x = 0; x < m.size; x++) if (m.get(x, y)) cells.push([x, y]);
