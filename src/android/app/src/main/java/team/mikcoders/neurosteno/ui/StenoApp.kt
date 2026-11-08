@@ -89,6 +89,14 @@ fun StenoApp(vm: StenoViewModel = viewModel()) {
         topBar = {
             TopAppBar(
                 title = { Text("Нейро-стенографист") },
+                actions = {
+                    Text(
+                        if (state.recording) "● LIVE" else "○ готово",
+                        modifier = Modifier.padding(end = 12.dp),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = if (state.recording) androidx.compose.ui.graphics.Color.Red else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                },
             )
         },
     ) { padding ->
@@ -210,8 +218,8 @@ fun StenoApp(vm: StenoViewModel = viewModel()) {
                 Button(onClick = { picker.launch(arrayOf("audio/*", "application/octet-stream")) }) {
                     Text("Импорт")
                 }
-                OutlinedButton(onClick = { recPerm.launch(Manifest.permission.RECORD_AUDIO) }) {
-                    Text(if (state.recording) "Стоп записи" else "Запись")
+                Button(onClick = { recPerm.launch(Manifest.permission.RECORD_AUDIO) }) {
+                    Text(if (state.recording) "Стоп LIVE" else "LIVE-запись")
                 }
                 Button(
                     onClick = { vm.transcribe() },
