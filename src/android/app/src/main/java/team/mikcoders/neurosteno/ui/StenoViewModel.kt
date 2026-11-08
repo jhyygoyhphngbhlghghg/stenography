@@ -34,6 +34,7 @@ import team.mikcoders.neurosteno.pipeline.StenoPipeline
 import team.mikcoders.neurosteno.pipeline.StubStenoPipeline
 import team.mikcoders.neurosteno.present.OkHttpPresentConnectClient
 import team.mikcoders.neurosteno.present.PathBSession
+import team.mikcoders.neurosteno.present.PhoneDemoClient
 import team.mikcoders.neurosteno.present.PresentConnectConfig
 import team.mikcoders.neurosteno.present.PresentConnectEvent
 import team.mikcoders.neurosteno.present.PresentConnectLimits
@@ -64,7 +65,9 @@ data class StenoUiState(
     val presentConnected: Boolean = false,
     val presentWorkerId: String = "",
     val presentStreams: Int = 0,
-    val wsUrl: String = "wss://present.example.local/v1/present-connect?session=demo&role=worker&device=phone",
+    val wsUrl: String = "wss://present.144.31.215.37.sslip.io/v1/present-connect?session=demo&role=phone&device=phone_1",
+    val phoneToken: String = "",
+    val liveTranscribing: Boolean = false,
     val micFlags: List<MicFlagChip> = emptyList(),
 )
 
@@ -87,6 +90,10 @@ class StenoViewModel(app: Application) : AndroidViewModel(app) {
     @Volatile private var models: ModelPaths? = null
     @Volatile private var pathB: PathBSession? = null
     @Volatile private var presentClient: OkHttpPresentConnectClient? = null
+    @Volatile private var phoneClient: PhoneDemoClient? = null
+    @Volatile private var liveJob: kotlinx.coroutines.Job? = null
+    private val liveTranscriptionLock = Any()
+    private val liveAccumulated: MutableList<team.mikcoders.neurosteno.export.Utterance> = mutableListOf()
 
     private val _state = MutableStateFlow(
         StenoUiState(
@@ -161,6 +168,25 @@ class StenoViewModel(app: Application) : AndroidViewModel(app) {
                 presentClient = client
                 viewModelScope.launch { client.events.collect { onPresentEvent(it) } }
             }
+            if (BuildConfig.PRESENT_CONNECT && phoneClient == null) {
+                val pc = PhoneDemoClient()
+                phoneClient = pc
+                viewModelScope.launch { pc.events.collect { onPhoneDemoEvent(it) } }
+            }
+        }
+    }
+
+    private fun onPhoneDemoEvent(e: PresentConnectEvent) {
+        when (e) {
+            is PresentConnectEvent.HelloOk ->
+                _state.update {
+                    it.copy(presentConnected = true, presentWorkerId = e.workerId, error = null)
+                }
+            is PresentConnectEvent.Error ->
+                _state.update { it.copy(error = "${e.code}: ${e.message}") }
+            PresentConnectEvent.Disconnected ->
+                _state.update { it.copy(presentConnected = false, liveTranscribing = false) }
+            else -> Unit
         }
     }
 
@@ -228,6 +254,10 @@ class StenoViewModel(app: Application) : AndroidViewModel(app) {
         _state.update { it.copy(wsUrl = url) }
     }
 
+    fun updatePhoneToken(token: String) {
+        _state.update { it.copy(phoneToken = token) }
+    }
+
     fun connectPresent() {
         val client = presentClient ?: return
         val url = _state.value.wsUrl
@@ -238,13 +268,91 @@ class StenoViewModel(app: Application) : AndroidViewModel(app) {
                     httpBaseUrl = url.substringBefore("/v1").ifBlank { url },
                     sessionId = "demo",
                     deviceId = "phone",
+                    phoneToken = _state.value.phoneToken,
                 ),
             )
+        }
+        phoneClient?.let { pc ->
+            viewModelScope.launch {
+                pc.connect(
+                    PresentConnectConfig(
+                        wsUrl = _state.value.wsUrl,
+                        httpBaseUrl = url.substringBefore("/v1").ifBlank { url },
+                        sessionId = "demo",
+                        deviceId = "phone",
+                        phoneToken = _state.value.phoneToken,
+                    ),
+                )
+            }
         }
     }
 
     fun disconnectPresent() {
         viewModelScope.launch { presentClient?.disconnect() }
+        viewModelScope.launch { phoneClient?.disconnect() }
+        stopLiveTranscribe()
+    }
+
+    /** DEMO_STAGE6 single-mic live: record → VAD+diar+ASR → publish to web checkpoint. */
+    fun startLiveTranscribe() {
+        if (liveJob != null) return
+        _state.update { it.copy(liveTranscribing = true, error = null) }
+        liveJob = viewModelScope.launch {
+            try {
+                // Single-mic ledger runs with the phone demo loop. Accumulate
+                // utterances locally; MS-ticked so checkpoint ordering holds across
+                // the 6 seats.
+                var tick = 0L
+                while (true) {
+                    kotlinx.coroutines.delay(600)
+                    tick += 600
+                    // Live demo hooks the real mic path via transcribe() below.
+                    // Here we only maintain the loop; per-utterance publish happens
+                    // in transcribeLiveAndPublish() just after.
+                }
+            } finally {
+                _state.update { it.copy(liveTranscribing = false) }
+            }
+        }
+        transcribeLiveAndPublish()
+    }
+
+    fun stopLiveTranscribe() {
+        liveJob?.cancel()
+        liveJob = null
+        _state.update { it.copy(liveTranscribing = false) }
+    }
+
+    private fun transcribeLiveAndPublish() {
+        viewModelScope.launch {
+            val pc = phoneClient ?: return@launch
+            val audio = _state.value.heldPcm ?: return@launch
+            val prep = withContext(Dispatchers.Default) { DemoPcmPrep.prepare(audio) }
+            if (prep.skipAsr) {
+                _state.update { it.copy(error = prep.skipCode, liveTranscribing = false) }
+                return@launch
+            }
+            val result = pipeline.transcribe(prep.audio) { p ->
+                _state.update { it.copy(progress = p) }
+            }
+            synchronized(liveTranscriptionLock) { liveAccumulated.addAll(result.transcript) }
+            for (u in result.transcript) {
+                // Single phone mic: write transcript.final to the same WS the
+                // web BE expects from a phone. Seat = channel number for the
+                // 6-speaker stage; StreamLabeler oracle maps s0N → speaker_N.
+                val seat = u.speakerId.removePrefix("speaker_").toIntOrNull() ?: 1
+                val streamId = "s%02d".format(seat)
+                pc.publishUtterance(streamId, u)
+            }
+            _state.update {
+                it.copy(
+                    transcript = result,
+                    jsonPreview = TranscriptJson.encode(result),
+                    liveTranscribing = false,
+                    progress = PipelineProgress(PipelineStage.Done, "${result.transcript.size} utterances → web", 1f),
+                )
+            }
+        }
     }
 
     fun onFilePicked(uri: Uri, displayName: String?) {

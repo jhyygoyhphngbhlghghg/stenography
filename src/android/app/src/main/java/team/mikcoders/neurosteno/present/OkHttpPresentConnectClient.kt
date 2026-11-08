@@ -19,11 +19,14 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonObject
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.RequestBody.Companion.toRequestBody
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
@@ -53,9 +56,12 @@ class OkHttpPresentConnectClient(
         disconnect()
         maxStreams = config.maxStreams
         table = PresentConnectStreamTable(config.maxStreams)
-        val req = Request.Builder()
+        val builder = Request.Builder()
             .url(config.wsUrl)
-            .build()
+        if (config.phoneToken.isNotBlank()) {
+            builder.header("Authorization", "Bearer ${config.phoneToken.trim()}")
+        }
+        val req = builder.build()
         socket = http.newWebSocket(req, Listener(config))
     }
 
@@ -236,6 +242,112 @@ class OkHttpPresentConnectClient(
 
     companion object {
         private const val TAG = "PresentConnect"
+    }
+}
+
+/**
+ * Phone-side ingest for the single-phone demo.
+ *
+ * The presenter phone **owns the mic** (DEMO_STAGE6: one mic, 6 seats). This client
+ * sends `hello` → `transcript.final` over the *same* WebSocket the web BE expects
+ * from its `phone` role, and mirrors each utterance over HTTP `POST /v1/transcript`
+ * as a fallback if the socket drops mid-utterance. Mirroring `src/simulate-phone.ts`,
+ * but the utterance text is real on-device ASR+diar output — never simulated.
+ *
+ * Token is the `PHONE_TOKEN` from `/etc/neurosteno-web.env` (`isPhone()` in server.ts):
+ * `Authorization: Bearer <token>` on both WS upgrade and HTTP ingest.
+ */
+class PhoneDemoClient(
+    private val http: OkHttpClient = OkHttpClient.Builder().build(),
+) : PresentConnectClient {
+    private val _events = MutableSharedFlow<PresentConnectEvent>(extraBufferCapacity = 64)
+    override val events: SharedFlow<PresentConnectEvent> = _events
+    private var socket: WebSocket? = null
+    private var activeUrl: String = ""
+    private var activeToken: String = ""
+
+    override suspend fun connect(config: PresentConnectConfig) {
+        disconnect()
+        activeUrl = config.wsUrl
+        activeToken = config.phoneToken
+        val builder = Request.Builder().url(config.wsUrl)
+        if (config.phoneToken.isNotBlank()) {
+            builder.header("Authorization", "Bearer ${config.phoneToken.trim()}")
+        }
+        socket = http.newWebSocket(builder.build(), object : WebSocketListener() {
+            override fun onOpen(webSocket: WebSocket, response: Response) {
+                val hello = buildJsonObject {
+                    put("type", "hello")
+                    put("protocol", "present-connect/1")
+                    put("max_streams", 20)
+                    put("sample_rate", 16_000)
+                    put("encoding", "pcm_s16le")
+                    put("models", JsonPrimitive("zipformer-ru-int8"))
+                    put("accepts_diarization", true)
+                }
+                webSocket.send(hello.toString())
+            }
+
+            override fun onMessage(webSocket: WebSocket, text: String) {
+                val obj = runCatching { json.parseToJsonElement(text) as JsonObject }.getOrNull() ?: return
+                when (obj.str("type")) {
+                    "hello.ok" -> _events.tryEmit(
+                        PresentConnectEvent.HelloOk(obj.str("session_id") ?: config.sessionId, obj.str("worker_id") ?: config.deviceId),
+                    )
+                    "ping" -> webSocket.send("""{"type":"pong","t":${obj["t"] ?: 0}}""")
+                    "error" -> _events.tryEmit(
+                        PresentConnectEvent.Error(null, obj.str("code") ?: "ERROR", obj.str("message") ?: ""),
+                    )
+                }
+            }
+
+            override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                _events.tryEmit(PresentConnectEvent.Disconnected)
+            }
+
+            override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                Log.e(TAG, "phone demo ws", t)
+                _events.tryEmit(PresentConnectEvent.Error(null, PresentConnectCodes.PIPELINE, t.message ?: "ws"))
+            }
+        })
+    }
+
+    override suspend fun disconnect() {
+        socket?.close(1000, "bye")
+        socket = null
+        _events.tryEmit(PresentConnectEvent.Disconnected)
+    }
+
+    override fun activeStreamCount(): Int = 0
+
+    /** Send one diarized utterance as `transcript.final` (WS) + HTTP fallback mirror. */
+    fun publishUtterance(streamId: String, utterance: team.mikcoders.neurosteno.export.Utterance) {
+        val ws = socket
+        val wire = PresentConnectWire.transcriptFinal(streamId, utterance)
+        if (ws != null && ws.send(wire)) return
+        // WS down mid-utterance: mirror over HTTP so the checkpoint still advances.
+        if (activeUrl.isNotBlank()) {
+            val base = activeUrl.substringBefore("/v1").ifBlank { activeUrl }
+            val payload = """{"engine":"zipformer-ru-int8","transcript":[{"speaker_id":"${escape(utterance.speakerId)}","start_ms":${utterance.startMs},"end_ms":${utterance.endMs},"text":"${escape(utterance.text)}"}]}"""
+            val rb = payload.toRequestBody("application/json".toMediaTypeOrNull())
+            val req = okhttp3.Request.Builder().url("$base/v1/transcript").post(rb)
+                .header("Content-Type", "application/json")
+            if (activeToken.isNotBlank()) req.header("Authorization", "Bearer ${activeToken.trim()}")
+            try {
+                http.newCall(req.build()).execute().use { res ->
+                    Log.i(TAG, "http transcript ${res.code}")
+                }
+            } catch (t: Throwable) {
+                Log.e(TAG, "http transcript mirror failed", t)
+            }
+        }
+    }
+
+    private fun escape(s: String): String = s.replace("\\", "\\\\").replace("\"", "\\\"")
+
+    companion object {
+        private const val TAG = "PhoneDemo"
+        private val json = Json { ignoreUnknownKeys = true }
     }
 }
 
