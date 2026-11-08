@@ -1,0 +1,343 @@
+/* ==========================================================================
+   NEURODIALOG deck — sterile cyberpunk in the spirit of the anime.js docs.
+   Light paper, ink black, two signal colours, 1px rules, mono for data.
+   ========================================================================== */
+
+:root {
+  --paper: #f2f4f7;
+  --paper-2: #ffffff;
+  --ink: #0b0e14;
+  --ink-2: #3d4451;
+  --ink-3: #7b8494;
+  --rule: rgba(11, 14, 20, 0.14);
+  --rule-soft: rgba(11, 14, 20, 0.07);
+
+  --cyan: #00a6fb;
+  --cyan-ink: #0072ad;
+  --magenta: #ff2e88;
+  --amber: #e08600;
+
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Roboto Mono", Menlo, Consolas, monospace;
+  --display: "Inter Tight", "Helvetica Neue", Helvetica, system-ui, -apple-system, sans-serif;
+
+  --seat-1: #00a6fb;
+  --seat-2: #ff2e88;
+  --seat-3: #00b894;
+  --seat-4: #e08600;
+  --seat-5: #7c5cff;
+  --seat-6: #ff5c4d;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body { height: 100%; margin: 0; }
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--display);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  /* Locked by default: the deck drives its own scroll via the server. */
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
+}
+/* Free-scroll rehearsal mode: window scrolls normally. */
+body[data-free="true"] {
+  overflow-y: auto;
+  touch-action: auto;
+}
+
+/* ---------------------------------------------------------------- chrome */
+
+.frame {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 40;
+  border: 1px solid var(--rule);
+  margin: 14px;
+}
+
+.frame::before, .frame::after {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border: 1px solid var(--ink);
+}
+.frame::before { top: -6px; left: -6px; border-right: 0; border-bottom: 0; }
+.frame::after { bottom: -6px; right: -6px; border-left: 0; border-top: 0; }
+
+.hud {
+  position: fixed;
+  top: 26px;
+  left: 28px;
+  right: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  z-index: 45;
+  pointer-events: none;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--ink-3);
+}
+
+.hud-id { display: flex; align-items: center; gap: 8px; color: var(--ink); font-weight: 600; }
+.hud-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--ink-3);
+  box-shadow: 0 0 0 0 rgba(0, 166, 251, 0.5);
+}
+.hud-dot[data-live="true"] { background: var(--cyan); animation: pulse 2s ease-out infinite; }
+.hud-dot[data-warn="true"] { background: var(--amber); }
+
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(0, 166, 251, 0.45); }
+  70% { box-shadow: 0 0 0 9px rgba(0, 166, 251, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(0, 166, 251, 0); }
+}
+
+.hud-meta { display: flex; gap: 14px; align-items: center; }
+.hud-chip {
+  border: 1px solid var(--rule);
+  background: var(--paper-2);
+  padding: 3px 8px;
+  color: var(--ink-2);
+}
+.hud-chip[data-bad="true"] { border-color: rgba(224, 134, 0, 0.6); color: var(--amber); }
+
+/* ------------------------------------------------------------ progress */
+
+.rail {
+  position: fixed;
+  left: 28px;
+  bottom: 26px;
+  display: flex;
+  gap: 6px;
+  z-index: 45;
+  pointer-events: none;
+}
+.rail span {
+  width: 22px; height: 2px;
+  background: var(--rule);
+  transition: background 200ms linear, transform 200ms linear;
+}
+.rail span[data-on="true"] { background: var(--ink); transform: scaleY(2); }
+.rail span[data-past="true"] { background: var(--ink-3); }
+
+.counter {
+  position: fixed;
+  right: 28px;
+  bottom: 22px;
+  z-index: 45;
+  pointer-events: none;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-3);
+}
+
+/* ------------------------------------------------------------ scroller */
+
+.scroller {
+  /* Normal flow — window scrolls, anime.js onScroll works natively. */
+  overflow: visible;
+}
+
+/* Each checkpoint is a tall panel: height gives the scroll-linked timeline
+   its travel, so animation progress == scroll progress inside the panel. */
+.checkpoint {
+  position: relative;
+  height: 220vh;
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+.pin {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  padding: 0 clamp(28px, 7vw, 120px);
+  overflow: hidden;
+}
+
+.grid-bg {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, var(--rule-soft) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--rule-soft) 1px, transparent 1px);
+  background-size: 64px 64px;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.inner { position: relative; width: 100%; max-width: 1180px; margin: 0 auto; }
+
+/* --------------------------------------------------------------- type */
+
+.kicker {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--cyan-ink);
+  margin: 0 0 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.kicker::before {
+  content: "";
+  width: 26px; height: 1px;
+  background: currentColor;
+}
+
+h1 {
+  font-size: clamp(40px, 7.4vw, 104px);
+  line-height: 0.94;
+  letter-spacing: -0.045em;
+  font-weight: 700;
+  margin: 0;
+}
+
+h2 {
+  font-size: clamp(30px, 4.6vw, 62px);
+  line-height: 1.02;
+  letter-spacing: -0.035em;
+  font-weight: 700;
+  margin: 0;
+}
+
+.lede {
+  font-size: clamp(15px, 1.35vw, 20px);
+  line-height: 1.58;
+  color: var(--ink-2);
+  max-width: 56ch;
+  margin: 22px 0 0;
+}
+
+.split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 0.92fr); gap: clamp(28px, 5vw, 84px); align-items: center; }
+.stack { display: grid; gap: 14px; }
+
+.points { list-style: none; margin: 26px 0 0; padding: 0; display: grid; gap: 12px; max-width: 60ch; }
+.points li {
+  position: relative;
+  padding-left: 26px;
+  color: var(--ink-2);
+  font-size: clamp(14px, 1.15vw, 17px);
+  line-height: 1.5;
+}
+.points li::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0.62em;
+  width: 12px; height: 1px;
+  background: var(--cyan);
+}
+
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+/* ------------------------------------------------------------- panels */
+
+.panel {
+  border: 1px solid var(--rule);
+  background: var(--paper-2);
+  padding: 18px;
+}
+.panel-head {
+  display: flex; justify-content: space-between; align-items: center;
+  font-family: var(--mono); font-size: 11px; color: var(--ink-3);
+  border-bottom: 1px solid var(--rule-soft);
+  padding-bottom: 10px; margin-bottom: 14px;
+}
+
+/* pipeline */
+.pipe { display: grid; gap: 10px; }
+.pipe-step {
+  display: grid; grid-template-columns: 34px 1fr auto; gap: 12px; align-items: baseline;
+  border: 1px solid var(--rule); background: var(--paper-2); padding: 12px 14px;
+}
+.pipe-step b { font-weight: 600; font-size: 15px; }
+.pipe-step .idx { font-family: var(--mono); font-size: 11px; color: var(--cyan-ink); }
+.pipe-step .tag { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+.pipe-step p { margin: 2px 0 0; grid-column: 2 / -1; color: var(--ink-2); font-size: 13px; line-height: 1.45; }
+
+/* metrics */
+.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1px; background: var(--rule); border: 1px solid var(--rule); }
+.metric { background: var(--paper-2); padding: 18px; }
+.metric .v { font-family: var(--mono); font-size: clamp(26px, 3vw, 40px); font-weight: 600; letter-spacing: -0.03em; line-height: 1; }
+.metric .k { font-family: var(--mono); font-size: 11px; color: var(--ink-3); margin-top: 10px; line-height: 1.4; }
+.metric[data-tone="warn"] .v { color: var(--amber); }
+
+/* seats circle */
+.seats { position: relative; width: 100%; aspect-ratio: 1; max-width: 460px; margin: 0 auto; }
+.seats svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.seat-node { transform-box: fill-box; transform-origin: center; }
+.seat-label { font-family: var(--mono); font-size: 11px; fill: var(--ink-3); }
+.seat-ring { fill: none; stroke: var(--rule); stroke-width: 1; }
+.phone-core { fill: var(--paper-2); stroke: var(--ink); stroke-width: 1.2; }
+
+/* transcript */
+.feed { display: grid; gap: 10px; align-content: start; max-height: 58vh; overflow: hidden; }
+.row { display: grid; grid-template-columns: 74px 1fr; gap: 12px; align-items: start; }
+.row .who { font-family: var(--mono); font-size: 11px; padding-top: 3px; display: flex; align-items: center; gap: 6px; }
+.row .who i { width: 8px; height: 8px; border-radius: 50%; display: block; }
+.row .what { font-size: clamp(14px, 1.2vw, 18px); line-height: 1.45; }
+.row[data-partial="true"] .what { color: var(--ink-3); }
+.row[data-source="replay"] .what, .row[data-source="simulated"] .what { border-left: 2px solid var(--amber); padding-left: 10px; }
+
+.banner {
+  display: none;
+  border: 1px solid rgba(224, 134, 0, 0.55);
+  background: rgba(224, 134, 0, 0.08);
+  color: #8a5200;
+  font-family: var(--mono); font-size: 12px;
+  padding: 8px 12px; margin-bottom: 14px;
+}
+.banner[data-on="true"] { display: block; }
+
+/* notes / limits */
+.note { border-left: 2px solid var(--rule); padding-left: 14px; color: var(--ink-2); font-size: 14px; }
+.note b { color: var(--ink); font-weight: 600; }
+
+.tag-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag { font-family: var(--mono); font-size: 11px; border: 1px solid var(--rule); background: var(--paper-2); padding: 4px 8px; color: var(--ink-2); }
+
+/* team */
+.credits { display: grid; gap: 10px; }
+.credit { display: grid; grid-template-columns: 150px 1fr; gap: 14px; border-bottom: 1px solid var(--rule-soft); padding-bottom: 10px; font-size: 14px; }
+.credit span:first-child { font-family: var(--mono); font-size: 11px; color: var(--ink-3); padding-top: 3px; }
+
+/* scanline sweep used on the title checkpoint */
+.sweep {
+  position: absolute; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+  opacity: 0.7;
+}
+
+/* ------------------------------------------- compact (phone / portrait) */
+
+body[data-display="compact"] .split { grid-template-columns: 1fr; gap: 22px; }
+body[data-display="compact"] .pin { padding: 0 22px; align-items: flex-start; padding-top: 76px; }
+body[data-display="compact"] .checkpoint { height: 200vh; }
+body[data-display="compact"] .seats { max-width: 260px; }
+body[data-display="compact"] .feed { max-height: 34vh; }
+body[data-display="compact"] .hud { font-size: 10px; left: 18px; right: 18px; top: 18px; }
+body[data-display="compact"] .credit { grid-template-columns: 1fr; gap: 2px; }
+
+@media (max-width: 860px) {
+  .split { grid-template-columns: 1fr; gap: 22px; }
+  .pin { align-items: flex-start; padding-top: 76px; }
+  .seats { max-width: 260px; }
+  .feed { max-height: 34vh; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hud-dot[data-live="true"] { animation: none; }
+  * { transition-duration: 1ms !important; }
+}
