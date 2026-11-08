@@ -1,5 +1,13 @@
 # Models on device
 
+**Кратко (RU):** на устройстве работают Zipformer-ru int8 (ASR, 3 файла +
+tokens), Silero VAD, pyannote segmentation-3.0 **float** ONNX (5 992 913 B,
+sha `220ad67c…` — не int8-экспорт!), 3D-Speaker ERes2Net (эмбеддинги) и
+Qwen2-0.5B-Instruct Q4_0 GGUF (352 969 408 B) через llama.cpp. Веса в git не
+лежат; в check-APK их кладёт `:app:prepareEmbeddedModels`, GGUF — только с
+`-PembedLlm=true`. Полный список размеров и sha256 — ниже; лицензии —
+`NOTICE.md`.
+
 Weights are **not in git** (`*.onnx`, `*.gguf`, `**/models/**` are ignored).
 They must be on the phone *before* the airplane-mode check, either packed in
 the APK assets (the judge path) or pushed with adb (the dev path).
@@ -65,6 +73,20 @@ filesDir/models/
 from `assets/models` on first launch when the build set `EMBEDDED_MODELS`.
 A missing ASR pack is reported as a stub pipeline in the UI, never faked.
 A missing GGUF reports `llm-weights-missing (intonation punct only)`.
+
+## Порядок загрузки и память
+
+Модели не резидентны одновременно: по design-решению «exclusive memory
+phases» (`ExclusivePhases.kt`, ветка agent1) ASR-сессия выгружается после
+фазы ASR и **до** загрузки GGUF; LLM остаётся тёплой между прогонами. Хостовые
+пики RSS: ASR-only ≈273 МБ, LLM-only (ctx 1024, 2 потока) ≈630 МБ; на
+эмуляторе LDPlayer полный прогон дал peak PSS ≈400 МБ
+(`artifacts/compact/exclusive-phases-experiment.json`,
+`artifacts/compact/ldplayer-real-check.json`). В compact-кандидате
+(`app-stenographer-compact.apk`) все 8 ассетов те же, GGUF **байт-в-байт**
+идентичен оригиналу, а Zipformer-encoder offline-подготовлен (init 1370→590 мс,
+вывод побайтово совпадает с оригиналом на 9 валидационных wav —
+`artifacts/compact/encoder-validation.json`).
 
 ## Runtime dependency
 
