@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Пульт ведущего — Нейро-стенографист</title>
+<link rel="stylesheet" href="./css/style.css" />
+<link rel="stylesheet" href="./css/console.css" />
+</head>
+<body data-display="compact" class="console-body">
+
+<main class="console" role="main" aria-label="Пульт ведущего">
+  <header class="console-head" role="banner">
+    <div>
+      <h1 class="console-title">Пульт ведущего</h1>
+      <div class="console-sub">чекпоинты, демо, резерв</div>
+    </div>
+    <div class="console-status">
+      <span class="hud-chip" id="c-phone">телефон: —</span>
+      <span class="hud-chip" id="c-phase">демо: —</span>
+    </div>
+  </header>
+
+  <section id="login" class="panel" role="form" aria-label="Вход">
+    <div class="panel-head"><span>доступ</span><span class="num">ADMIN_TOKEN</span></div>
+    <div class="login-row">
+      <input id="token" type="password" placeholder="токен ведущего" autocomplete="current-password" aria-label="Токен ведущего" />
+      <button id="login-btn" type="button" aria-label="Войти в пульт">Войти</button>
+    </div>
+    <p class="login-hint" id="login-hint"></p>
+  </section>
+
+  <section id="controls" class="stack" hidden role="region" aria-label="Управление презентацией">
+    <div class="panel">
+      <h2 class="panel-head"><span>чекпоинт</span><span class="num" id="c-slide">01 / 09</span></h2>
+      <div class="slide-grid" id="slide-grid"></div>
+      <div class="btn-row">
+        <button data-cmd="prev" type="button">← Назад</button>
+        <button data-cmd="next" type="button">Вперёд →</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2 class="panel-head"><span>живое демо</span><span class="num">phone → screens</span></h2>
+      <div class="btn-row">
+        <button data-cmd="begin" type="button" class="primary">Начать демо</button>
+        <button data-cmd="end" type="button">Завершить</button>
+      </div>
+      <div class="btn-row">
+        <button data-cmd="fallback" type="button" class="warn">Резерв вручную</button>
+        <button data-cmd="clear" type="button">Очистить ленту</button>
+      </div>
+      <label class="check">
+        <input type="checkbox" id="sim-toggle" />
+        <span>Симулятор для репетиции (без телефона, помечается явно)</span>
+      </label>
+      <p class="login-hint">
+        Симулятор только для прогона сцены: строки помечены <span class="num">source: simulated</span>
+        и не попадают в экспорт JSON. На защите его держать выключенным.
+      </p>
+      <label class="check">
+        <input type="checkbox" id="scroll-toggle" />
+        <span>Зал может листать сам</span>
+      </label>
+      <p class="login-hint">
+        Выключено — экраны приклеены к чекпоинту пульта. Включено — зал листает деку сам,
+        и шкала, счётчик и подпись слайда на каждом экране показывают его собственную
+        позицию. Ведёт по-прежнему пульт: любой перевод строки и любое выключение
+        тумблера возвращают все экраны к чекпоинту, поэтому разъехаться они не могут.
+        После доклада тумблер стоит включить: тогда зал сможет рассмотреть деку сам.
+      </p>
+    </div>
+
+    <div class="panel">
+      <h2 class="panel-head"><span>ссылка для зала</span><span class="num">QR</span></h2>
+      <div class="qr-row">
+        <canvas id="qr" width="180" height="180" role="img" aria-label="QR-код для зрителей"></canvas>
+        <div class="qr-side">
+          <div class="qr-url num" id="join-url">—</div>
+          <p class="login-hint">
+            Зрители сканируют код и видят тот же экран синхронно. Скролл у них заблокирован:
+            листает только сервер по команде этого пульта.
+          </p>
+          <button data-cmd="open-join" type="button">Открыть в новой вкладке</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2 class="panel-head"><span>лента</span><span class="num" id="c-rows">0 строк</span></h2>
+      <div class="console-feed" id="c-feed" role="log" aria-live="polite" aria-label="Лента транскрипта"></div>
+    </div>
+  </section>
+</main>
+
+<script src="./vendor/qrcode.js"></script>
+<script type="module" src="./js/console.js"></script>
+</body>
+</html>
