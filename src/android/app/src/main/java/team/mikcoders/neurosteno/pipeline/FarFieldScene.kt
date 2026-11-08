@@ -63,6 +63,35 @@ data class FarFieldScene(
             diarNumClusters = 0,
         )
 
+        /**
+         * Casual near-field recording (phone on a table, 1-4 people, live mic).
+         * Host sweep 2026-11-08 (scripts/mic_diar_sweep.py): raw clustering on a
+         * casual 2-speaker fixture already finds 2 labels; the stage6 seat/adopt
+         * reconcile (expectedSpeakers=6) is what fragments them into 6-8 churn
+         * labels. So casual skips FarFieldGain staging and the seat machinery
+         * (expectedSpeakers=-1 => reconcile returns diar as-is, hard cap off)
+         * and keeps stage6's high-recall VAD + auto clustering + identity merge.
+         * Frozen DEMO_STAGE6 eval rows come from the host harness (hardcoded
+         * STAGE6 params), so this app-side scene does not touch them.
+         */
+        val casual: FarFieldScene = FarFieldScene(
+            name = "casual-mic",
+            expectedSpeakers = -1,
+            vadThreshold = 0.32f,
+            vadMinSilenceSec = 0.18f,
+            vadMinSpeechSec = 0.20f,
+            vadMaxSpeechSec = 30f,
+            diarMinDurationOnSec = 0.08f,
+            diarMinDurationOffSec = 0.18f,
+            diarClusterThreshold = 0.5f,
+            asrCropPadMs = 200L,
+            orphanMinMs = 400L,
+            expandIfCoverageBelow = 0.5f,
+            expandMaxRegionMs = 1_500L,
+            mergeGapMs = 280L,
+            diarNumClusters = 0,
+        )
+
         /** Overnight diar/VAD; do not retune Path B. */
         val presentConnect: FarFieldScene = FarFieldScene(
             name = "presentConnect",
