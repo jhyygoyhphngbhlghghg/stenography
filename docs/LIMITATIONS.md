@@ -93,17 +93,32 @@ DER 0.2760, JER 0.5454, RTF 0.1173 (host Linux), спикеров в гипот�
   офлайн-sweep не перезапущен из-за adb-конфликта — офлайн-заявка опирается на
   аудит кода + успешный эмуляторный прогон (REPORT agent2).
 
-**Диаризация и длинные записи (открытые баги agent1, не исправлены)**
+**Диаризация и длинные записи**
 
-- Churn меток: DEMO_STAGE6 (3 ref-спикера) → 5 speaker ID, включая 202-мс
+- **Churn меток на живом микрофоне — исправлен в ship утром 2026-11-08**
+  (hotfix-diar-mic: `f1b6abe` + casual-mic сцена `6ae5c39`, порог слияния
+  голосов 0.45→**0.55**): демо-APK `5c9e9d76…` помечал каждую live-реплику
+  отдельным спикером, потому что `FarFieldScene.stage6` форсировал K=6 на
+  бытовых записях, а порог 0.45 лежал ниже измеренного медианного сходства
+  того же голоса в шуме (0.51). Новая **casual-mic сцена** (офлайн/demo
+  flavor) сохраняет VAD-recall stage6, но считает число спикеров
+  **автоматически** (`expectedSpeakers=-1`, reconcile возвращает диаризацию
+  как есть, near-field — без FarFieldGain-стейджинга). Провенанс: host-sweep
+  `scripts/mic_diar_sweep.py` (sherpa-onnx 2.0.1 в `.venv`) + юнит-тесты
+  (167 green); **замороженные строки DEMO_STAGE6 не переоценены** — они
+  по-прежнему измеряются stage6-риг-харнесом (сцена с жёстким K=6,
+  `scripts/host_asr_diar.py`), для casual/auto-count сцены отдельных
+  eval-строк нет и числа по ней не заявляются.
+- Исходные churn-наблюдения agent1 (до hotfix, остаются как история):
+  DEMO_STAGE6 (3 ref-спикера) → 5 speaker ID, включая 202-мс
   сегмент с пустым текстом; `alternating_two_voices` (2 спикера) → первый
   блок `speaker_3`, остальное `speaker_9`; `E2E-2SPK_RU` (2 спикера) →
   сливается в один `speaker_1` (REPORT agent1, issue №2).
 - Длинное аудио: 200-с `bench_long.wav` → pyannote «No speakers found in the
-  audio samples», 0 сегментов (host) (REPORT agent1, issue №3).
+  audio samples», 0 сегментов (host) — **не исправлено** (REPORT agent1, issue №3).
 - EN / code-switching непроверяемы: в checkout agent1 слот backup-ASR
   `models/asr/whisper-tiny/` пуст — фактически доступен только RU Zipformer
-  (REPORT agent1, issue №4).
+  (REPORT agent1, issue №4). **Демо-APK — RU-only.**
 
 **Сборка**
 
@@ -123,6 +138,11 @@ DER 0.2760, JER 0.5454, RTF 0.1173 (host Linux), спикеров в гипот�
   отклоняет кандидатов с изменёнными содержательными словами; цена — до
   ~2.2 с на реплику. Реплики длиннее 1664 знаков GGUF не получает —
   эвристическая пунктуация (REPORT agent2, `evidence.json`).
+- **On-device GGUF-пунктуация медленная под ARM-трансляцией**: LLM-фаза
+  ~330 с на 42-с фикстуре (LDPlayer SOV44, x86_64+Houdini,
+  `artifacts/compact/ldplayer-real-check.json`); в smoke v1 43-с запись не
+  прошла полный пайплайн за ~19 мин (`artifacts/SMOKE_PRESENTCONNECT.md`).
+  На arm64-телефоне ожидается быстрее, но замер не выполнен.
 - На ABI кроме arm64-v8a GGUF-движка нет (AAR arm64-only) — деградация до
   эвристики, UI это пишет.
 - UI-мелочь не исправлена: строка `engineName = "llama.cpp GGUF …"`
@@ -139,12 +159,21 @@ DER 0.2760, JER 0.5454, RTF 0.1173 (host Linux), спикеров в гипот�
 
 **Диаризация**
 
-- Hard cap **6** спикеров — только в сцене DEMO_STAGE6 (`FarFieldScene`); во
-  flavor presentConnect — auto-кластеризация. Cap измерен на хосте
+- Hard cap **6** спикеров — только в сцене DEMO_STAGE6 (`FarFieldScene`);
+  casual-mic сцена офлайн-flavor'а (hotfix 2026-11-08) и flavor
+  presentConnect используют auto-кластеризацию. Cap измерен на хосте
   (гипотеза 6/6), на физическом устройстве не подтверждён.
 
 **Живая трансляция / сервер**
 
+- **App→deck дым-тест 2026-11-08**: v1 — **FAIL** (hello отправлял `models`
+  строкой, сервер ждал массив → `BAD_MESSAGE`, телефон не регистрировался);
+  исправлено `f98bb03`, v2 re-smoke — handshake **PASS**
+  (`phone_connected:true`), но строки транскрипта **из приложения** на дек
+  не доставлены — **TIMEOUT** (0 строк за 8-мин бокс, тихий рестарт процесса
+  на memory-tight эмуляторе). Живые 6 строк на деке доказаны curl-путём
+  (agent3), не app-клиентом. Отчёты: `artifacts/SMOKE_PRESENTCONNECT.md`,
+  `artifacts/SMOKE_PRESENTCONNECT_V2.md`.
 - Демо-токены `09879078` (телефон и пульт) — **слабые по замыслу**: стенд
   публичный, секретов нет, но и защиты нет (REPORT agent4 §2; значения в
   `src/web/backend/src/config.ts` и в live-env).

@@ -20,6 +20,7 @@ REPORT agent1 — реконструкция погибшей сессии по 
 | agent1-mobile-e2e (свежая чистая сборка) | `1906eaa` | **145** (24 suites), прогнаны дважды | 0 | REPORT agent1 §1.2 |
 | ветка agent2 (LLM+экспорт) | `06da663` | **147** (gradle-прогон `testStenographerDebugUnitTest`, XML-результаты) | 0 | wt-a2 `src/android/app/build/test-results/` |
 | ветка продуктовых фич / сводное дерево ship | `7912c20` / ship | **166 @Test-методов, 27 классов**; последний полный gradle-прогон green | 0 | REPORT agent5 §1 |
+| итоговое дерево `ship` == `main` (hotfix-diar-mic + protocol-fix + merge github/main) | `312253a` | **167 @Test** (166 до hotfix `6ae5c39`, +1 `PerTurnGainTest`); единый `src/test` — одинаковый набор на оба flavor'а (166/167 по состоянию дерева на flavor) | 0 | commit-log `6ae5c39` («Unit tests green (167)»), строки `unit_tests_*_ship` в `artifacts/test-results/results.csv` |
 | веб-бэкенд (`npx tsx --test`) | `agent4-web-sync-qr` | **9/9** после фикса desync в `server.test.ts`; `typecheck`/`build` exit 0 | 0 | REPORT agent4 §1 |
 | host-зеркала (python) | — | 61 + 18 (A-12) | 0 | `ci-check`, agent1 verification |
 
@@ -82,6 +83,25 @@ host-кросс-чек тех же WAV). Открытые баги agent1 (churn
 | 6-спикерный раунд (800–39 800 мс, последовательно, RU-реплики формы DEMO_STAGE6) | `accepted:6`, `phone_connected:true`, `rows:6`; экспорт содержит все 6 |
 | дек на слайде `demo` (index 4) | LIVE-бейдж, HUD-строки 03–06, `banner:null`, `scroll_locked:true`, `body.innerText` содержит все 6 реплик |
 | видео-подтверждение | **GIF `artifacts/agent3/gif/deck-live-6spk.gif`** (640×601, 2 fps, 3 с) + покадровые PNG |
+
+### App-side smoke: presentConnect APK → hosted deck (2026-11-08, LDPlayer emulator-5554)
+
+Дым-тест **из приложения** (не curl) против боевого сервера
+`https://present.144.31.215.37.sslip.io/` (сессия `sess_ae2be978110d`,
+токен `09879078`). Полные отчёты: `artifacts/SMOKE_PRESENTCONNECT.md` (v1),
+`artifacts/SMOKE_PRESENTCONNECT_V2.md` (v2); строки — в
+`artifacts/test-results/results.csv` (`smoke_presentconnect_*`).
+
+| прогон | APK | результат |
+|---|---|---|
+| v1, 07:56–08:25 | `app-presentConnect-debug.apk` @ship `0bb8fab` (sha `b6afa283…`, 508 839 870 B) | **FAIL**: WS-`hello` отправлял `models` JSON-**строкой**, серверная zod-схема ждёт массив → `BAD_MESSAGE`, телефон не зарегистрирован (`phone_connected:false`), кнопка публикации не активировалась, `rows_pushed:0`. Установка/JNI/встроенные модели/микрофон/WS+token транспорт — OK; офлайн-проба «Расшифровать» на 43-с записи не завершилась за ~19 мин (ARM-трансляция, GGUF-пунктуация) — INCONCLUSIVE |
+| фикс | `f98bb03` | `models` отправляется массивом (две точки в `OkHttpPresentConnectClient.kt`); пересборка `app-presentConnect-debug-v2-protofix.apk` (sha `d327acbb…`, 509 012 604 B) |
+| v2 re-smoke, 08:43–08:55 | v2-protofix APK | **Criterion 1 (handshake): PASS** — `hello` принят за ~4 с, `phone_connected:true`, `phone_stub:false`, `BAD_MESSAGE` исчез, связь держалась до конца теста. **Criterion 2 (пуш строк из приложения): TIMEOUT** — 23-с live-запись реально взята (appops `+23s218ms`), но `rows_pushed:0` за 8-минутный бокс: процесс приложения тихо перезапущен на memory-tight эмуляторе, состояние записи потеряно; WS авто-переподключился, протокольных отказов не наблюдалось. Строки дека **из приложения** не доказаны |
+
+Честный итог: транспорт и регистрация телефона из приложения доказаны (v2
+PASS); живые строки на деке доказаны только curl-путём (таблица agent3 выше).
+Повтор criterion 2 — на свежеребутованном эмуляторе/телефоне (слот видеозаписи
+`artifacts/demo/`, PENDING).
 
 ### Веб: синхронизация и QR-вход (agent4)
 

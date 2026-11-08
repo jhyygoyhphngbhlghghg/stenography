@@ -8,13 +8,13 @@
 
 | Материал | Где |
 |---|---|
-| APK | GitHub Releases: [v0.1.0-stage6](https://github.com/jhyygoyhphngbhlghghg/stenography/releases/tag/v0.1.0-stage6) + финальный демо-релиз ([страница релизов](https://github.com/jhyygoyhphngbhlghghg/stenography/releases)); в git бинарники не лежат — таблица sha256 в `apk/README.md` и в корневом `README.md` |
+| APK | GitHub Releases: **[v0.2.0-demo](https://github.com/jhyygoyhphngbhlghghg/stenography/releases/tag/v0.2.0-demo)** (демо-артефакты) + [v0.1.0-stage6](https://github.com/jhyygoyhphngbhlghghg/stenography/releases/tag/v0.1.0-stage6) (замеренный снимок); в git бинарники не лежат — таблица sha256 в `apk/README.md` и в корневом `README.md` |
 | исходный код | `src/android/`, `src/web/` |
 | инструкция | этот файл |
 | архитектура и модели | `docs/ARCHITECTURE.md`, `docs/MODELS.md` |
 | ограничения | `docs/LIMITATIONS.md` |
 | результаты собственных тестов | `docs/TEST_RESULTS.md`, `artifacts/test-results/results.csv`, `artifacts/eval/` |
-| видеодемонстрация | `docs/DEMO.md`, `docs/demo/` |
+| видеодемонстрация | `artifacts/demo/` (слот, PENDING), сценарий `docs/DEMO.md`, чеклист `docs/demo/README.md` |
 
 ## Требования к устройству
 
@@ -33,7 +33,22 @@
 (LDPlayer/AVD, ARM-трансляция) — установка, распаковка моделей, JNI, живой
 пайплайн, экспорт. Подробности и провенанс — `docs/TEST_RESULTS.md`.
 
-## Вариант 1 (рекомендуемый): app-stenographer-debug-embedLlm.apk — всё на устройстве
+## Вариант 0 (рекомендуемый для демо): app-stenographer-debug-v2-diar-fixed.apk — релиз v0.2.0-demo
+
+508 947 140 B, sha256 `ecb0ef3c…f001`. Ветка `ship`: все протестированные
+фичи + фикс churn-диаризации живого микрофона (casual-mic сцена с
+авто-числом спикеров, порог слияния голосов 0.55). Все веса (7 файлов) и GGUF
+локальной LLM внутри — установка и запуск такие же, как в варианте 1:
+
+```bash
+adb install -r app-stenographer-debug-v2-diar-fixed.apk
+```
+
+Разрешения, распаковка моделей при первом офлайн-запуске и проверка шапки —
+как в варианте 1 ниже. Ассеты v0.1.0-stage6 собраны **до** фикса диаризации
+(см. `apk/README.md`); для демонстрации используйте v0.2.0-demo.
+
+## Вариант 1: app-stenographer-debug-embedLlm.apk (v0.1.0-stage6) — всё на устройстве
 
 573 498 719 B, sha256 `f89bc45a…3678`. Внутри 8 ассетов (472 435 459 B):
 ASR+VAD+диаризация (7 файлов) **и** GGUF локальной LLM. Ничего докачивать не
@@ -69,13 +84,23 @@ adb push models/llm /sdcard/Android/data/team.mikcoders.neurosteno/files/models/
 После push перезапустить приложение — строка `LLM:` должна смениться на
 `llama.cpp GGUF qwen2-0_5b-instruct-q4_0.gguf`.
 
-## Вариант 3: app-presentConnect-debug.apk — демо-стенд живой трансляции
+## Вариант 3: app-presentConnect-debug-v2-protofix.apk — демо-стенд живой трансляции
 
-220 401 103 B, sha256 `b9afd39f…0d83`. Flavor `presentConnect`
-(`applicationIdSuffix .present`), телефон-воркер ≤20 изолированных потоков,
-протокол `present-connect/1` (контракт — `docs/PRESENT_CONNECT.md`).
+**509 012 604 B, sha256 `d327acbb…b0a1`, релиз [v0.2.0-demo](https://github.com/jhyygoyhphngbhlghghg/stenography/releases/tag/v0.2.0-demo)** —
+единственный APK, которым можно работать против демо-стенда: token-wired
+клиент `present-connect/1` + фикс `hello` models-array (`f98bb03`); веса и
+GGUF внутри. Flavor `presentConnect` (`applicationIdSuffix .present`),
+телефон-воркер ≤20 изолированных потоков (контракт — `docs/PRESENT_CONNECT.md`).
 **Это сетевой режим**: нужен доступ до презентационного бэкенда (не до
 облачного ASR — распознавание всё равно на телефоне).
+
+> Ассет `app-presentConnect-debug.apk` из v0.1.0-stage6 (220 401 103 B,
+> sha256 `b9afd39f…0d83`) **не подходит для стенда**: собран до `1906eaa`
+> (баг churn-диаризации), в нём нет клиента телефонного токена и фикса
+> протокола — сервер с `PHONE_TOKEN` его не зарегистрирует. Дым-тест v2-APK
+> против живого дека:
+> handshake **PASS**, пуш строк из приложения на эмуляторе — **TIMEOUT**
+> (`artifacts/SMOKE_PRESENTCONNECT_V2.md`, `docs/TEST_RESULTS.md`).
 
 Параметры демо-стенда:
 

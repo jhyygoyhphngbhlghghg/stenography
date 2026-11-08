@@ -54,7 +54,8 @@ Merged-tree verification (2026-11-07, this machine — see `docs/TEST_RESULTS.md
 | File | What |
 |---|---|
 | `model-download-run-2026-11-07.csv` | today's re-download of all weights (http code, bytes, wall_ms, sha256) — matched 8/8 against `models-checksums.sha256` above |
-| `results.csv` | three `measured-host-synthetic` clip rows + three `pending` `check_apk_*` slots; every row carries its provenance `status` |
+| `results.csv` | three `measured-host-synthetic` clip rows + three `pending` `check_apk_*` slots + **ship-сводка 2026-11-08**: unit tests per flavor @ship (PASS, 166→167), emulator e2e (agent1/agent2/agent5, PASS с честными оговорками), offline export matrix (PASS, PDF-кириллица caveat), web sync/QR (PASS), hosted-deck 6 спикеров через curl (PASS, не app-push), present-connect smoke v1 (**FAIL** — hello models-string bug) и v2 re-smoke (handshake **PASS**, app→deck rows **TIMEOUT**); каждая строка несёт провенанс в `status`/`notes` |
+| `../SMOKE_PRESENTCONNECT.md` / `../SMOKE_PRESENTCONNECT_V2.md` | полные отчёты дым-теста presentConnect APK → живой hosted deck (v1 FAIL / v2 handshake PASS + rows TIMEOUT), индексы evidence-файлов |
 
 APKs themselves (210 MiB check, 547 MiB with the GGUF, 210 MiB presentConnect,
 93 MiB slim) are **not** in git — they are Release assets under
